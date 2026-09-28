@@ -19,7 +19,7 @@ namespace SpatialAI.Cardboard
         public bool scanCardboardViewerOnStart;
         [Tooltip("Only for the sample: load generic Cardboard I/O 2015 viewer parameters when none are saved. Never use these parameters to validate RhinoX optics.")]
         public bool useGenericViewerForDiagnostics;
-        [Tooltip("Use the legacy RhinoX 221108 dual-eye distortion mesh only on the known RhinoX Android device. Calibration still requires visual verification.")]
+        [Tooltip("Use the historical RhinoX Pro Sharp dual-eye distortion mesh only on the known RhinoX Android device. Calibration still requires visual verification.")]
         public bool useRhinoXLegacyMeshForDiagnostics;
         public DeviceIdentity Identity { get; private set; }
         public OpticalProfileDescriptor MatchedProfile { get; private set; }
@@ -64,7 +64,7 @@ namespace SpatialAI.Cardboard
                 {
                     SetRhinoXLegacyMesh(1);
                     rhinoXNativeApiAvailable = true;
-                    Debug.Log("Spatial AI requested RhinoX legacy mesh 221108; waiting for native render reload.");
+                    Debug.Log("Spatial AI requested RhinoX Pro Sharp mesh; waiting for native render reload.");
                 }
                 catch (Exception e) { Debug.LogError("RhinoX native mesh API unavailable: " + e.Message); }
             }

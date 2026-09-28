@@ -25,9 +25,13 @@ if ($revision -ne '67bee10850562bf8cbe563a22b47eca8ffd8f1eb') {
 }
 if (Test-Path -LiteralPath $nativeMesh) {
     if ((Get-FileHash -LiteralPath $nativeMesh -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $mesh -Algorithm SHA256).Hash) {
-        throw 'RhinoX mesh source in Cardboard checkout differs from the tracked file.'
+        Copy-Item -LiteralPath $mesh -Destination $nativeMesh -Force
+        (Get-Item -LiteralPath $nativeMesh).LastWriteTime = Get-Date
     }
-} else { Copy-Item -LiteralPath $mesh -Destination $nativeMesh }
+} else {
+    Copy-Item -LiteralPath $mesh -Destination $nativeMesh
+    (Get-Item -LiteralPath $nativeMesh).LastWriteTime = Get-Date
+}
 git -C $native apply --reverse --check $patch 2>$null
 if ($LASTEXITCODE -ne 0) {
     git -C $native apply --check $patch

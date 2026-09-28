@@ -1,5 +1,5 @@
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..ce29402 100644
+index 6dd7d61..db21423 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 @@ -20,6 +20,7 @@
@@ -14,23 +14,23 @@ index 6dd7d61..ce29402 100644
  #include <string>
  #include <vector>
  
-+// RhinoX legacy production mesh, selected by gMeshVersion=221108 in SXR-SDK-405.
++// RhinoX Pro mesh selected by the default branch of Sharp_2k_Seperate.
 +// Keep this adaptation at the Cardboard boundary; Unity never depends on its format.
-+extern const float gNEDPLUS_2k_Verts_L_221108[];
-+extern const float gNEDPLUS_2k_UVs_L_221108[];
-+extern const unsigned int gNEDPLUS_2k_Tris_L_221108[];
-+extern int gNEDPLUS_2k_Verts_L_Count_221108;
-+extern int gNEDPLUS_2k_Tris_L_Count_221108;
-+extern const float gNEDPLUS_2k_Verts_R_221108[];
-+extern const float gNEDPLUS_2k_UVs_R_221108[];
-+extern const unsigned int gNEDPLUS_2k_Tris_R_221108[];
-+extern int gNEDPLUS_2k_Verts_R_Count_221108;
-+extern int gNEDPLUS_2k_Tris_R_Count_221108;
++extern float gXimmerseAR_WarpMesh_Verts_L[];
++extern float gXimmerseAR_WarpMesh_UVs_L[];
++extern unsigned int gXimmerseAR_WarpMesh_Tris_L[];
++extern int gXimmerseAR_WarpMesh_Verts_L_Count;
++extern int gXimmerseAR_WarpMesh_Tris_L_Count;
++extern float gXimmerseAR_WarpMesh_Verts_R[];
++extern float gXimmerseAR_WarpMesh_UVs_R[];
++extern unsigned int gXimmerseAR_WarpMesh_Tris_R[];
++extern int gXimmerseAR_WarpMesh_Verts_R_Count;
++extern int gXimmerseAR_WarpMesh_Tris_R_Count;
 +
  // The following block makes log macros available for Android and iOS.
  #if defined(__ANDROID__)
  #include <android/log.h>
-@@ -66,6 +80,70 @@ void NSLog(CFStringRef format, ...);
+@@ -66,6 +80,68 @@ void NSLog(CFStringRef format, ...);
  
  namespace cardboard::unity {
  
@@ -48,7 +48,7 @@ index 6dd7d61..ce29402 100644
 +RhinoXMeshStorage MakeRhinoXMesh(const float* positions, const float* uv4,
 +                                 int component_count,
 +                                 const unsigned int* triangles,
-+                                 int triangle_index_count, bool right_eye) {
++                                 int triangle_index_count) {
 +  RhinoXMeshStorage out;
 +  if (component_count <= 0 || component_count % 3 != 0 ||
 +      triangle_index_count <= 0 || triangle_index_count % 3 != 0) return out;
@@ -56,14 +56,12 @@ index 6dd7d61..ce29402 100644
 +  out.vertices.reserve(vertex_count * 2);
 +  out.uvs.reserve(vertex_count * 2);
 +  for (int i = 0; i < vertex_count; ++i) {
-+    // SXR positions are full-screen clip coordinates. UV axes are transposed,
-+    // and the right eye's two UV axes run opposite to the left eye's.
++    // RhinoX Pro mesh positions are full-screen clip coordinates. The
++    // historical UVs are [-1, 1], with V increasing from top to bottom.
 +    out.vertices.push_back(positions[i * 3]);
 +    out.vertices.push_back(positions[i * 3 + 1]);
-+    out.uvs.push_back((right_eye ? 1.0f - uv4[i * 4 + 1]
-+                                : uv4[i * 4 + 1] + 1.0f) * 0.5f);
-+    out.uvs.push_back((right_eye ? uv4[i * 4] + 1.0f
-+                                : 1.0f - uv4[i * 4]) * 0.5f);
++    out.uvs.push_back((uv4[i * 4] + 1.0f) * 0.5f);
++    out.uvs.push_back((1.0f - uv4[i * 4 + 1]) * 0.5f);
 +  }
 +  // Cardboard uses GL_TRIANGLE_STRIP; SXR stores independent triangles.
 +  // Six indices per following triangle preserve winding via degenerate joins.
@@ -87,13 +85,13 @@ index 6dd7d61..ce29402 100644
 +
 +RhinoXMeshStorage& RhinoXMesh(CardboardEye eye) {
 +  static RhinoXMeshStorage left = MakeRhinoXMesh(
-+      gNEDPLUS_2k_Verts_L_221108, gNEDPLUS_2k_UVs_L_221108,
-+      gNEDPLUS_2k_Verts_L_Count_221108, gNEDPLUS_2k_Tris_L_221108,
-+      gNEDPLUS_2k_Tris_L_Count_221108, false);
++      gXimmerseAR_WarpMesh_Verts_L, gXimmerseAR_WarpMesh_UVs_L,
++      gXimmerseAR_WarpMesh_Verts_L_Count, gXimmerseAR_WarpMesh_Tris_L,
++      gXimmerseAR_WarpMesh_Tris_L_Count);
 +  static RhinoXMeshStorage right = MakeRhinoXMesh(
-+      gNEDPLUS_2k_Verts_R_221108, gNEDPLUS_2k_UVs_R_221108,
-+      gNEDPLUS_2k_Verts_R_Count_221108, gNEDPLUS_2k_Tris_R_221108,
-+      gNEDPLUS_2k_Tris_R_Count_221108, true);
++      gXimmerseAR_WarpMesh_Verts_R, gXimmerseAR_WarpMesh_UVs_R,
++      gXimmerseAR_WarpMesh_Verts_R_Count, gXimmerseAR_WarpMesh_Tris_R,
++      gXimmerseAR_WarpMesh_Tris_R_Count);
 +  return eye == CardboardEye::kLeft ? left : right;
 +}
 +}  // namespace
@@ -101,24 +99,24 @@ index 6dd7d61..ce29402 100644
  std::atomic<CardboardDisplayApi::ScreenParams>
      CardboardDisplayApi::unity_screen_params_({0, 0, 0, 0, 0, 0});
  
-@@ -188,6 +266,16 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -188,6 +264,16 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        lens_distortion, CardboardEye::kRight,
        &eye_data_[CardboardEye::kRight].distortion_mesh);
  
 +  const bool use_rhinox_mesh = rhinox_legacy_mesh_enabled &&
 +      screen_params_.width == 4320 && screen_params_.height == 2160 &&
-+      RhinoXMesh(CardboardEye::kLeft).mesh.n_vertices == 6069 &&
-+      RhinoXMesh(CardboardEye::kRight).mesh.n_vertices == 6069;
++      RhinoXMesh(CardboardEye::kLeft).mesh.n_vertices == 2601 &&
++      RhinoXMesh(CardboardEye::kRight).mesh.n_vertices == 2601;
 +  rhinox_legacy_mesh_applied = use_rhinox_mesh;
 +  if (use_rhinox_mesh) {
 +    eye_data_[CardboardEye::kLeft].distortion_mesh = RhinoXMesh(CardboardEye::kLeft).mesh;
 +    eye_data_[CardboardEye::kRight].distortion_mesh = RhinoXMesh(CardboardEye::kRight).mesh;
-+    LOGD("Spatial AI RhinoX mesh 221108 active: %d vertices/eye", 6069);
++    LOGD("Spatial AI RhinoX Pro Sharp mesh active: %d vertices/eye", 2601);
 +  }
    CardboardDistortionRenderer_setMesh(
        distortion_renderer_.get(),
        &eye_data_[CardboardEye::kLeft].distortion_mesh, CardboardEye::kLeft);
-@@ -207,6 +295,19 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -207,6 +293,19 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    CardboardLensDistortion_getFieldOfView(lens_distortion, CardboardEye::kRight,
                                           eye_data_[CardboardEye::kRight].fov);
  
@@ -138,7 +136,7 @@ index 6dd7d61..ce29402 100644
    CardboardLensDistortion_destroy(lens_distortion);
  }
  
-@@ -384,6 +485,16 @@ void CardboardUnity_setDeviceParametersChanged() {
+@@ -384,6 +483,16 @@ void CardboardUnity_setDeviceParametersChanged() {
    cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
  }
  

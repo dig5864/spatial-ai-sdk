@@ -15,4 +15,6 @@
 
 Sample 在 Android 读取 `Build.MANUFACTURER`、`MODEL`、`DEVICE`，在 iOS 使用 Unity 报告的手机型号；这都是手机身份。未来外接眼镜的真实 ID 由设备服务填入 `SpatialCardboardBridge.headsetDeviceId`。当前已知的一体机身份 `QUALCOMM / RhinoX / kona` 会精确映射到 RhinoX Pro 历史参考参数，不会仅凭通用 `kona` 代码匹配其他设备。该参数尚未完成硬件校准，因此正式配置校验仍会拒绝。独立 3DoF 手柄尚未接入；iPhone 外接 RhinoX 的显示路由、通信和头姿仍需单独实现。
 
-RhinoX Android 诊断版使用历史工程启用的 `221108` 左右眼网格。首次使用前，在 SDK 根目录运行 `tools/BuildRhinoXCardboard.ps1`，它按固定的 Cardboard v1.30.1 源码和仓库内补丁编译 Android arm64 库，生成 `third_party/rhinox/GfxPluginCardboard-rhinox.aar`，并替换本地 Unity Cardboard 插件的 Android AAR。场景中 `Use Rhino X Legacy Mesh For Diagnostics` 已启用。运行时状态显示 `RhinoX legacy mesh 221108: applied` 才说明原生渲染器使用了该网格；其他设备继续使用 Cardboard 网格。可在场景根节点取消该选项进行对照。显示生效不等于光学验收，仍需在眼镜中检查双眼对齐、畸变方向和视场边缘。
+RhinoX Android 诊断版使用历史 RhinoX Pro 分支的 `Sharp_2k_Seperate` 默认 `gXimmerseAR_WarpMesh` 左右眼网格。首次使用前，在 SDK 根目录运行 `tools/BuildRhinoXCardboard.ps1`，它按固定的 Cardboard v1.30.1 源码和仓库内补丁编译 Android arm64 库，生成 `third_party/rhinox/GfxPluginCardboard-rhinox.aar`，并替换本地 Unity Cardboard 插件的 Android AAR。场景中 `Use Rhino X Legacy Mesh For Diagnostics` 已启用。运行时状态显示 `RhinoX Pro Sharp mesh: applied` 才说明原生渲染器使用了该网格；其他设备继续使用 Cardboard 网格。可在场景根节点取消该选项进行对照。显示生效不等于光学验收，仍需在眼镜中检查双眼对齐、畸变方向和视场边缘。
+
+光学对比场景位于 `Assets/Scenes/OpticsComparison.unity`，可通过 `Spatial AI > Create Optics Comparison Scene` 生成，并通过 `Spatial AI > Build Optics Comparison APK` 构建到 `build/samples/android/optics-comparison.apk`。它与历史工程 `OpticsReference` 使用字节完全相同的 2160×2160 测试图，分别交给两套 XR Runtime 做畸变。两张真机原始截图需要比较每眼方向、中心、网格线与边缘；当前尚未达到光学等效验收。
