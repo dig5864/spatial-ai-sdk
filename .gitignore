@@ -1,0 +1,11 @@
+build/
+dist/
+**/bin/
+**/obj/
+**/Library/
+**/Temp/
+**/Logs/
+**/UserSettings/
+third_party/checkouts/
+third_party/archives/
+*.tgz

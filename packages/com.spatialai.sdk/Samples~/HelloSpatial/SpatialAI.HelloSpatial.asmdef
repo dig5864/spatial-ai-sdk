@@ -1,0 +1,1 @@
+{ "name": "SpatialAI.HelloSpatial", "references": ["SpatialAI.Core", "SpatialAI.Unity"] }

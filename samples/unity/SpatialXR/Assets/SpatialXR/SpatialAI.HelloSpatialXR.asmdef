@@ -1,0 +1,8 @@
+{
+  "name": "SpatialAI.HelloSpatialXR",
+  "references": ["SpatialAI.Core", "SpatialAI.Unity", "SpatialAI.Cardboard"],
+  "defineConstraints": ["SPATIALAI_HAS_CARDBOARD"],
+  "versionDefines": [
+    { "name": "com.google.xr.cardboard", "expression": "1.30.0", "define": "SPATIALAI_HAS_CARDBOARD" }
+  ]
+}

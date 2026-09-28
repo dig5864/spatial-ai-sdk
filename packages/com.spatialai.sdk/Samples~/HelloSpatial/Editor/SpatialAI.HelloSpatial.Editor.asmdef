@@ -1,0 +1,1 @@
+{ "name": "SpatialAI.HelloSpatial.Editor", "references": ["SpatialAI.HelloSpatial", "SpatialAI.Unity"], "includePlatforms": ["Editor"] }

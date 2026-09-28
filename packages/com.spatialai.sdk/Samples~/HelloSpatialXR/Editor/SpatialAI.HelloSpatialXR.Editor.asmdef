@@ -1,0 +1,9 @@
+{
+  "name": "SpatialAI.HelloSpatialXR.Editor",
+  "references": ["SpatialAI.HelloSpatialXR", "SpatialAI.Cardboard", "Unity.InputSystem"],
+  "includePlatforms": ["Editor"],
+  "defineConstraints": ["SPATIALAI_HAS_CARDBOARD"],
+  "versionDefines": [
+    { "name": "com.google.xr.cardboard", "expression": "1.30.0", "define": "SPATIALAI_HAS_CARDBOARD" }
+  ]
+}

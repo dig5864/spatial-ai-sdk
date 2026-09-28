@@ -1,0 +1,5 @@
+{
+  "name": "SpatialAI.Core",
+  "rootNamespace": "SpatialAI.Core",
+  "noEngineReferences": true
+}

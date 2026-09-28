@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "repositories": [
+    {
+      "id": "cardboard",
+      "url": "https://github.com/googlevr/cardboard.git",
+      "tag": "v1.35.0",
+      "commit": "5969239e7c87f4cd64c8ec170ce1e7f4eb559e37",
+      "directory": "cardboard-sparse",
+      "sparsePatterns": ["/sdk/", "/third_party/unity_plugin_api/", "/LICENSE", "/README.md"]
+    },
+    {
+      "id": "cardboard-xr-plugin",
+      "url": "https://github.com/googlevr/cardboard-xr-plugin.git",
+      "tag": "v1.35.0",
+      "commit": "36ac9815b8f191fe11e149b7f323368fa86655a6",
+      "directory": "cardboard-xr-plugin",
+      "sparsePatterns": ["/Runtime/", "/Editor/", "/Resources/", "/Samples~/", "/package.json", "/package.json.meta", "/LICENSE.md", "/LICENSE.md.meta", "/README.md", "/README.md.meta", "/Runtime.meta", "/Editor.meta", "/Resources.meta", "/Samples~.meta"]
+    }
+  ]
+}

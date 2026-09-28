@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "profileId": "rhinox-pro-legacy-reference",
+  "deviceModel": "RhinoXPro",
+  "deviceIds": ["RhinoX", "RhinoXPro"],
+  "calibrationVersion": "unverified-legacy-reference",
+  "validatedForHardware": false,
+  "eyeWidth": 2160,
+  "eyeHeight": 2160,
+  "ipdMetres": 0.062,
+  "meshAssetHash": "",
+  "source": "SDK/SXR-SDK-405/sxrApi/sxrApi/private/ParamLoader/Param_RhinoXPro.cpp",
+  "note": "Reference metadata only. Not loaded by the simulator; projection, mesh and per-device calibration must be integrated before hardware use."
+}

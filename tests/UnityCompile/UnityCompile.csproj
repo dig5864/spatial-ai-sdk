@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>UNITY_EDITOR</DefineConstants>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../packages/com.spatialai.sdk/**/*.cs" />
+    <Reference Include="$(UnityManagedDir)/UnityEngine.dll" />
+    <Reference Include="$(UnityManagedDir)/UnityEditor.dll" />
+    <Reference Include="$(UnityManagedDir)/UnityEngine/*.dll" />
+  </ItemGroup>
+  <Target Name="CheckUnityPath" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(UnityManagedDir)/UnityEngine.dll')" Text="Pass -p:UnityManagedDir=.../Editor/Data/Managed. This is a reference compile only, not an editor certification test." />
+  </Target>
+</Project>

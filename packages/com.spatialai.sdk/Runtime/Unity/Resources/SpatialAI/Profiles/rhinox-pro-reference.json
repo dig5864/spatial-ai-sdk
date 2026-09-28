@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "profileId": "rhinox-pro-legacy-reference",
+  "deviceModel": "RhinoXPro",
+  "deviceIds": ["RhinoX", "RhinoXPro"],
+  "calibrationVersion": "unverified-legacy-reference",
+  "validatedForHardware": false,
+  "eyeWidth": 2160,
+  "eyeHeight": 2160,
+  "ipdMetres": 0.062,
+  "meshAssetHash": ""
+}
