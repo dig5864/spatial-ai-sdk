@@ -1,6 +1,6 @@
 # Cardboard 上游基线
 
-已固定两个仓库的版本，并完成原生 SDK 的 Android arm64 编译。版本记录在 `cardboard.lock.json`；源码使用稀疏检出，保持上游文件不修改。当前没有上游补丁。
+已固定两个仓库的版本，并完成原生 SDK 的 Android arm64 编译。通用候选版本记录在 `cardboard.lock.json`；源码使用稀疏检出，保持上游文件不修改。Unity 2022 RhinoX 诊断版另行固定 Cardboard v1.30.1，在 `third_party/rhinox/` 保存原生补丁和网格数据，并通过 `tools/BuildRhinoXCardboard.ps1` 生成对应的 Android AAR。
 
 | 项目 | 地址 | 候选版本 | 状态 |
 | --- | --- | --- | --- |

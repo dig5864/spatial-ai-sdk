@@ -118,7 +118,7 @@ namespace SpatialAI.Samples
                 "Display " + display + "  Viewer " + viewer + "\n" +
                 "Head " + pose + "  " + gaze + "\n" +
                 "Hits " + hits + "  Last " + lastActivation + "\n" +
-                "RhinoX optics: unverified";
+                "RhinoX mesh 221108: " + (bridge != null && bridge.RhinoXLegacyMeshApplied ? "ON" : "OFF") + " (unverified)";
         }
 
         private void OnGUI()
@@ -136,7 +136,7 @@ namespace SpatialAI.Samples
                 GUILayout.Label("Matched optics: " + bridge.MatchedProfile.profileId);
             if (bridge != null && !bridge.ProfileResult.Success)
                 GUILayout.Label("Optics status: " + bridge.ProfileResult.Message);
-            GUILayout.Label("Cardboard renders with its viewer profile; RhinoX OST calibration is not applied.");
+            GUILayout.Label("RhinoX legacy mesh 221108: " + (bridge != null && bridge.RhinoXLegacyMeshApplied ? "applied" : "not applied") + "; visual calibration pending.");
             GUILayout.Label("Head pose availability is not a sensor health check.");
             GUILayout.EndArea();
         }

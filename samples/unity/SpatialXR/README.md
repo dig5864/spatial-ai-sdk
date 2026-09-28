@@ -13,4 +13,6 @@
 
 此示例在 Android 没有保存 Viewer 参数时，会自动载入 Cardboard I/O 2015 **通用测试参数**，以便先验证画面、头姿和注视交互；画面标记 `GENERIC TEST ONLY`。该参数与 RhinoX Pro 的镜片、屏幕位置及 OST 畸变无关，不能用于图像质量或光学验收。拿到真实 Viewer 二维码后，可通过 Cardboard 齿轮入口扫描替换；也可以取消场景根节点 `SpatialCardboardBridge` 的 `Use Generic Viewer For Diagnostics`，要求必须使用真实参数。
 
-Sample 在 Android 读取 `Build.MANUFACTURER`、`MODEL`、`DEVICE`，在 iOS 使用 Unity 报告的手机型号；这都是手机身份。未来外接眼镜的真实 ID 由设备服务填入 `SpatialCardboardBridge.headsetDeviceId`。当前 RhinoX Pro 命中的只是历史参考参数，校验会拒绝用于正式光学配置。Cardboard XR Plugin 仍使用它自己的 Viewer 参数渲染；没有接入 RhinoX OST 畸变网格或独立 3DoF 手柄。iPhone 插入式 Cardboard 的基线可由现有插件覆盖；iPhone 外接 RhinoX 的显示路由、通信和头姿必须另外实现并验收。
+Sample 在 Android 读取 `Build.MANUFACTURER`、`MODEL`、`DEVICE`，在 iOS 使用 Unity 报告的手机型号；这都是手机身份。未来外接眼镜的真实 ID 由设备服务填入 `SpatialCardboardBridge.headsetDeviceId`。当前已知的一体机身份 `QUALCOMM / RhinoX / kona` 会精确映射到 RhinoX Pro 历史参考参数，不会仅凭通用 `kona` 代码匹配其他设备。该参数尚未完成硬件校准，因此正式配置校验仍会拒绝。独立 3DoF 手柄尚未接入；iPhone 外接 RhinoX 的显示路由、通信和头姿仍需单独实现。
+
+RhinoX Android 诊断版使用历史工程启用的 `221108` 左右眼网格。首次使用前，在 SDK 根目录运行 `tools/BuildRhinoXCardboard.ps1`，它按固定的 Cardboard v1.30.1 源码和仓库内补丁编译 Android arm64 库，生成 `third_party/rhinox/GfxPluginCardboard-rhinox.aar`，并替换本地 Unity Cardboard 插件的 Android AAR。场景中 `Use Rhino X Legacy Mesh For Diagnostics` 已启用。运行时状态显示 `RhinoX legacy mesh 221108: applied` 才说明原生渲染器使用了该网格；其他设备继续使用 Cardboard 网格。可在场景根节点取消该选项进行对照。显示生效不等于光学验收，仍需在眼镜中检查双眼对齐、畸变方向和视场边缘。
