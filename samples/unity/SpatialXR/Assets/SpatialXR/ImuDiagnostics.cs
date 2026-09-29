@@ -33,6 +33,7 @@ namespace SpatialAI.Samples
         private string poseSource = "none";
         private readonly List<UnityEngine.XR.InputDevice> headDevices = new List<UnityEngine.XR.InputDevice>();
         private GameObject axes;
+        private GameObject calibrationTargets;
 
         private void Start()
         {
@@ -110,6 +111,7 @@ namespace SpatialAI.Samples
 
             var xrReady = bridge != null && bridge.XrRunning;
             if (xrReady && axes == null && xrCamera != null) CreateWorldAxes();
+            if (xrReady && calibrationTargets == null && xrCamera != null) CreateCalibrationTargets();
             var gyro = Input.gyro.rotationRateUnbiased * Mathf.Rad2Deg;
             var acceleration = Input.acceleration;
             var euler = Vector3.zero;
@@ -194,6 +196,7 @@ namespace SpatialAI.Samples
             lastReset = source;
             nextReadoutTime = 0f;
             if (axes != null) PlaceWorldAxes();
+            if (calibrationTargets != null) PlaceCalibrationTargets();
             Debug.Log("SpatialAI IMU RESET #" + resetCount + " via " + source +
                 "; pose " + (valid ? "captured" : "pending"));
         }
@@ -238,6 +241,111 @@ namespace SpatialAI.Samples
             text.fontSize = 72;
             text.characterSize = 0.13f;
             text.color = color;
+        }
+
+        private void CreateCalibrationTargets()
+        {
+            var shader = Resources.Load<Shader>("CalibrationUnlit");
+            if (shader == null)
+            {
+                Debug.LogError("SpatialAI calibration targets need the CalibrationUnlit shader.");
+                return;
+            }
+
+            calibrationTargets = new GameObject("World fixed scale and distortion targets");
+            PlaceCalibrationTargets();
+
+            var cubeMesh = CreateCubeMesh(0.4f);
+            var cubePositions = new[]
+            {
+                new Vector3(0f, 0f, 0.6f),
+                new Vector3(0f, -0.2f, 1.0f),
+                new Vector3(-0.55f, -0.2f, 1.3f),
+                new Vector3(0.55f, -0.2f, 1.6f)
+            };
+            var cubeColors = new[]
+            {
+                new Color(0.3f, 1f, 0.35f),
+                new Color(0.15f, 0.85f, 0.95f),
+                new Color(1f, 0.7f, 0.1f),
+                new Color(0.95f, 0.25f, 0.7f)
+            };
+            for (var i = 0; i < cubePositions.Length; i++)
+            {
+                var cube = new GameObject("40 cm cube at " + cubePositions[i].z.ToString("0.0") + " m");
+                cube.transform.SetParent(calibrationTargets.transform, false);
+                cube.transform.localPosition = cubePositions[i];
+                cube.AddComponent<MeshFilter>().sharedMesh = cubeMesh;
+                cube.AddComponent<MeshRenderer>().sharedMaterial = new Material(shader) { color = cubeColors[i] };
+            }
+
+            var board = new GameObject("20 cm checkerboard at 2.6 m");
+            board.transform.SetParent(calibrationTargets.transform, false);
+            board.transform.localPosition = new Vector3(0f, 0.1f, 2.6f);
+            CreateCheckerTiles(board.transform, shader, 0,
+                new Color(0.9f, 0.9f, 0.9f));
+            CreateCheckerTiles(board.transform, shader, 1,
+                new Color(0.12f, 0.16f, 0.23f));
+            Debug.Log("SpatialAI calibration targets: four 0.40 m cubes at 0.6/1.0/1.3/1.6 m; " +
+                "4.0 x 2.0 m checkerboard at 2.6 m, 0.20 m cells.");
+        }
+
+        private void PlaceCalibrationTargets()
+        {
+            calibrationTargets.transform.SetPositionAndRotation(
+                xrCamera.transform.position, xrCamera.transform.rotation);
+        }
+
+        private static Mesh CreateCubeMesh(float size)
+        {
+            var h = size * 0.5f;
+            var mesh = new Mesh { name = "40 cm calibration cube" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-h, -h, -h), new Vector3(h, -h, -h),
+                new Vector3(h, h, -h), new Vector3(-h, h, -h),
+                new Vector3(-h, -h, h), new Vector3(h, -h, h),
+                new Vector3(h, h, h), new Vector3(-h, h, h)
+            };
+            mesh.triangles = new[]
+            {
+                0, 3, 2, 0, 2, 1, 4, 5, 6, 4, 6, 7,
+                0, 4, 7, 0, 7, 3, 1, 2, 6, 1, 6, 5,
+                0, 1, 5, 0, 5, 4, 3, 7, 6, 3, 6, 2
+            };
+            mesh.RecalculateNormals();
+            return mesh;
+        }
+
+        private static void CreateCheckerTiles(Transform parent, Shader shader, int parity, Color color)
+        {
+            const int columns = 20;
+            const int rows = 10;
+            const float cell = 0.2f;
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            for (var row = 0; row < rows; row++)
+            for (var column = 0; column < columns; column++)
+            {
+                if ((row + column) % 2 != parity) continue;
+                var x = (column - columns * 0.5f) * cell;
+                var y = (row - rows * 0.5f) * cell;
+                var first = vertices.Count;
+                vertices.Add(new Vector3(x, y, 0f));
+                vertices.Add(new Vector3(x + cell, y, 0f));
+                vertices.Add(new Vector3(x + cell, y + cell, 0f));
+                vertices.Add(new Vector3(x, y + cell, 0f));
+                triangles.AddRange(new[] { first, first + 2, first + 1,
+                    first, first + 3, first + 2 });
+            }
+            var mesh = new Mesh { name = parity == 0 ? "Checker light tiles" : "Checker dark tiles" };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            var tiles = new GameObject(mesh.name);
+            tiles.transform.SetParent(parent, false);
+            tiles.AddComponent<MeshFilter>().sharedMesh = mesh;
+            tiles.AddComponent<MeshRenderer>().sharedMaterial = new Material(shader) { color = color };
         }
 
         private static string Format(float value) { return value.ToString("+0.0;-0.0;0.0"); }
