@@ -1,5 +1,5 @@
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..db21423 100644
+index 6dd7d61..a7ea777 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 @@ -20,6 +20,7 @@
@@ -57,11 +57,11 @@ index 6dd7d61..db21423 100644
 +  out.uvs.reserve(vertex_count * 2);
 +  for (int i = 0; i < vertex_count; ++i) {
 +    // RhinoX Pro mesh positions are full-screen clip coordinates. The
-+    // historical UVs are [-1, 1], with V increasing from top to bottom.
++    // historical UVs are [-1, 1]; preserve the historical V direction.
 +    out.vertices.push_back(positions[i * 3]);
 +    out.vertices.push_back(positions[i * 3 + 1]);
 +    out.uvs.push_back((uv4[i * 4] + 1.0f) * 0.5f);
-+    out.uvs.push_back((1.0f - uv4[i * 4 + 1]) * 0.5f);
++    out.uvs.push_back((uv4[i * 4 + 1] + 1.0f) * 0.5f);
 +  }
 +  // Cardboard uses GL_TRIANGLE_STRIP; SXR stores independent triangles.
 +  // Six indices per following triangle preserve winding via degenerate joins.

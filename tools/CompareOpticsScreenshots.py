@@ -9,6 +9,7 @@ import json
 import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw
 
@@ -31,10 +32,32 @@ def main() -> None:
     for eye, box in (("left", (0, 0, 2160, 2160)),
                      ("right", (2160, 0, 4320, 2160))):
         values = np.asarray(difference.crop(box), dtype=np.uint8)
+        reference_eye = np.asarray(reference.crop(box), dtype=np.uint8)
+        candidate_eye = np.asarray(candidate.crop(box), dtype=np.uint8)
+        # Ignore the outer 80 px where Cardboard's diagnostic buttons appear.
+        reference_interior = reference_eye[80:2080, 80:2080]
+        candidate_interior = candidate_eye[80:2080, 80:2080]
+        reference_edges = cv2.Canny(cv2.cvtColor(reference_interior, cv2.COLOR_RGB2GRAY), 50, 110)
+        candidate_edges = cv2.Canny(cv2.cvtColor(candidate_interior, cv2.COLOR_RGB2GRAY), 50, 110)
+        distance_to_candidate_edge = cv2.distanceTransform(
+            255 - candidate_edges, cv2.DIST_L2, 3
+        )
+        flat_mask = cv2.dilate(
+            reference_edges | candidate_edges, np.ones((7, 7), np.uint8)
+        ) == 0
+        interior_difference = np.abs(
+            reference_interior.astype(np.int16) - candidate_interior.astype(np.int16)
+        )
         metrics[eye] = {
             "mean_absolute_channel_error": round(float(values.mean()), 3),
             "pixels_with_channel_error_over_32_percent": round(
                 float((values.max(axis=2) > 32).mean() * 100), 3),
+            "reference_edges_within_2px_percent": round(float(
+                (distance_to_candidate_edge[reference_edges > 0] <= 2).mean() * 100
+            ), 3),
+            "flat_region_mean_absolute_channel_error": round(float(
+                interior_difference[flat_mask].mean()
+            ), 3),
         }
 
     preview = Image.new("RGB", (2160, 1660), (25, 25, 25))

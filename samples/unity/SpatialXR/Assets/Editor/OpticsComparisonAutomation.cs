@@ -79,7 +79,7 @@ public static class OpticsComparisonAutomation
     [MenuItem("Spatial AI/Build Optics Comparison APK")]
     public static void Build()
     {
-        CreateScene();
+        if (!File.Exists(ScenePath)) CreateScene();
         if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             throw new InvalidOperationException("Switch the editor to Android before building.");
         var settingsPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../ProjectSettings/ProjectSettings.asset"));
