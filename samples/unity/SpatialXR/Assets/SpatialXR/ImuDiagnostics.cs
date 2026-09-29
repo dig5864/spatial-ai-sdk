@@ -255,13 +255,14 @@ namespace SpatialAI.Samples
             calibrationTargets = new GameObject("World fixed scale and distortion targets");
             PlaceCalibrationTargets();
 
-            var cubeMesh = CreateCubeMesh(0.4f);
-            var cubePositions = new[]
+            var cubeDistances = new[] { 0.6f, 1.0f, 1.3f, 1.6f };
+            var cubeSizes = new[] { 0.2f, 0.4f, 0.4f, 0.4f };
+            var cubeOffsets = new[]
             {
-                new Vector3(0f, 0f, 0.6f),
-                new Vector3(0f, -0.2f, 1.0f),
-                new Vector3(-0.55f, -0.2f, 1.3f),
-                new Vector3(0.55f, -0.2f, 1.6f)
+                new Vector2(-0.35f, -0.15f),
+                new Vector2(0.50f, -0.20f),
+                new Vector2(-0.70f, -0.20f),
+                new Vector2(0.90f, -0.20f)
             };
             var cubeColors = new[]
             {
@@ -270,12 +271,16 @@ namespace SpatialAI.Samples
                 new Color(1f, 0.7f, 0.1f),
                 new Color(0.95f, 0.25f, 0.7f)
             };
-            for (var i = 0; i < cubePositions.Length; i++)
+            for (var i = 0; i < cubeDistances.Length; i++)
             {
-                var cube = new GameObject("40 cm cube at " + cubePositions[i].z.ToString("0.0") + " m");
+                var offset = cubeOffsets[i];
+                var depth = Mathf.Sqrt(cubeDistances[i] * cubeDistances[i] -
+                    offset.x * offset.x - offset.y * offset.y);
+                var cube = new GameObject((cubeSizes[i] * 100f).ToString("0") +
+                    " cm cube at " + cubeDistances[i].ToString("0.0") + " m");
                 cube.transform.SetParent(calibrationTargets.transform, false);
-                cube.transform.localPosition = cubePositions[i];
-                cube.AddComponent<MeshFilter>().sharedMesh = cubeMesh;
+                cube.transform.localPosition = new Vector3(offset.x, offset.y, depth);
+                cube.AddComponent<MeshFilter>().sharedMesh = CreateCubeMesh(cubeSizes[i]);
                 cube.AddComponent<MeshRenderer>().sharedMaterial = new Material(shader) { color = cubeColors[i] };
             }
 
@@ -286,7 +291,8 @@ namespace SpatialAI.Samples
                 new Color(0.9f, 0.9f, 0.9f));
             CreateCheckerTiles(board.transform, shader, 1,
                 new Color(0.12f, 0.16f, 0.23f));
-            Debug.Log("SpatialAI calibration targets: four 0.40 m cubes at 0.6/1.0/1.3/1.6 m; " +
+            Debug.Log("SpatialAI calibration targets: 0.20 m cube at 0.6 m; " +
+                "0.40 m cubes at 1.0/1.3/1.6 m; " +
                 "4.0 x 2.0 m checkerboard at 2.6 m, 0.20 m cells.");
         }
 
@@ -299,7 +305,7 @@ namespace SpatialAI.Samples
         private static Mesh CreateCubeMesh(float size)
         {
             var h = size * 0.5f;
-            var mesh = new Mesh { name = "40 cm calibration cube" };
+            var mesh = new Mesh { name = (size * 100f).ToString("0") + " cm calibration cube" };
             mesh.vertices = new[]
             {
                 new Vector3(-h, -h, -h), new Vector3(h, -h, -h),
