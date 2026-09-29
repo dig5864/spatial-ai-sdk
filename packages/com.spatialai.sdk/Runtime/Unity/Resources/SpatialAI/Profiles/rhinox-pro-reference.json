@@ -32,8 +32,8 @@
     "poseFrame": "cardboard-unity-landscape-left",
     "axisMappingVerified": false,
     "designImuFromCardboardHeadX": 0,
-    "designImuFromCardboardHeadY": 0,
-    "designImuFromCardboardHeadZ": 0,
-    "designImuFromCardboardHeadW": 1
+    "designImuFromCardboardHeadY": 0.02837746,
+    "designImuFromCardboardHeadZ": -0.70653713,
+    "designImuFromCardboardHeadW": 0.70710678
   }
 }

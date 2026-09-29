@@ -37,4 +37,4 @@ Profile 放在 UPM 包的 `Runtime/Unity/Resources/SpatialAI/Profiles/`。`devic
 
 Cardboard 原来的固定颈部模型在 RhinoX 设备上由设计外参替代。当前仍只有 3DoF 姿态：位置仅表示转头造成的固定杆臂位移，并在名义姿态归零；它不是 6DoF 位置追踪。`trackingCalibration.validatedForHardware=false`，因为尚未取得设备上的 `/sdcard/vio_fusion_configs.json` 覆盖值，也未做转头、俯仰、回正的真机验证。其他 Cardboard 设备继续使用原来的追踪方式。
 
-Android 原始陀螺仪/加速度计先由 Cardboard 融合，再按屏幕方向转成 Cardboard 头部坐标，随后转成 Unity 坐标。旧 SXR 使用另一套横屏变换；不能把两者的原始传感器轴视为相同。`poseFrame` 固定为 `cardboard-unity-landscape-left`，`designImuFromCardboardHead` 四元数作为显式轴映射。初版单位四元数是两套输出头部坐标一致的**待验证假设**，`axisMappingVerified=false`。RhinoX 运行时限制为横屏左；若实机发现某轴方向或符号不同，先通过转头/俯仰/侧倾测出该映射，再改 Profile 中的四元数，不能通过场景相机旋转修正。
+Android 原始陀螺仪/加速度计先由 Cardboard 融合，再按屏幕方向转成 Cardboard 头部坐标，随后转成 Unity 坐标。旧 SXR 使用另一套横屏变换；不能把两者的原始传感器轴视为相同。`poseFrame` 固定为 `cardboard-unity-landscape-left`，`designImuFromCardboardHead` 四元数作为显式轴映射。RhinoX 横屏左真机的小角度测试观察到：抬头约 15° 时原 Y 为 -15°，右转约 15° 时原 X 为 -15°，右倾约 15° 时原 Z 为 -15°。因此目标眼中心局部轴采用 `X'=Y, Y'=-X, Z'=Z`，即绕 Z 轴 -90°；考虑设计外参原有的 X 轴 +2.3° 旋转后，Profile 中的坐标适配四元数为 `(0, 0.02837746, -0.70653713, 0.70710678)`。这是待重新上机验收的候选，故仍保留 `axisMappingVerified=false`。RhinoX 运行时限制为横屏左，不能通过场景相机旋转修正轴向。
