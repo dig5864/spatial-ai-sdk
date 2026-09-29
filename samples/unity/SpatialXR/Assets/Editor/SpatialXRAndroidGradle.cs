@@ -53,6 +53,7 @@ public sealed class SpatialXRAndroidGradle : IPostGenerateGradleAndroidProject
     {
         var source = File.ReadAllText(path);
         source = Regex.Replace(source, @"compileSdkVersion\s+\d+", "compileSdkVersion 34");
+        source = Regex.Replace(source, @"minSdkVersion\s+\d+", "minSdkVersion 28");
         source = Regex.Replace(source, "buildToolsVersion '[^']+'", "buildToolsVersion '30.0.3'");
         if (addCardboardDependencies && !source.Contains("androidx.appcompat:appcompat"))
         {
@@ -64,6 +65,14 @@ public sealed class SpatialXRAndroidGradle : IPostGenerateGradleAndroidProject
                 "    implementation 'com.google.android.gms:play-services-vision:20.1.3'\n" +
                 "    implementation 'com.google.android.material:material:1.12.0'\n" +
                 "    implementation 'com.google.protobuf:protobuf-javalite:3.19.4'\n");
+        }
+        if (addCardboardDependencies && !source.Contains("com.google.mediapipe:tasks-vision"))
+        {
+            const string marker = "dependencies {";
+            if (!source.Contains(marker))
+                throw new InvalidOperationException("Unity library Gradle dependencies block was not found.");
+            source = source.Replace(marker, marker + "\n" +
+                "    implementation 'com.google.mediapipe:tasks-vision:1.0.0'\n");
         }
         File.WriteAllText(path, source);
     }

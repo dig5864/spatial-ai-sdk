@@ -22,10 +22,15 @@ $env:ANDROID_HOME=$androidSdk
 $env:ANDROID_SDK_ROOT=$androidSdk
 Push-Location $source
 try {
-    & "$jdk/bin/java.exe" -cp $gradle org.gradle.launcher.GradleMain ':app:assembleDebug' "-PmodelAssetDir=$assets" '--no-daemon' '--stacktrace'
+    & "$jdk/bin/java.exe" -cp $gradle org.gradle.launcher.GradleMain ':app:assembleDebug' ':hand-unity:assembleRelease' "-PmodelAssetDir=$assets" '--no-daemon' '--stacktrace'
     if($LASTEXITCODE -ne 0) { throw "Gradle build failed ($LASTEXITCODE)" }
 }
 finally { Pop-Location }
 $apk=Join-Path $source 'app/build/outputs/apk/debug/app-debug.apk'
 Copy-Item -LiteralPath $apk -Destination (Join-Path $output 'spatial-ai-hand-diagnostic.apk') -Force
 Write-Output "Hand diagnostic APK: $output/spatial-ai-hand-diagnostic.apk"
+$aar=Join-Path $source 'hand-unity/build/outputs/aar/hand-unity-release.aar'
+$pluginDir=Join-Path $sdkRoot 'packages/com.spatialai.sdk/Plugins/Android'
+New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
+Copy-Item -LiteralPath $aar -Destination (Join-Path $pluginDir 'spatial-hand-unity.aar') -Force
+Write-Output "Unity hand plugin: $pluginDir/spatial-hand-unity.aar"

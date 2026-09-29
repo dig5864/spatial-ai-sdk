@@ -15,3 +15,11 @@ Android 身份读取 `Build.MANUFACTURER`、`MODEL`、`DEVICE`；iOS 读取 Unit
 Unity 6 与团结引擎是支持目标，准确版本仍待实测；当前消费工程使用 Unity 2022.3.14f1c1 编译基线。
 
 旧 `SpatialRuntimeHost` 如选择 Cardboard/RhinoXPro 仍返回 Unsupported；Cardboard 基线通过独立的 `SpatialCardboardBridge` 进入 XR 插件，不伪装成已经接入 `SpatialSession` 的硬件 Backend。
+
+## 手部跟踪预览
+
+`Plugins/Android/spatial-hand-unity.aar` 封装 Camera2 与 MediaPipe，Unity 侧通过
+`SpatialAI.Unity.SpatialHandTracking` 获取归一化图像坐标中的 21 点及原始手别标签。
+`HelloSpatialXR` 示例显示诊断骨架和捏合次数。这些数据尚未标定为头部空间中的手部姿态。
+Android 构建时包内的 Gradle 后处理器会加入固定版本
+`com.google.mediapipe:tasks-vision:1.0.0`；手势预览最低需要 Android API 28。

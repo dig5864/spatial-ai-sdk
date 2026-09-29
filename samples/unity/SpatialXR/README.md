@@ -22,3 +22,20 @@ RhinoX Android 诊断版使用历史 RhinoX Pro 分支的 `Sharp_2k_Seperate` �
 IMU 调试场景位于 `Assets/Scenes/ImuDiagnostics.unity`。菜单 `Spatial AI > Create IMU Diagnostics Scene` 可重新生成场景，`Spatial AI > Build IMU Diagnostics APK` 构建独立安装包 `build/samples/android/imu-diagnostics.apk`。安装后打开 **Spatial XR IMU Diagnostics**，画面会显示 Cardboard XR 的相对 yaw、pitch、roll、眼中心位置，以及手机陀螺仪角速度和加速度；每秒以 `SpatialAI IMU` 前缀写一条 Android 日志。红 X、绿 Y、蓝 Z 轴在 XR 启动时放到视线前方，之后保持世界方向不动，供 3DoF 转头观察；点按屏幕、使用触发键或发送 R 键可将角度归零并把轴重新放到当前视线前方。屏幕会显示归零次数和输入来源，Android 日志会写出 `SpatialAI IMU RESET`。原始手机传感器值使用设备坐标，XR 姿态使用 Cardboard/Unity 坐标，两者不能直接逐轴等同。真机逐轴转动与符号校验完成前，RhinoX 的 Android IMU 轴映射仍视为未验证。
 
 无法方便触摸屏幕时，可在 Windows 终端执行 `adb shell input keyevent 46` 发送 R 键归零；测试过此命令和 `adb shell input tap 900 1000` 都会触发归零日志。归零时先将设备保持正视且静止，再分别小角度抬头、右转、侧倾，读取 `Relative head angle` 的 X/Y/Z 变化。
+# Hand tracking preview
+
+The `HelloSpatialXR` scene now starts the Android RGB hand tracker and draws up to two
+21-joint skeletons on a head-locked diagnostic plane. It shows a pinch counter. The
+first launch requests camera permission. This uses the RhinoX development device's
+RGB Camera2 stream and the MediaPipe Hand Landmarker model in the packaged Android
+library. The same camera capture service can have more consumers later.
+
+The skeleton is **image-plane diagnostic output**, not a metric hand pose or an XR
+Hands provider. The RGB camera's pose relative to the eye render frame, distortion,
+and the physical left/right hand labels remain to be calibrated. The sample does not
+yet use hands to select a world-space object. iOS hand tracking is not included.
+This Android preview currently requires API level 28 or newer.
+
+To rebuild the Android library and model asset, run `tools/BuildHandDiagnostic.ps1`
+with the Android Player path, then build the Unity sample using `BuildAndroid.bat` in
+this directory. The Unity Gradle postprocessor pins MediaPipe Tasks Vision to 1.0.0.

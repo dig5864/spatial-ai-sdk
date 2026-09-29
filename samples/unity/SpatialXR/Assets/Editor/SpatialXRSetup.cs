@@ -80,7 +80,7 @@ public static class SpatialXRSetup
         PlayerSettings.productName = "SpatialXRSample";
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.spatialai.samples.xr");
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
-        PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
+        PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel28;
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
         PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });

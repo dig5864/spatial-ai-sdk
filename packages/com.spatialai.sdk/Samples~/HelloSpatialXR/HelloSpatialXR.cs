@@ -28,6 +28,8 @@ namespace SpatialAI.Samples
         private void Start()
         {
             bridge = GetComponent<SpatialCardboardBridge>();
+            var hands = gameObject.AddComponent<HandTrackingDemo>();
+            hands.xrCamera = xrCamera;
             if (target != null) targetMaterial = target.material;
             if (xrCamera != null)
             {
