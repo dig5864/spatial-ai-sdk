@@ -19,5 +19,21 @@
   "frustumRightMetres": 0.07968503,
   "frustumTopMetres": 0.07348122,
   "frustumBottomMetres": -0.08588884,
-  "meshId": "rhinox-pro-sharp-2k-separate"
+  "meshId": "rhinox-pro-sharp-2k-separate",
+  "trackingCalibration": {
+    "source": "SXR-SDK-405/Param_RhinoXPro.cpp design defaults",
+    "calibrationVersion": "unverified-legacy-design",
+    "validatedForHardware": false,
+    "eyeRenderToDesignDegreesX": -2.3,
+    "eyeRenderToDesignYOffsetMetres": -0.01,
+    "designEyeToImuXMetres": -0.0400040,
+    "designEyeToImuYMetres": 0.0607361,
+    "designEyeToImuZMetres": -0.0840374,
+    "poseFrame": "cardboard-unity-landscape-left",
+    "axisMappingVerified": false,
+    "designImuFromCardboardHeadX": 0,
+    "designImuFromCardboardHeadY": 0,
+    "designImuFromCardboardHeadZ": 0,
+    "designImuFromCardboardHeadW": 1
+  }
 }

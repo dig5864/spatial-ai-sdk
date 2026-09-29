@@ -35,6 +35,7 @@ namespace SpatialAI.Core
         public float frustumBottomMetres;
         public string meshId;
         public string meshAssetHash;
+        public TrackingCalibrationDescriptor trackingCalibration;
 
         // A historical reference may be usable for development without claiming
         // that its per-unit optical calibration has been verified for release.
@@ -65,6 +66,48 @@ namespace SpatialAI.Core
                 MeshAssetHash = meshAssetHash
             };
         }
+    }
+
+    [Serializable]
+    public sealed class TrackingCalibrationDescriptor
+    {
+        public string source;
+        public string calibrationVersion;
+        public bool validatedForHardware;
+        public float eyeRenderToDesignDegreesX;
+        public float eyeRenderToDesignYOffsetMetres;
+        public float designEyeToImuXMetres;
+        public float designEyeToImuYMetres;
+        public float designEyeToImuZMetres;
+        public string poseFrame;
+        public bool axisMappingVerified;
+        public float designImuFromCardboardHeadX;
+        public float designImuFromCardboardHeadY;
+        public float designImuFromCardboardHeadZ;
+        public float designImuFromCardboardHeadW;
+
+        public Result ValidateDesignReference()
+        {
+            if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(calibrationVersion) ||
+                !Finite(eyeRenderToDesignDegreesX) || Math.Abs(eyeRenderToDesignDegreesX) > 45 ||
+                !Bounded(eyeRenderToDesignYOffsetMetres) ||
+                !Bounded(designEyeToImuXMetres) || !Bounded(designEyeToImuYMetres) ||
+                !Bounded(designEyeToImuZMetres) ||
+                poseFrame != "cardboard-unity-landscape-left" ||
+                !Finite(designImuFromCardboardHeadX) ||
+                !Finite(designImuFromCardboardHeadY) ||
+                !Finite(designImuFromCardboardHeadZ) ||
+                !Finite(designImuFromCardboardHeadW) ||
+                Math.Abs(designImuFromCardboardHeadX * designImuFromCardboardHeadX +
+                    designImuFromCardboardHeadY * designImuFromCardboardHeadY +
+                    designImuFromCardboardHeadZ * designImuFromCardboardHeadZ +
+                    designImuFromCardboardHeadW * designImuFromCardboardHeadW - 1) > 0.01f)
+                return new Result(ErrorCode.InvalidArgument, "Incomplete IMU-to-eye design calibration.");
+            return Result.Ok;
+        }
+
+        private static bool Finite(float value) { return !float.IsNaN(value) && !float.IsInfinity(value); }
+        private static bool Bounded(float value) { return Finite(value) && Math.Abs(value) < 0.5f; }
     }
 
     public static class DeviceProfileSelector

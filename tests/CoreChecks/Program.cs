@@ -83,6 +83,22 @@ static class Program
             displayProfile.screenWidth = 4320;
             displayProfile.frustumTopMetres = float.NaN;
             Check(!displayProfile.ValidateDisplayConfiguration().Success, "invalid frustum blocked");
+            var tracking = new TrackingCalibrationDescriptor {
+                source = "Param_RhinoXPro.cpp design defaults",
+                calibrationVersion = "unverified-legacy-design",
+                eyeRenderToDesignDegreesX = -2.3f,
+                eyeRenderToDesignYOffsetMetres = -0.01f,
+                designEyeToImuXMetres = -0.0400040f,
+                designEyeToImuYMetres = 0.0607361f,
+                designEyeToImuZMetres = -0.0840374f,
+                poseFrame = "cardboard-unity-landscape-left",
+                designImuFromCardboardHeadW = 1 };
+            Check(tracking.ValidateDesignReference().Success, "RhinoX IMU-to-eye design reference accepted");
+            tracking.designEyeToImuZMetres = float.NaN;
+            Check(!tracking.ValidateDesignReference().Success, "nonfinite tracking extrinsic blocked");
+            tracking.designEyeToImuZMetres = -0.0840374f;
+            tracking.designImuFromCardboardHeadW = 0;
+            Check(!tracking.ValidateDesignReference().Success, "invalid Android sensor axis mapping blocked");
             if (Array.IndexOf(args, "--native") >= 0)
             {
                 uint mask; var native = NativeRuntimeProbe.Check(out mask);

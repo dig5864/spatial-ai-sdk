@@ -28,7 +28,9 @@ namespace SpatialAI.Cardboard
         public bool TriggerPressed { get; private set; }
         public bool RhinoXLegacyMeshApplied { get; private set; }
         private bool spatialOpticsConfigured;
+        private bool spatialTrackingConfigured;
         private bool opticsConfigurationRejected;
+        private bool orientationMismatchLogged;
 #if UNITY_ANDROID && !UNITY_EDITOR
         [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_configureSpatialOptics")]
         private static extern int ConfigureSpatialOptics(string meshId, string meshHash,
@@ -38,6 +40,12 @@ namespace SpatialAI.Cardboard
         private static extern void ClearSpatialOptics();
         [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_isSpatialOpticsApplied")]
         private static extern int IsSpatialOpticsApplied();
+        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_configureSpatialTracking")]
+        private static extern int ConfigureSpatialTracking(float pitchDegrees, float yOffset,
+            float imuX, float imuY, float imuZ, float frameX, float frameY,
+            float frameZ, float frameW);
+        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_clearSpatialTracking")]
+        private static extern void ClearSpatialTracking();
 #endif
         private bool viewerParamsChecked;
         private bool viewerScanInProgress;
@@ -76,14 +84,41 @@ namespace SpatialAI.Cardboard
                         MatchedProfile.ipdMetres, MatchedProfile.frustumNearMetres,
                         MatchedProfile.frustumLeftMetres, MatchedProfile.frustumRightMetres,
                         MatchedProfile.frustumTopMetres, MatchedProfile.frustumBottomMetres) != 0;
-                    if (spatialOpticsConfigured)
+                    var tracking = MatchedProfile.trackingCalibration;
+                    var trackingResult = tracking != null ? tracking.ValidateDesignReference() :
+                        new Result(ErrorCode.InvalidArgument, "IMU-to-eye design calibration is missing.");
+                    if (spatialOpticsConfigured && trackingResult.Success)
+                        spatialTrackingConfigured = ConfigureSpatialTracking(
+                            tracking.eyeRenderToDesignDegreesX,
+                            tracking.eyeRenderToDesignYOffsetMetres,
+                            tracking.designEyeToImuXMetres,
+                            tracking.designEyeToImuYMetres,
+                            tracking.designEyeToImuZMetres,
+                            tracking.designImuFromCardboardHeadX,
+                            tracking.designImuFromCardboardHeadY,
+                            tracking.designImuFromCardboardHeadZ,
+                            tracking.designImuFromCardboardHeadW) != 0;
+                    if (spatialOpticsConfigured && spatialTrackingConfigured)
                     {
                         opticsConfigurationRejected = false;
                         Debug.Log("Spatial AI optical profile configured: " + MatchedProfile.profileId);
+                        Debug.Log("Spatial AI IMU-to-eye design reference configured: " +
+                            tracking.calibrationVersion + "; Android axis mapping " +
+                            (tracking.axisMappingVerified ? "verified" : "UNVERIFIED"));
                     }
-                    else Debug.LogError("Spatial AI optics rejected by native mesh identity or parameter validation.");
+                    else
+                    {
+                        if (spatialOpticsConfigured) { ClearSpatialOptics(); spatialOpticsConfigured = false; }
+                        Debug.LogError("Spatial AI optics/tracking rejected: " +
+                            (trackingResult.Success ? "native configuration failed." : trackingResult.Message));
+                    }
                 }
-                catch (Exception e) { Debug.LogError("Spatial AI native optics API unavailable: " + e.Message); }
+                catch (Exception e)
+                {
+                    if (spatialTrackingConfigured) { ClearSpatialTracking(); spatialTrackingConfigured = false; }
+                    if (spatialOpticsConfigured) { ClearSpatialOptics(); spatialOpticsConfigured = false; }
+                    Debug.LogError("Spatial AI native optics/tracking API unavailable: " + e.Message);
+                }
             }
 #endif
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
@@ -96,6 +131,17 @@ namespace SpatialAI.Cardboard
             var loader = manager != null ? manager.activeLoader as Google.XR.Cardboard.XRLoader : null;
             var display = loader != null ? loader.GetLoadedSubsystem<XRDisplaySubsystem>() : null;
             XrRunning = display != null && display.running;
+            if (spatialTrackingConfigured && Screen.orientation != ScreenOrientation.LandscapeLeft)
+            {
+                if (!orientationMismatchLogged)
+                {
+                    Debug.LogError("RhinoX IMU axis mapping currently requires LandscapeLeft orientation.");
+                    orientationMismatchLogged = true;
+                }
+                if (XrRunning) display.Stop();
+                XrRunning = false;
+                return;
+            }
             if (opticsConfigurationRejected)
             {
                 if (XrRunning) display.Stop();
@@ -167,6 +213,7 @@ namespace SpatialAI.Cardboard
         private void OnDestroy()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
+            if (spatialTrackingConfigured) ClearSpatialTracking();
             if (spatialOpticsConfigured) ClearSpatialOptics();
 #endif
         }

@@ -1,5 +1,82 @@
+diff --git a/sdk/unity/xr_provider/input.cc b/sdk/unity/xr_provider/input.cc
+index 9f40a65..64d6a2a 100644
+--- a/sdk/unity/xr_provider/input.cc
++++ b/sdk/unity/xr_provider/input.cc
+@@ -26,6 +26,8 @@
+ #include "IUnityXRTrace.h"
+ #include "UnitySubsystemTypes.h"
+ 
++extern "C" int CardboardUnity_getSpatialTracking(float* imu_from_eye_pose);
++
+ #define CARDBOARD_INPUT_XR_TRACE_LOG(trace, message, ...)          \
+   XR_TRACE_LOG(trace, "[CardboardXrInputProvider]: " message "\n", \
+                ##__VA_ARGS__)
+@@ -134,9 +136,14 @@ class CardboardInputProvider {
+     std::array<float, 3> out_position;
+     cardboard_input_api_->GetHeadTrackerPose(out_position.data(),
+                                              out_orientation.data());
+-    // TODO(b/151817737): Compute pose position within SDK with custom rotation.
+-    head_pose_ =
+-        cardboard::unity::CardboardRotationToUnityPose(out_orientation);
++    std::array<float, 7> imu_from_eye_pose;
++    if (CardboardUnity_getSpatialTracking(imu_from_eye_pose.data())) {
++      head_pose_ = cardboard::unity::CardboardImuToEyePose(
++          out_orientation, imu_from_eye_pose);
++    } else {
++      head_pose_ = cardboard::unity::CardboardRotationToUnityPose(
++          out_orientation);
++    }
+     return kUnitySubsystemErrorCodeSuccess;
+   }
+ 
+diff --git a/sdk/unity/xr_provider/math_tools.cc b/sdk/unity/xr_provider/math_tools.cc
+index cb491cf..5281898 100644
+--- a/sdk/unity/xr_provider/math_tools.cc
++++ b/sdk/unity/xr_provider/math_tools.cc
+@@ -154,4 +154,24 @@ UnityXRPose CardboardTransformToUnityPose(
+   return ret;
+ }
+ 
++UnityXRPose CardboardImuToEyePose(
++    const std::array<float, 4>& imu_rotation,
++    const std::array<float, 7>& imu_from_eye_pose) {
++  const UnityXRPose imu = CardboardRotationToUnityPose(imu_rotation);
++  const UnityXRVector3 eye_offset = {
++      imu_from_eye_pose[0], imu_from_eye_pose[1], imu_from_eye_pose[2]};
++  const UnityXRVector4 eye_rotation = {
++      imu_from_eye_pose[3], imu_from_eye_pose[4],
++      imu_from_eye_pose[5], imu_from_eye_pose[6]};
++  UnityXRPose eye;
++  eye.rotation = QuatMul(imu.rotation, eye_rotation);
++  // A 3DoF IMU has no world translation. Use only the rotation-dependent
++  // lever arm and keep the nominal/recentered center eye at the origin.
++  eye.position = QuatMulVec(imu.rotation, eye_offset);
++  eye.position.x -= eye_offset.x;
++  eye.position.y -= eye_offset.y;
++  eye.position.z -= eye_offset.z;
++  return eye;
++}
++
+ }  // namespace cardboard::unity
+diff --git a/sdk/unity/xr_provider/math_tools.h b/sdk/unity/xr_provider/math_tools.h
+index 5523c86..31de4ef 100644
+--- a/sdk/unity/xr_provider/math_tools.h
++++ b/sdk/unity/xr_provider/math_tools.h
+@@ -35,6 +35,12 @@ UnityXRPose CardboardRotationToUnityPose(const std::array<float, 4>& rotation);
+ UnityXRPose CardboardTransformToUnityPose(
+     const std::array<float, 16>& transform);
+ 
++/// Converts the headset IMU rotation into the center-of-eye pose using a
++/// fixed eye-from-IMU design transform. This replaces the generic neck model.
++UnityXRPose CardboardImuToEyePose(
++    const std::array<float, 4>& imu_rotation,
++    const std::array<float, 7>& imu_from_eye_pose);
++
+ }  // namespace cardboard::unity
+ 
+ #endif  // CARDBOARD_SDK_UNITY_XR_PROVIDER_MATH_TOOLS_H_
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..2f183c8 100644
+index 6dd7d61..418255b 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 @@ -19,7 +19,9 @@
@@ -32,7 +109,7 @@ index 6dd7d61..2f183c8 100644
  // The following block makes log macros available for Android and iOS.
  #if defined(__ANDROID__)
  #include <android/log.h>
-@@ -66,6 +81,82 @@ void NSLog(CFStringRef format, ...);
+@@ -66,6 +81,87 @@ void NSLog(CFStringRef format, ...);
  
  namespace cardboard::unity {
  
@@ -50,6 +127,11 @@ index 6dd7d61..2f183c8 100644
 +};
 +std::mutex spatial_optics_mutex;
 +SpatialOpticsConfiguration spatial_optics;
++std::mutex spatial_tracking_mutex;
++bool spatial_tracking_enabled = false;
++// Unity-space pose of the eye center relative to the IMU: position xyz,
++// rotation xyzw. The display's per-eye IPD offsets remain separate.
++std::array<float, 7> spatial_imu_from_eye_pose{};
 +constexpr char kRhinoXMeshHash[] =
 +    "sha256:9ce72f86ada58cf53ab0d440fd504c1197987918be09770f0852faea5512d969";
 +
@@ -115,7 +197,7 @@ index 6dd7d61..2f183c8 100644
  std::atomic<CardboardDisplayApi::ScreenParams>
      CardboardDisplayApi::unity_screen_params_({0, 0, 0, 0, 0, 0});
  
-@@ -125,11 +216,32 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -125,11 +221,32 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    // Updates the screen size.
    screen_params_ = unity_screen_params_;
  
@@ -149,7 +231,7 @@ index 6dd7d61..2f183c8 100644
    if (size == 0) {
      // Loads Cardboard V1 device parameters when no device parameters are
      // available.
-@@ -143,6 +255,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -143,6 +260,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
          screen_params_.viewport_height);
      CardboardQrCode_destroy(data);
    }
@@ -157,7 +239,7 @@ index 6dd7d61..2f183c8 100644
    device_params_changed_ = false;
  
    RenderingResourcesSetup();
-@@ -181,6 +294,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -181,6 +299,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        break;
    }
  
@@ -165,7 +247,7 @@ index 6dd7d61..2f183c8 100644
    CardboardLensDistortion_getDistortionMesh(
        lens_distortion, CardboardEye::kLeft,
        &eye_data_[CardboardEye::kLeft].distortion_mesh);
-@@ -188,6 +302,11 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -188,6 +307,11 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        lens_distortion, CardboardEye::kRight,
        &eye_data_[CardboardEye::kRight].distortion_mesh);
  
@@ -177,7 +259,7 @@ index 6dd7d61..2f183c8 100644
    CardboardDistortionRenderer_setMesh(
        distortion_renderer_.get(),
        &eye_data_[CardboardEye::kLeft].distortion_mesh, CardboardEye::kLeft);
-@@ -196,6 +315,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -196,6 +320,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        &eye_data_[CardboardEye::kRight].distortion_mesh, CardboardEye::kRight);
  
    // Get eye matrices
@@ -185,7 +267,7 @@ index 6dd7d61..2f183c8 100644
    CardboardLensDistortion_getEyeFromHeadMatrix(
        lens_distortion, CardboardEye::kLeft,
        eye_data_[CardboardEye::kLeft].eye_from_head_matrix);
-@@ -207,7 +327,25 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -207,7 +332,25 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    CardboardLensDistortion_getFieldOfView(lens_distortion, CardboardEye::kRight,
                                           eye_data_[CardboardEye::kRight].fov);
  
@@ -212,7 +294,7 @@ index 6dd7d61..2f183c8 100644
  }
  
  void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
-@@ -384,6 +522,37 @@ void CardboardUnity_setDeviceParametersChanged() {
+@@ -384,6 +527,112 @@ void CardboardUnity_setDeviceParametersChanged() {
    cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
  }
  
@@ -245,6 +327,81 @@ index 6dd7d61..2f183c8 100644
 +
 +int CardboardUnity_isSpatialOpticsApplied() {
 +  return cardboard::unity::spatial_optics_applied ? 1 : 0;
++}
++
++int CardboardUnity_configureSpatialTracking(float pitch_degrees, float y_offset,
++    float imu_x, float imu_y, float imu_z,
++    float frame_x, float frame_y, float frame_z, float frame_w) {
++  if (!std::isfinite(pitch_degrees) || std::abs(pitch_degrees) > 45.0f ||
++      !std::isfinite(y_offset) || std::abs(y_offset) >= 0.5f ||
++      !std::isfinite(imu_x) || std::abs(imu_x) >= 0.5f ||
++      !std::isfinite(imu_y) || std::abs(imu_y) >= 0.5f ||
++      !std::isfinite(imu_z) || std::abs(imu_z) >= 0.5f ||
++      !std::isfinite(frame_x) || !std::isfinite(frame_y) ||
++      !std::isfinite(frame_z) || !std::isfinite(frame_w)) return 0;
++  const float frame_length_squared = frame_x * frame_x + frame_y * frame_y +
++      frame_z * frame_z + frame_w * frame_w;
++  if (std::abs(frame_length_squared - 1.0f) > 0.01f) return 0;
++  const float radians = pitch_degrees * 0.017453292519943295f;
++  const float c = std::cos(radians);
++  const float s = std::sin(radians);
++  // Param_RhinoXPro: EyeRender2Design * DesignEye2IMU, followed by the
++  // OpenGL-to-Unity Z flip. In Unity, eye_from_imu has pitch +pitch_degrees;
++  // invert it to obtain the center-eye pose relative to the IMU.
++  const float eye_from_imu_y = c * imu_y + s * imu_z + y_offset;
++  const float eye_from_imu_z = s * imu_y - c * imu_z;
++  const float inverse_pitch = -radians;
++  // q_designImu_from_CardboardHead is an explicit frame adapter. The initial
++  // profile uses identity after Cardboard's landscape/head conversion; its
++  // physical axis alignment has not yet been verified on the device.
++  const float frame_scale = 1.0f / std::sqrt(frame_length_squared);
++  const std::array<float, 4> head_from_design_imu = {
++      -frame_x * frame_scale, -frame_y * frame_scale,
++      -frame_z * frame_scale, frame_w * frame_scale};
++  const std::array<float, 4> design_imu_from_eye = {
++      std::sin(inverse_pitch * 0.5f), 0, 0,
++      std::cos(inverse_pitch * 0.5f)};
++  const auto multiply = [](const std::array<float, 4>& a,
++                           const std::array<float, 4>& b) {
++    return std::array<float, 4>{
++        a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1],
++        a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0],
++        a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3],
++        a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]};
++  };
++  const std::array<float, 4> head_from_eye =
++      multiply(head_from_design_imu, design_imu_from_eye);
++  const float vx = imu_x, vy = eye_from_imu_y, vz = eye_from_imu_z;
++  const float tx = 2.0f * (head_from_eye[1]*vz - head_from_eye[2]*vy);
++  const float ty = 2.0f * (head_from_eye[2]*vx - head_from_eye[0]*vz);
++  const float tz = 2.0f * (head_from_eye[0]*vy - head_from_eye[1]*vx);
++  const std::array<float, 7> imu_from_eye_pose = {
++      -(vx + head_from_eye[3]*tx + head_from_eye[1]*tz - head_from_eye[2]*ty),
++      -(vy + head_from_eye[3]*ty + head_from_eye[2]*tx - head_from_eye[0]*tz),
++      -(vz + head_from_eye[3]*tz + head_from_eye[0]*ty - head_from_eye[1]*tx),
++      head_from_eye[0], head_from_eye[1], head_from_eye[2], head_from_eye[3]};
++  {
++    std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
++    cardboard::unity::spatial_imu_from_eye_pose = imu_from_eye_pose;
++    cardboard::unity::spatial_tracking_enabled = true;
++  }
++  LOGD("Spatial AI IMU-to-eye design reference active: pitch %.4f, eye-from-IMU %.4f %.4f %.4f",
++       pitch_degrees, imu_x, eye_from_imu_y, eye_from_imu_z);
++  return 1;
++}
++
++int CardboardUnity_getSpatialTracking(float* imu_from_eye_pose) {
++  if (!imu_from_eye_pose) return 0;
++  std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
++  if (!cardboard::unity::spatial_tracking_enabled) return 0;
++  std::memcpy(imu_from_eye_pose, cardboard::unity::spatial_imu_from_eye_pose.data(),
++              sizeof(float) * 7);
++  return 1;
++}
++
++void CardboardUnity_clearSpatialTracking() {
++  std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
++  cardboard::unity::spatial_tracking_enabled = false;
 +}
 +
  void CardboardUnity_setWidgetCount(int count) {

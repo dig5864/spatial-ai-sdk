@@ -19,6 +19,16 @@ $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
 if ($profile.meshAssetHash -ne $meshHash -or !(Select-String -LiteralPath $patch -SimpleMatch $meshHash -Quiet)) {
     throw "RhinoX mesh identity differs between source, native patch and optical profile: $meshHash"
 }
+$tracking = $profile.trackingCalibration
+if ($null -eq $tracking -or $tracking.source -notmatch 'Param_RhinoXPro' -or
+    $tracking.eyeRenderToDesignDegreesX -ne -2.3 -or
+    $tracking.eyeRenderToDesignYOffsetMetres -ne -0.01 -or
+    $tracking.designEyeToImuXMetres -ne -0.0400040 -or
+    $tracking.designEyeToImuYMetres -ne 0.0607361 -or
+    $tracking.designEyeToImuZMetres -ne -0.0840374 -or
+    $tracking.poseFrame -ne 'cardboard-unity-landscape-left') {
+    throw 'RhinoX IMU-to-eye design reference differs from Param_RhinoXPro.cpp defaults.'
+}
 
 if (!(Test-Path -LiteralPath $toolchain)) { throw "NDK toolchain missing: $toolchain" }
 if (!(Test-Path -LiteralPath $native)) {
@@ -53,7 +63,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Cardboard native build failed.' }
 $library = Join-Path $build 'libGfxPluginCardboard.so'
 $nm = Join-Path $NdkPath 'toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-nm.exe'
 $symbols = & $nm -D $library
-if ($LASTEXITCODE -ne 0 -or !($symbols -match 'CardboardUnity_configureSpatialOptics') -or !($symbols -match 'CardboardUnity_clearSpatialOptics') -or !($symbols -match 'CardboardUnity_isSpatialOpticsApplied')) {
+if ($LASTEXITCODE -ne 0 -or !($symbols -match 'CardboardUnity_configureSpatialOptics') -or !($symbols -match 'CardboardUnity_clearSpatialOptics') -or !($symbols -match 'CardboardUnity_isSpatialOpticsApplied') -or !($symbols -match 'CardboardUnity_configureSpatialTracking') -or !($symbols -match 'CardboardUnity_getSpatialTracking') -or !($symbols -match 'CardboardUnity_clearSpatialTracking')) {
     throw 'RhinoX native API symbols are missing.'
 }
 if (!(Test-Path -LiteralPath $plugin)) {
