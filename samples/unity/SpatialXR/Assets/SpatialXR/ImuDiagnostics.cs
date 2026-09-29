@@ -21,6 +21,8 @@ namespace SpatialAI.Samples
         private bool poseAvailable;
         private bool previousTrigger;
         private float nextLogTime;
+        private float nextReadoutTime;
+        private string lastReadout = "";
         private int resetCount;
         private string lastReset = "startup";
         private string poseSource = "none";
@@ -107,25 +109,29 @@ namespace SpatialAI.Samples
             }
             else hasReference = false;
 
-            var message = "SPATIAL AI | IMU CHECK\n" +
-                "XR: " + (xrReady ? "RUNNING" : "WAIT") + "   Pose: " + poseSource + "\n" +
-                "Relative head angle (deg)\n" +
-                "Yaw   Y: " + Format(euler.y) + "  turn left/right\n" +
-                "Pitch X: " + Format(euler.x) + "  look up/down\n" +
-                "Roll  Z: " + Format(euler.z) + "  tilt head\n" +
-                "Phone gyro deg/s (device XYZ)\n" +
-                "  " + Format(gyro.x) + "  " + Format(gyro.y) + "  " + Format(gyro.z) + "\n" +
-                "Phone accel g (device XYZ)\n" +
-                "  " + Format(acceleration.x) + "  " + Format(acceleration.y) + "  " + Format(acceleration.z) + "\n" +
-                "Eye XYZ m: " + Format(position.x) + " " + Format(position.y) + " " + Format(position.z) + "\n" +
-                "Tap / trigger / R: ZERO + face axes\n" +
-                "Reset #" + resetCount + " via " + lastReset;
-            if (readout != null) readout.text = message;
+            if (Time.unscaledTime >= nextReadoutTime)
+            {
+                nextReadoutTime = Time.unscaledTime + 0.1f;
+                lastReadout = "SPATIAL AI | IMU CHECK\n" +
+                    "XR: " + (xrReady ? "RUNNING" : "WAIT") + "   Pose: " + poseSource + "\n" +
+                    "Relative head angle (deg)\n" +
+                    "Yaw   Y: " + Format(euler.y) + "  turn left/right\n" +
+                    "Pitch X: " + Format(euler.x) + "  look up/down\n" +
+                    "Roll  Z: " + Format(euler.z) + "  tilt head\n" +
+                    "Phone gyro deg/s (device XYZ)\n" +
+                    "  " + Format(gyro.x) + "  " + Format(gyro.y) + "  " + Format(gyro.z) + "\n" +
+                    "Phone accel g (device XYZ)\n" +
+                    "  " + Format(acceleration.x) + "  " + Format(acceleration.y) + "  " + Format(acceleration.z) + "\n" +
+                    "Eye XYZ m: " + Format(position.x) + " " + Format(position.y) + " " + Format(position.z) + "\n" +
+                    "Tap / trigger / R: ZERO + face axes\n" +
+                    "Reset #" + resetCount + " via " + lastReset;
+                if (readout != null) readout.text = lastReadout;
+            }
 
             if (Time.unscaledTime >= nextLogTime)
             {
                 nextLogTime = Time.unscaledTime + 1f;
-                Debug.Log("SpatialAI IMU | " + message.Replace('\n', ' ') +
+                Debug.Log("SpatialAI IMU | " + lastReadout.Replace('\n', ' ') +
                     " | Head valid=" + InputDevices.GetDeviceAtXRNode(XRNode.Head).isValid +
                     " CenterEye valid=" + InputDevices.GetDeviceAtXRNode(XRNode.CenterEye).isValid +
                     " HMD count=" + headDevices.Count +
@@ -164,6 +170,7 @@ namespace SpatialAI.Samples
             hasReference = valid;
             resetCount++;
             lastReset = source;
+            nextReadoutTime = 0f;
             if (axes != null) PlaceWorldAxes();
             Debug.Log("SpatialAI IMU RESET #" + resetCount + " via " + source +
                 "; pose " + (valid ? "captured" : "pending"));
@@ -176,10 +183,6 @@ namespace SpatialAI.Samples
             CreateAxis("X", Vector3.right, Color.red);
             CreateAxis("Y", Vector3.up, Color.green);
             CreateAxis("Z", Vector3.forward, Color.blue);
-            var origin = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            origin.name = "Axis origin";
-            origin.transform.SetParent(axes.transform, false);
-            origin.transform.localScale = Vector3.one * 0.09f;
         }
 
         private void PlaceWorldAxes()
