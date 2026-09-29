@@ -3,7 +3,8 @@ package com.spatialai.diagnostics.camera;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
+import android.graphics.Matrix;
+import android.graphics.SurfaceTexture;
 import android.graphics.Color;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
@@ -12,9 +13,10 @@ import android.os.Handler;
 import android.util.Log;
 import android.util.Size;
 import android.view.View;
+import android.view.Surface;
+import android.view.TextureView;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.spatialai.camera.CameraService;
@@ -29,12 +31,15 @@ public final class MainActivity extends Activity {
     private List<CameraService.Descriptor> cameras;
     private int index;
     private TextView text;
-    private ImageView image;
+    private TextureView texture;
+    private Surface previewSurface;
     private volatile String state="STARTING";
     private volatile long previewCount, secondCount, previewId, secondId;
     private volatile long previewTime, secondTime;
+    private volatile long previewRenderedCount;
     private volatile int previewChecksum, secondChecksum;
-    private volatile long previewShownAt;
+    private long lastStatsAt, lastPreviewCount, lastRenderedCount;
+    private int captureFps, previewFps;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
@@ -60,8 +65,23 @@ public final class MainActivity extends Activity {
         stop.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { if(service!=null) service.closeCamera(); }
         });
-        image=new ImageView(this); image.setBackgroundColor(Color.DKGRAY);
-        root.addView(image,new LinearLayout.LayoutParams(0,-1,1));
+        texture=new TextureView(this);
+        root.addView(texture,new LinearLayout.LayoutParams(0,-1,1));
+        texture.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override public void onSurfaceTextureAvailable(SurfaceTexture surface,int width,int height) {
+                fitPreview(width,height); if(service!=null) startSelected();
+            }
+            @Override public void onSurfaceTextureSizeChanged(SurfaceTexture surface,int width,int height) {
+                fitPreview(width,height);
+            }
+            @Override public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                if(service!=null) service.closeCamera();
+                releasePreview(); return true;
+            }
+            @Override public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+                previewRenderedCount++;
+            }
+        });
         if (checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.CAMERA},1);
     }
@@ -93,14 +113,6 @@ public final class MainActivity extends Activity {
                     @Override public void onFrame(CameraService.Frame frame) {
                         previewCount++; previewId=frame.sequence; previewTime=frame.timestampNs;
                         previewChecksum=checksum(frame.i420);
-                        long now=android.os.SystemClock.uptimeMillis();
-                        if (now-previewShownAt>500) {
-                            previewShownAt=now;
-                            final Bitmap bitmap=thumbnail(frame,isColorCamera(frame.cameraId));
-                            runOnUiThread(new Runnable() {
-                                @Override public void run() { image.setImageBitmap(bitmap); }
-                            });
-                        }
                     }
                 },"preview");
                 second=service.subscribe(new CameraService.Consumer() {
@@ -121,16 +133,26 @@ public final class MainActivity extends Activity {
         if(size==null) { state="No YUV output on camera "+d.id; return; }
         previewCount=secondCount=previewId=secondId=0;
         previewTime=secondTime=0;
+        lastPreviewCount=0;
+        previewRenderedCount=lastRenderedCount=0;
+        lastStatsAt=0;
         state="OPENING camera="+d.id;
-        try { service.open(d.id,size.getWidth(),size.getHeight()); }
+        if (!texture.isAvailable()) { state="Waiting for preview surface"; return; }
+        try {
+            service.closeCamera(); releasePreview();
+            texture.getSurfaceTexture().setDefaultBufferSize(size.getWidth(),size.getHeight());
+            previewSurface=new Surface(texture.getSurfaceTexture());
+            fitPreview(texture.getWidth(),texture.getHeight());
+            service.open(d.id,size.getWidth(),size.getHeight(),previewSurface);
+        }
         catch (Exception e) { state="Open failed: "+e; Log.e(TAG,state,e); }
     }
     private static Size selectSize(Size[] choices) {
         Size best=null;
         for (Size size:choices) {
             if ((size.getWidth()&1)!=0 || (size.getHeight()&1)!=0) continue;
-            if (best==null || Math.abs(size.getWidth()*size.getHeight()-640*480)
-                <Math.abs(best.getWidth()*best.getHeight()-640*480)) best=size;
+            if (best==null || Math.abs(size.getWidth()*size.getHeight()-1920*1080)
+                <Math.abs(best.getWidth()*best.getHeight()-1920*1080)) best=size;
         }
         return best;
     }
@@ -139,32 +161,29 @@ public final class MainActivity extends Activity {
         for (int i=0;i<bytes.length;i+=97) sum=31*sum+(bytes[i]&255);
         return sum;
     }
-    private boolean isColorCamera(String id) {
-        if (cameras==null) return false;
-        for (CameraService.Descriptor camera:cameras) if (camera.id.equals(id))
-            return camera.colorFilter!=CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_MONO
-                && camera.colorFilter!=CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_NIR;
-        return false;
+    private void releasePreview() {
+        if(previewSurface!=null) { previewSurface.release(); previewSurface=null; }
     }
-    private static int clamp(int value) { return Math.max(0,Math.min(255,value)); }
-    private static Bitmap thumbnail(CameraService.Frame frame,boolean color) {
-        int w=160,h=120;
-        int[] pixels=new int[w*h];
-        for(int y=0;y<h;y++) for(int x=0;x<w;x++) {
-            int sx=x*frame.width/w, sy=y*frame.height/h;
-            int lum=frame.i420[sy*frame.width+sx]&255;
-            if (!color) { pixels[y*w+x]=Color.rgb(lum,lum,lum); continue; }
-            int chroma=(sy/2)*(frame.width/2)+sx/2;
-            int u=(frame.i420[frame.width*frame.height+chroma]&255)-128;
-            int v=(frame.i420[frame.width*frame.height*5/4+chroma]&255)-128;
-            int c=Math.max(0,lum-16);
-            pixels[y*w+x]=Color.rgb(clamp((298*c+409*v+128)>>8),
-                clamp((298*c-100*u-208*v+128)>>8),clamp((298*c+516*u+128)>>8));
-        }
-        return Bitmap.createBitmap(pixels,w,h,Bitmap.Config.ARGB_8888);
+    private void fitPreview(int width,int height) {
+        if(width<=0 || height<=0) return;
+        float targetAspect=16f/9f, viewAspect=(float)width/height;
+        boolean front=cameras!=null && !cameras.isEmpty()
+            && cameras.get(index).facing==CameraCharacteristics.LENS_FACING_FRONT;
+        Matrix matrix=new Matrix();
+        float sx=viewAspect<targetAspect?1f:targetAspect/viewAspect;
+        float sy=viewAspect<targetAspect?viewAspect/targetAspect:1f;
+        matrix.setScale(front?-sx:sx,sy,width/2f,height/2f);
+        texture.setTransform(matrix);
     }
     private final Runnable tick=new Runnable() {
         @Override public void run() {
+            long now=android.os.SystemClock.uptimeMillis();
+            if (lastStatsAt!=0) {
+                long elapsed=Math.max(1,now-lastStatsAt);
+                captureFps=(int)Math.round((previewCount-lastPreviewCount)*1000.0/elapsed);
+                previewFps=(int)Math.round((previewRenderedCount-lastRenderedCount)*1000.0/elapsed);
+            }
+            lastStatsAt=now; lastPreviewCount=previewCount; lastRenderedCount=previewRenderedCount;
             StringBuilder b=new StringBuilder(state).append('\n');
             if (cameras!=null) {
                 b.append("Camera2 count: ").append(cameras.size()).append('\n');
@@ -184,6 +203,8 @@ public final class MainActivity extends Activity {
                 previewCount,previewId,previewTime,previewChecksum));
             b.append(String.format(Locale.US,"Consumer B: %d frames  seq=%d  ts=%d  sum=%08x\n",
                 secondCount,secondId,secondTime,secondChecksum));
+            b.append("Capture/preview FPS: ").append(captureFps).append(" / ").append(previewFps)
+                .append(" (Camera2 Surface)\n");
             if(service!=null) b.append("Pool drops: ").append(service.getPoolDrops()).append('\n');
             b.append("Select each ID and cover its physical lens to map cameras.\n");
             text.setText(b.toString());
@@ -205,6 +226,7 @@ public final class MainActivity extends Activity {
     @Override protected void onPause() {
         ui.removeCallbacks(tick);
         if(service!=null) { service.close(); service=null; preview=second=null; }
+        releasePreview();
         super.onPause();
     }
 }

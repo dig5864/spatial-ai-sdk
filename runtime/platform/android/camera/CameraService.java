@@ -13,10 +13,12 @@ import android.media.ImageReader;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Size;
+import android.view.Surface;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -157,6 +159,11 @@ public final class CameraService implements AutoCloseable {
     }
     public long getPoolDrops() { return poolDrops; }
     public synchronized void open(String id, int width, int height) throws CameraAccessException {
+        open(id,width,height,null);
+    }
+    /** Optional display surface shares this capture session with the ImageReader stream. */
+    public synchronized void open(String id, int width, int height, Surface previewSurface)
+            throws CameraAccessException {
         if (disposed) throw new IllegalStateException("Service disposed");
         closeCamera();
         final int token=++generation;
@@ -176,7 +183,10 @@ public final class CameraService implements AutoCloseable {
                 if (token!=generation) { device.close(); return; }
                 camera=device;
                 try {
-                    device.createCaptureSession(Collections.singletonList(reader.getSurface()),
+                    List<Surface> outputs=previewSurface==null
+                        ?Collections.singletonList(reader.getSurface())
+                        :Arrays.asList(reader.getSurface(),previewSurface);
+                    device.createCaptureSession(outputs,
                         new CameraCaptureSession.StateCallback() {
                             @Override public void onConfigured(CameraCaptureSession configured) {
                                 synchronized (CameraService.this) {
@@ -185,6 +195,7 @@ public final class CameraService implements AutoCloseable {
                                 try {
                                     CaptureRequest.Builder request=device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                                     request.addTarget(reader.getSurface());
+                                    if (previewSurface!=null) request.addTarget(previewSurface);
                                     configured.setRepeatingRequest(request.build(),null,cameraHandler);
                                     notifyState("RUNNING camera="+id+" "+width+"x"+height);
                                 } catch (CameraAccessException e) { fail("repeating request",e); }
@@ -253,9 +264,16 @@ public final class CameraService implements AutoCloseable {
             int planeWidth=p==0?width:width/2, planeHeight=p==0?height:height/2;
             ByteBuffer source=planes[p].getBuffer();
             int rowStride=planes[p].getRowStride(), pixelStride=planes[p].getPixelStride();
-            for (int y=0;y<planeHeight;y++)
-                for (int x=0;x<planeWidth;x++)
-                    output[offset++]=source.get(y*rowStride+x*pixelStride);
+            for (int y=0;y<planeHeight;y++) {
+                if (pixelStride==1) {
+                    source.position(y*rowStride);
+                    source.get(output,offset,planeWidth);
+                    offset+=planeWidth;
+                } else {
+                    for (int x=0;x<planeWidth;x++)
+                        output[offset++]=source.get(y*rowStride+x*pixelStride);
+                }
+            }
         }
     }
     public synchronized void closeCamera() {
