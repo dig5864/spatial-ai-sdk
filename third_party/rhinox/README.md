@@ -8,4 +8,4 @@
 
 参考 APK 的 4320×2160 原始截图中，双眼中央白色竖线分别位于约 x=1060 和 x=3261。该网格中心顶点的 x 坐标为 -0.509533 和 +0.509533，映射到整屏后约为 x=1059 和 x=3261；中心 y=-0.185164 映射后为 y=1280。位置吻合，支持这组数据属于参考画面。参考截图里的文字相对源图呈上下颠倒状态，也与历史着色器直接使用 V 分量的方向相符；仍须取得 SpatialXR 原始截图确认新适配的实际输出。
 
-启用条件为已知 RhinoX 设备身份、Unity 场景显式选择和 4320×2160 屏幕参数。设备内显示 `applied` 表示网格已提交给 Cardboard 渲染器。还需用同一张测试图对比历史 Runtime 与 SpatialXR 的真机截图，确认眼别、方向、位置、局部网格形变和边缘裁剪；在这之前正式 profile 的 `validatedForHardware` 保持 `false`。iOS 暂不使用此 Android 网格。
+启用条件为已知 RhinoX 设备身份、完整的光学 Profile、与原生网格一致的 ID 和 SHA-256，以及 4320×2160 屏幕参数。Unity 自动传入 IPD 和视锥；原生层直接使用 RhinoX 网格与投影，不读取通用 Cardboard QR 镜片参数。设备内显示 `applied` 表示网格已提交给 Cardboard 渲染器。历史参考图与 SpatialXR 真机截图的几何位置已接近一致，但每台设备的光学校准仍未完成，因此 `validatedForHardware` 保持 `false`。iOS 暂不使用此 Android 网格。

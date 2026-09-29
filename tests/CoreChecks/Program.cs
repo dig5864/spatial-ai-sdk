@@ -70,6 +70,19 @@ static class Program
             Check(DeviceProfileSelector.Select(new DeviceIdentity { DeviceCode = "test-device" },
                 new[] { calibrated }, out selected).Code == ErrorCode.Unsupported && selected == calibrated,
                 "matched but uncalibrated profile remains unavailable");
+            var displayProfile = new OpticalProfileDescriptor { schemaVersion = 1,
+                profileId = "rhinox-pro-legacy-reference", deviceModel = "RhinoXPro",
+                screenWidth = 4320, screenHeight = 2160, eyeWidth = 2160, eyeHeight = 2160,
+                ipdMetres = 0.062f, frustumNearMetres = 0.1f,
+                frustumLeftMetres = -0.07968503f, frustumRightMetres = 0.07968503f,
+                frustumTopMetres = 0.07348122f, frustumBottomMetres = -0.08588884f,
+                meshId = "rhinox-pro-sharp-2k-separate", meshAssetHash = "sha256:reference" };
+            Check(displayProfile.ValidateDisplayConfiguration().Success, "complete display profile accepted");
+            displayProfile.screenWidth = 4000;
+            Check(!displayProfile.ValidateDisplayConfiguration().Success, "mismatched eye and screen resolution blocked");
+            displayProfile.screenWidth = 4320;
+            displayProfile.frustumTopMetres = float.NaN;
+            Check(!displayProfile.ValidateDisplayConfiguration().Success, "invalid frustum blocked");
             if (Array.IndexOf(args, "--native") >= 0)
             {
                 uint mask; var native = NativeRuntimeProbe.Check(out mask);

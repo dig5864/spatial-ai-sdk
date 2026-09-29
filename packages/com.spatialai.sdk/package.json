@@ -11,6 +11,6 @@
   },
   "samples": [
     { "displayName": "Hello Spatial (Simulator)", "description": "Create a simulator scene using Spatial AI > Create Simulator Scene after importing this sample.", "path": "Samples~/HelloSpatial" },
-    { "displayName": "Hello Spatial XR (Cardboard baseline)", "description": "Requires Cardboard XR Plugin 1.30.0 or newer, Input System and XR Plug-in Management. Device profile matching is diagnostic; RhinoX optics are not applied.", "path": "Samples~/HelloSpatialXR" }
+    { "displayName": "Hello Spatial XR (Cardboard baseline)", "description": "Requires Cardboard XR Plugin 1.30.0 or newer, Input System and XR Plug-in Management. The RhinoX Pro optical reference is applied on the known development device; per-unit calibration remains pending.", "path": "Samples~/HelloSpatialXR" }
   ]
 }

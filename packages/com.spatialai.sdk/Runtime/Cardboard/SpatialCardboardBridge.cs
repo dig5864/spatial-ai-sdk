@@ -10,8 +10,8 @@ using UnityEngine.XR.Management;
 
 namespace SpatialAI.Cardboard
 {
-    // Cardboard owns display submission and distortion. Spatial AI only observes its
-    // XR session and selects our independent optical profile by device ID.
+    // Cardboard owns display submission. A matched Spatial AI optical profile
+    // supplies its display mesh and projection through the native boundary.
     public sealed class SpatialCardboardBridge : MonoBehaviour
     {
         [Tooltip("External headset ID from a future connection service. If empty, use the phone device code or model for diagnostics only.")]
@@ -19,8 +19,6 @@ namespace SpatialAI.Cardboard
         public bool scanCardboardViewerOnStart;
         [Tooltip("Only for the sample: load generic Cardboard I/O 2015 viewer parameters when none are saved. Never use these parameters to validate RhinoX optics.")]
         public bool useGenericViewerForDiagnostics;
-        [Tooltip("Use the historical RhinoX Pro Sharp dual-eye distortion mesh only on the known RhinoX Android device. Calibration still requires visual verification.")]
-        public bool useRhinoXLegacyMeshForDiagnostics;
         public DeviceIdentity Identity { get; private set; }
         public OpticalProfileDescriptor MatchedProfile { get; private set; }
         public Result ProfileResult { get; private set; }
@@ -29,12 +27,17 @@ namespace SpatialAI.Cardboard
         public bool UsingGenericViewerParams { get; private set; }
         public bool TriggerPressed { get; private set; }
         public bool RhinoXLegacyMeshApplied { get; private set; }
-        private bool rhinoXNativeApiAvailable;
+        private bool spatialOpticsConfigured;
+        private bool opticsConfigurationRejected;
 #if UNITY_ANDROID && !UNITY_EDITOR
-        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_setRhinoXLegacyMesh")]
-        private static extern void SetRhinoXLegacyMesh(int enabled);
-        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_isRhinoXLegacyMeshApplied")]
-        private static extern int IsRhinoXLegacyMeshApplied();
+        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_configureSpatialOptics")]
+        private static extern int ConfigureSpatialOptics(string meshId, string meshHash,
+            int screenWidth, int screenHeight, float ipd, float nearPlane,
+            float left, float right, float top, float bottom);
+        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_clearSpatialOptics")]
+        private static extern void ClearSpatialOptics();
+        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_isSpatialOpticsApplied")]
+        private static extern int IsSpatialOpticsApplied();
 #endif
         private bool viewerParamsChecked;
         private bool viewerScanInProgress;
@@ -55,18 +58,32 @@ namespace SpatialAI.Cardboard
             if (knownRhinoX && string.IsNullOrEmpty(Identity.HeadsetId)) Identity.HeadsetId = "RhinoXPro";
             ProfileResult = SpatialDeviceProfiles.Select(Identity, out var profile);
             MatchedProfile = profile;
+            opticsConfigurationRejected = knownRhinoX;
             Debug.Log("Spatial AI device: " + Identity.DisplayName + "; optics: " + ProfileResult.Message);
 #if UNITY_ANDROID && !UNITY_EDITOR
-            if (knownRhinoX && useRhinoXLegacyMeshForDiagnostics && MatchedProfile != null &&
-                MatchedProfile.profileId == "rhinox-pro-legacy-reference")
+            if (knownRhinoX && MatchedProfile != null)
             {
-                try
+                var displayResult = MatchedProfile.ValidateDisplayConfiguration();
+                if (!displayResult.Success)
                 {
-                    SetRhinoXLegacyMesh(1);
-                    rhinoXNativeApiAvailable = true;
-                    Debug.Log("Spatial AI requested RhinoX Pro Sharp mesh; waiting for native render reload.");
+                    Debug.LogError("Spatial AI optics rejected: " + displayResult.Message);
                 }
-                catch (Exception e) { Debug.LogError("RhinoX native mesh API unavailable: " + e.Message); }
+                else try
+                {
+                    spatialOpticsConfigured = ConfigureSpatialOptics(
+                        MatchedProfile.meshId, MatchedProfile.meshAssetHash,
+                        MatchedProfile.screenWidth, MatchedProfile.screenHeight,
+                        MatchedProfile.ipdMetres, MatchedProfile.frustumNearMetres,
+                        MatchedProfile.frustumLeftMetres, MatchedProfile.frustumRightMetres,
+                        MatchedProfile.frustumTopMetres, MatchedProfile.frustumBottomMetres) != 0;
+                    if (spatialOpticsConfigured)
+                    {
+                        opticsConfigurationRejected = false;
+                        Debug.Log("Spatial AI optical profile configured: " + MatchedProfile.profileId);
+                    }
+                    else Debug.LogError("Spatial AI optics rejected by native mesh identity or parameter validation.");
+                }
+                catch (Exception e) { Debug.LogError("Spatial AI native optics API unavailable: " + e.Message); }
             }
 #endif
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
@@ -79,10 +96,24 @@ namespace SpatialAI.Cardboard
             var loader = manager != null ? manager.activeLoader as Google.XR.Cardboard.XRLoader : null;
             var display = loader != null ? loader.GetLoadedSubsystem<XRDisplaySubsystem>() : null;
             XrRunning = display != null && display.running;
+            if (opticsConfigurationRejected)
+            {
+                if (XrRunning) display.Stop();
+                XrRunning = false;
+                return;
+            }
 #if UNITY_ANDROID && !UNITY_EDITOR
-            if (rhinoXNativeApiAvailable) RhinoXLegacyMeshApplied = IsRhinoXLegacyMeshApplied() != 0;
+            if (spatialOpticsConfigured) RhinoXLegacyMeshApplied = IsSpatialOpticsApplied() != 0;
 #endif
             if (!XrRunning) return;
+            if (spatialOpticsConfigured)
+            {
+                ViewerParamsReady = RhinoXLegacyMeshApplied;
+                UsingGenericViewerParams = false;
+                Api.UpdateScreenParams();
+                TriggerPressed = Api.IsTriggerPressed;
+                return;
+            }
             if (!viewerParamsChecked)
             {
                 viewerParamsChecked = true;
@@ -136,7 +167,7 @@ namespace SpatialAI.Cardboard
         private void OnDestroy()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            if (rhinoXNativeApiAvailable) SetRhinoXLegacyMesh(0);
+            if (spatialOpticsConfigured) ClearSpatialOptics();
 #endif
         }
     }

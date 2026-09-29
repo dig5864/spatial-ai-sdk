@@ -14,9 +14,19 @@ Profile 放在 UPM 包的 `Runtime/Unity/Resources/SpatialAI/Profiles/`。`devic
   "validatedForHardware": false,
   "eyeWidth": 0,
   "eyeHeight": 0,
+  "screenWidth": 0,
+  "screenHeight": 0,
   "ipdMetres": 0,
+  "frustumNearMetres": 0,
+  "frustumLeftMetres": 0,
+  "frustumRightMetres": 0,
+  "frustumTopMetres": 0,
+  "frustumBottomMetres": 0,
+  "meshId": "",
   "meshAssetHash": ""
 }
 ```
 
-上例只是字段说明，不能投入显示。启用前需要给出设备/固件匹配、每眼投影、眼位、视口、OST 网格、屏幕方向与分辨率、资产校验值和实机标定记录。当前 `rhinox-pro-reference.json` 是旧工程参考数据，`validatedForHardware=false` 且网格哈希为空。`SpatialCardboardBridge` 只报告匹配状态，不把该 Profile 交给 Cardboard 的 Viewer 参数接口。后续接入眼镜参数时须先明确最终畸变由哪个显示 Provider 执行，避免双重畸变。
+上例只是字段说明，不能投入显示。RhinoX Pro 的参考 Profile 已填入历史工程中的 4320×2160 屏幕、2160×2160 单眼、62 mm IPD、非对称视锥和 Sharp 2K 双眼 OST 网格哈希。`SpatialCardboardBridge` 按设备 ID 选择并校验这些字段，交给改造的 Cardboard 显示层；该层对 RhinoX 跳过 QR 镜片参数，直接使用 Profile 的投影和历史网格，避免双重畸变。网格 ID 与哈希须和原生库中的资产一致，否则拒绝配置。显示分辨率不符时原生层拒绝提交网格。
+
+此 Profile 的 `validatedForHardware=false` 仍表示它只是历史参考，尚未完成每台设备的光学校准。已连接的 RhinoX 开发机可用它运行显示对比；不能将它标为已完成量产标定。眼睛相对追踪器的外参、每台设备的校准文件、屏幕方向及其他机型的参数仍需单独取得和验证。未知设备不会推断为 RhinoX；其他 Cardboard 设备继续使用自己的 QR 镜片参数。

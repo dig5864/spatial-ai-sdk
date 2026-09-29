@@ -13,6 +13,12 @@ $build = Join-Path $root 'build/native/cardboard-rhinox-v1301'
 $aar = Join-Path $root 'third_party/rhinox/GfxPluginCardboard-rhinox.aar'
 $upstreamAar = Join-Path $plugin 'Runtime/Android/GfxPluginCardboard.aar'
 $toolchain = Join-Path $NdkPath 'build/cmake/android.toolchain.cmake'
+$meshHash = 'sha256:' + (Get-FileHash -LiteralPath $mesh -Algorithm SHA256).Hash.ToLowerInvariant()
+$profilePath = Join-Path $root 'packages/com.spatialai.sdk/Runtime/Unity/Resources/SpatialAI/Profiles/rhinox-pro-reference.json'
+$profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+if ($profile.meshAssetHash -ne $meshHash -or !(Select-String -LiteralPath $patch -SimpleMatch $meshHash -Quiet)) {
+    throw "RhinoX mesh identity differs between source, native patch and optical profile: $meshHash"
+}
 
 if (!(Test-Path -LiteralPath $toolchain)) { throw "NDK toolchain missing: $toolchain" }
 if (!(Test-Path -LiteralPath $native)) {
@@ -47,7 +53,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Cardboard native build failed.' }
 $library = Join-Path $build 'libGfxPluginCardboard.so'
 $nm = Join-Path $NdkPath 'toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-nm.exe'
 $symbols = & $nm -D $library
-if ($LASTEXITCODE -ne 0 -or !($symbols -match 'CardboardUnity_setRhinoXLegacyMesh') -or !($symbols -match 'CardboardUnity_isRhinoXLegacyMeshApplied')) {
+if ($LASTEXITCODE -ne 0 -or !($symbols -match 'CardboardUnity_configureSpatialOptics') -or !($symbols -match 'CardboardUnity_clearSpatialOptics') -or !($symbols -match 'CardboardUnity_isSpatialOpticsApplied')) {
     throw 'RhinoX native API symbols are missing.'
 }
 if (!(Test-Path -LiteralPath $plugin)) {

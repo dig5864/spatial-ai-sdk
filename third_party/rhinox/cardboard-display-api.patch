@@ -1,16 +1,18 @@
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..a7ea777 100644
+index 6dd7d61..2f183c8 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-@@ -20,6 +20,7 @@
+@@ -19,7 +19,9 @@
+ #include <unistd.h>
  
  #include <array>
++#include <algorithm>
  #include <atomic>
 +#include <cmath>
  #include <cstdint>
  #include <cstring>
  #include <memory>
-@@ -27,6 +28,19 @@
+@@ -27,6 +29,19 @@
  #include <string>
  #include <vector>
  
@@ -30,12 +32,26 @@ index 6dd7d61..a7ea777 100644
  // The following block makes log macros available for Android and iOS.
  #if defined(__ANDROID__)
  #include <android/log.h>
-@@ -66,6 +80,68 @@ void NSLog(CFStringRef format, ...);
+@@ -66,6 +81,82 @@ void NSLog(CFStringRef format, ...);
  
  namespace cardboard::unity {
  
-+std::atomic<bool> rhinox_legacy_mesh_enabled{false};
-+std::atomic<bool> rhinox_legacy_mesh_applied{false};
++std::atomic<bool> spatial_optics_applied{false};
++struct SpatialOpticsConfiguration {
++  bool enabled = false;
++  int screen_width = 0;
++  int screen_height = 0;
++  float ipd = 0;
++  float near_plane = 0;
++  float left = 0;
++  float right = 0;
++  float top = 0;
++  float bottom = 0;
++};
++std::mutex spatial_optics_mutex;
++SpatialOpticsConfiguration spatial_optics;
++constexpr char kRhinoXMeshHash[] =
++    "sha256:9ce72f86ada58cf53ab0d440fd504c1197987918be09770f0852faea5512d969";
 +
 +namespace {
 +struct RhinoXMeshStorage {
@@ -99,55 +115,136 @@ index 6dd7d61..a7ea777 100644
  std::atomic<CardboardDisplayApi::ScreenParams>
      CardboardDisplayApi::unity_screen_params_({0, 0, 0, 0, 0, 0});
  
-@@ -188,6 +264,16 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -125,11 +216,32 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+   // Updates the screen size.
+   screen_params_ = unity_screen_params_;
+ 
++  SpatialOpticsConfiguration optics;
++  {
++    std::lock_guard<std::mutex> lock(spatial_optics_mutex);
++    optics = spatial_optics;
++  }
++  const bool use_spatial_optics = optics.enabled &&
++      screen_params_.width == optics.screen_width &&
++      screen_params_.height == optics.screen_height &&
++      RhinoXMesh(CardboardEye::kLeft).mesh.n_vertices == 2601 &&
++      RhinoXMesh(CardboardEye::kRight).mesh.n_vertices == 2601;
++  spatial_optics_applied = use_spatial_optics;
++  if (optics.enabled && !use_spatial_optics) {
++    LOGE("Spatial optics screen/mesh mismatch: actual %d x %d, expected %d x %d",
++         screen_params_.width, screen_params_.height,
++         optics.screen_width, optics.screen_height);
++    return;
++  }
++
++  // Generic Cardboard viewers still use QR-derived lens parameters. A matched
++  // Spatial optics profile supplies its own mesh and projection independently.
++  CardboardLensDistortion* lens_distortion = nullptr;
++  if (!use_spatial_optics) {
+   // Get saved device parameters
+   uint8_t* data;
+   int size;
+   CardboardQrCode_getSavedDeviceParams(&data, &size);
+-  CardboardLensDistortion* lens_distortion;
+   if (size == 0) {
+     // Loads Cardboard V1 device parameters when no device parameters are
+     // available.
+@@ -143,6 +255,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+         screen_params_.viewport_height);
+     CardboardQrCode_destroy(data);
+   }
++  }
+   device_params_changed_ = false;
+ 
+   RenderingResourcesSetup();
+@@ -181,6 +294,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+       break;
+   }
+ 
++  if (!use_spatial_optics) {
+   CardboardLensDistortion_getDistortionMesh(
+       lens_distortion, CardboardEye::kLeft,
+       &eye_data_[CardboardEye::kLeft].distortion_mesh);
+@@ -188,6 +302,11 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        lens_distortion, CardboardEye::kRight,
        &eye_data_[CardboardEye::kRight].distortion_mesh);
  
-+  const bool use_rhinox_mesh = rhinox_legacy_mesh_enabled &&
-+      screen_params_.width == 4320 && screen_params_.height == 2160 &&
-+      RhinoXMesh(CardboardEye::kLeft).mesh.n_vertices == 2601 &&
-+      RhinoXMesh(CardboardEye::kRight).mesh.n_vertices == 2601;
-+  rhinox_legacy_mesh_applied = use_rhinox_mesh;
-+  if (use_rhinox_mesh) {
++  } else {
 +    eye_data_[CardboardEye::kLeft].distortion_mesh = RhinoXMesh(CardboardEye::kLeft).mesh;
 +    eye_data_[CardboardEye::kRight].distortion_mesh = RhinoXMesh(CardboardEye::kRight).mesh;
-+    LOGD("Spatial AI RhinoX Pro Sharp mesh active: %d vertices/eye", 2601);
++    LOGD("Spatial AI optical profile active: RhinoX Pro Sharp mesh, %d vertices/eye", 2601);
 +  }
    CardboardDistortionRenderer_setMesh(
        distortion_renderer_.get(),
        &eye_data_[CardboardEye::kLeft].distortion_mesh, CardboardEye::kLeft);
-@@ -207,6 +293,19 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -196,6 +315,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+       &eye_data_[CardboardEye::kRight].distortion_mesh, CardboardEye::kRight);
+ 
+   // Get eye matrices
++  if (!use_spatial_optics) {
+   CardboardLensDistortion_getEyeFromHeadMatrix(
+       lens_distortion, CardboardEye::kLeft,
+       eye_data_[CardboardEye::kLeft].eye_from_head_matrix);
+@@ -207,7 +327,25 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    CardboardLensDistortion_getFieldOfView(lens_distortion, CardboardEye::kRight,
                                           eye_data_[CardboardEye::kRight].fov);
  
-+  if (use_rhinox_mesh) {
-+    // Legacy Param_RhinoXPro: 62 mm IPD and asymmetric 0.1 m frustum.
-+    constexpr float ipd_half = 0.031f;
-+    eye_data_[CardboardEye::kLeft].eye_from_head_matrix[12] = ipd_half;
-+    eye_data_[CardboardEye::kRight].eye_from_head_matrix[12] = -ipd_half;
+-  CardboardLensDistortion_destroy(lens_distortion);
++  } else {
 +    for (auto& eye : eye_data_) {
-+      eye.fov[0] = std::atan(0.07968503f / 0.1f);
-+      eye.fov[1] = eye.fov[0];
-+      eye.fov[2] = std::atan(0.08588884f / 0.1f);
-+      eye.fov[3] = std::atan(0.07348122f / 0.1f);
++      std::fill(eye.eye_from_head_matrix, eye.eye_from_head_matrix + 16, 0.0f);
++      eye.eye_from_head_matrix[0] = 1.0f;
++      eye.eye_from_head_matrix[5] = 1.0f;
++      eye.eye_from_head_matrix[10] = 1.0f;
++      eye.eye_from_head_matrix[15] = 1.0f;
++    }
++    eye_data_[CardboardEye::kLeft].eye_from_head_matrix[12] = optics.ipd * 0.5f;
++    eye_data_[CardboardEye::kRight].eye_from_head_matrix[12] = -optics.ipd * 0.5f;
++    for (auto& eye : eye_data_) {
++      eye.fov[0] = std::atan(-optics.left / optics.near_plane);
++      eye.fov[1] = std::atan(optics.right / optics.near_plane);
++      eye.fov[2] = std::atan(-optics.bottom / optics.near_plane);
++      eye.fov[3] = std::atan(optics.top / optics.near_plane);
 +    }
 +  }
 +
-   CardboardLensDistortion_destroy(lens_distortion);
++  if (lens_distortion) CardboardLensDistortion_destroy(lens_distortion);
  }
  
-@@ -384,6 +483,16 @@ void CardboardUnity_setDeviceParametersChanged() {
+ void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
+@@ -384,6 +522,37 @@ void CardboardUnity_setDeviceParametersChanged() {
    cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
  }
  
-+void CardboardUnity_setRhinoXLegacyMesh(int enabled) {
-+  cardboard::unity::rhinox_legacy_mesh_enabled = enabled != 0;
-+  if (!enabled) cardboard::unity::rhinox_legacy_mesh_applied = false;
++int CardboardUnity_configureSpatialOptics(const char* mesh_id,
++    const char* mesh_hash, int screen_width, int screen_height,
++    float ipd, float near_plane, float left, float right, float top, float bottom) {
++  if (!mesh_id || !mesh_hash || std::strcmp(mesh_id, "rhinox-pro-sharp-2k-separate") != 0 ||
++      std::strcmp(mesh_hash, cardboard::unity::kRhinoXMeshHash) != 0 ||
++      screen_width <= 0 || screen_height <= 0 ||
++      !std::isfinite(ipd) || ipd <= 0 || !std::isfinite(near_plane) || near_plane <= 0 ||
++      !std::isfinite(left) || left >= 0 || !std::isfinite(right) || right <= 0 ||
++      !std::isfinite(top) || top <= 0 || !std::isfinite(bottom) || bottom >= 0) return 0;
++  {
++    std::lock_guard<std::mutex> lock(cardboard::unity::spatial_optics_mutex);
++    cardboard::unity::spatial_optics = {true, screen_width, screen_height,
++        ipd, near_plane, left, right, top, bottom};
++  }
++  cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
++  return 1;
++}
++
++void CardboardUnity_clearSpatialOptics() {
++  {
++    std::lock_guard<std::mutex> lock(cardboard::unity::spatial_optics_mutex);
++    cardboard::unity::spatial_optics = {};
++  }
++  cardboard::unity::spatial_optics_applied = false;
 +  cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
 +}
 +
-+int CardboardUnity_isRhinoXLegacyMeshApplied() {
-+  return cardboard::unity::rhinox_legacy_mesh_applied ? 1 : 0;
++int CardboardUnity_isSpatialOpticsApplied() {
++  return cardboard::unity::spatial_optics_applied ? 1 : 0;
 +}
 +
  void CardboardUnity_setWidgetCount(int count) {

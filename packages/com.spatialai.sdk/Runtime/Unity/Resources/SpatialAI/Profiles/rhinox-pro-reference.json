@@ -2,11 +2,22 @@
   "schemaVersion": 1,
   "profileId": "rhinox-pro-legacy-reference",
   "deviceModel": "RhinoXPro",
-  "deviceIds": ["RhinoX", "RhinoXPro"],
+  "deviceIds": [
+    "RhinoX",
+    "RhinoXPro"
+  ],
   "calibrationVersion": "unverified-legacy-reference",
   "validatedForHardware": false,
   "eyeWidth": 2160,
   "eyeHeight": 2160,
   "ipdMetres": 0.062,
-  "meshAssetHash": "sha256:ff6755f07b5657310a63165f7ba81689a3ce97c28892031b1ed5d89415359d74"
+  "meshAssetHash": "sha256:9ce72f86ada58cf53ab0d440fd504c1197987918be09770f0852faea5512d969",
+  "screenWidth": 4320,
+  "screenHeight": 2160,
+  "frustumNearMetres": 0.1,
+  "frustumLeftMetres": -0.07968503,
+  "frustumRightMetres": 0.07968503,
+  "frustumTopMetres": 0.07348122,
+  "frustumBottomMetres": -0.08588884,
+  "meshId": "rhinox-pro-sharp-2k-separate"
 }

@@ -25,8 +25,35 @@ namespace SpatialAI.Core
         public bool validatedForHardware;
         public int eyeWidth;
         public int eyeHeight;
+        public int screenWidth;
+        public int screenHeight;
         public float ipdMetres;
+        public float frustumNearMetres;
+        public float frustumLeftMetres;
+        public float frustumRightMetres;
+        public float frustumTopMetres;
+        public float frustumBottomMetres;
+        public string meshId;
         public string meshAssetHash;
+
+        // A historical reference may be usable for development without claiming
+        // that its per-unit optical calibration has been verified for release.
+        public Result ValidateDisplayConfiguration()
+        {
+            if (schemaVersion != 1 || string.IsNullOrEmpty(profileId) ||
+                string.IsNullOrEmpty(deviceModel) || string.IsNullOrEmpty(meshId) ||
+                string.IsNullOrEmpty(meshAssetHash) || screenWidth <= 0 ||
+                screenHeight <= 0 || eyeWidth <= 0 || eyeHeight <= 0 ||
+                eyeWidth * 2 != screenWidth || eyeHeight != screenHeight ||
+                !FinitePositive(ipdMetres) || !FinitePositive(frustumNearMetres) ||
+                !FinitePositive(frustumRightMetres) || !FinitePositive(frustumTopMetres) ||
+                !FiniteNegative(frustumLeftMetres) || !FiniteNegative(frustumBottomMetres))
+                return new Result(ErrorCode.InvalidArgument, "Incomplete optical display configuration.");
+            return Result.Ok;
+        }
+
+        private static bool FinitePositive(float value) { return !float.IsNaN(value) && !float.IsInfinity(value) && value > 0; }
+        private static bool FiniteNegative(float value) { return !float.IsNaN(value) && !float.IsInfinity(value) && value < 0; }
 
         public OpticsProfile ToOpticsProfile()
         {

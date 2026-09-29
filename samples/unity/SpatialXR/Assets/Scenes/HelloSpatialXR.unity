@@ -479,7 +479,6 @@ MonoBehaviour:
   headsetDeviceId: 
   scanCardboardViewerOnStart: 0
   useGenericViewerForDiagnostics: 1
-  useRhinoXLegacyMeshForDiagnostics: 1
 --- !u!4 &1839990091
 Transform:
   m_ObjectHideFlags: 0
