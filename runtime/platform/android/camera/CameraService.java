@@ -30,10 +30,13 @@ public final class CameraService implements AutoCloseable {
         public final String id;
         public final int facing;
         public final int timestampSource;
+        public final int colorFilter;
         public final Size[] yuvSizes;
         public final String[] physicalIds;
-        Descriptor(String id, int facing, int timestampSource, Size[] sizes, String[] physicalIds) {
+        Descriptor(String id, int facing, int timestampSource, int colorFilter,
+                   Size[] sizes, String[] physicalIds) {
             this.id=id; this.facing=facing; this.timestampSource=timestampSource;
+            this.colorFilter=colorFilter;
             this.yuvSizes=sizes; this.physicalIds=physicalIds;
         }
     }
@@ -139,7 +142,9 @@ public final class CameraService implements AutoCloseable {
             Size[] sizes=map==null?null:map.getOutputSizes(ImageFormat.YUV_420_888);
             Integer facing=c.get(CameraCharacteristics.LENS_FACING);
             Integer source=c.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE);
+            Integer filter=c.get(CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT);
             list.add(new Descriptor(id, facing==null?-1:facing, source==null?-1:source,
+                filter==null?-1:filter,
                 sizes==null?new Size[0]:sizes, c.getPhysicalCameraIds().toArray(new String[0])));
         }
         return list;

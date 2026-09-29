@@ -1,6 +1,6 @@
 # CameraService Android 诊断样例
 
-本样例只验证 Android Camera2 相机发现、采集、帧缓冲生命周期和双消费者分发。它不会修改 Unity 场景，也未接入 MediaPipe 或 Vuforia。USB 摄像头若未由设备 Camera HAL 暴露给 Camera2，当前样例不会发现它，后续需增加独立 UVC 采集适配器。
+本样例只验证 Android Camera2 相机发现、采集、帧缓冲生命周期和双消费者分发。它不会修改 Unity 场景，也未接入 MediaPipe 或 Vuforia。USB 摄像头若未由设备 Camera HAL 暴露给 Camera2，当前样例不会发现它，后续需增加独立 UVC 采集适配器。启动时优先选择报告为彩色传感器的相机；彩色预览由采集的 I420 帧转换，单色传感器保持灰度预览。
 
 ## 构建与安装
 
@@ -19,4 +19,4 @@ adb shell am start -n com.spatialai.diagnostics.camera/.MainActivity
 adb logcat -s SpatialCamera:I AndroidRuntime:E '*:S'
 ```
 
-当前真机初测：Android 报告 4 个 Camera2 ID，`id=2/3` 可用 640×480 YUV 连续采集。`id=0/1` 在初次打开时返回 `CAMERA_IN_USE`，原因和镜头归属尚未确定，不能将其预先标为头显相机。`id=2` 实测两路消费者收到相同帧号、时间戳和校验值；停止后系统报告相机已关闭，重启及切后台返回后可恢复出帧。只有逐个识别摄像头之后才建立 RhinoX 相机角色配置。
+当前 RhinoX 真机初测：Android 报告 4 个 Camera2 ID；相机特征显示 `id=2` 为 BGGR 彩色传感器，`id=0/1/3` 为 MONO。`id=2/3` 可用 640×480 YUV 连续采集。`id=0/1` 在初次打开时返回 `CAMERA_IN_USE`，原因和镜头归属尚未确定。`id=2` 实测两路消费者收到相同帧号、时间戳和校验值；停止后系统报告相机已关闭，重启及切后台返回后可恢复出帧。

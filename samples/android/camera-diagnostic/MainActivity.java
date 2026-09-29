@@ -83,6 +83,12 @@ public final class MainActivity extends Activity {
         try {
             cameras=service.enumerate();
             if (!cameras.isEmpty()) {
+                for (int i=0;i<cameras.size();i++) {
+                    int filter=cameras.get(i).colorFilter;
+                    if (filter>=0 && filter!=CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_MONO
+                        && filter!=CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_NIR
+                        && cameras.get(i).yuvSizes.length>0) { index=i; break; }
+                }
                 preview=service.subscribe(new CameraService.Consumer() {
                     @Override public void onFrame(CameraService.Frame frame) {
                         previewCount++; previewId=frame.sequence; previewTime=frame.timestampNs;
@@ -90,7 +96,7 @@ public final class MainActivity extends Activity {
                         long now=android.os.SystemClock.uptimeMillis();
                         if (now-previewShownAt>500) {
                             previewShownAt=now;
-                            final Bitmap bitmap=thumbnail(frame);
+                            final Bitmap bitmap=thumbnail(frame,isColorCamera(frame.cameraId));
                             runOnUiThread(new Runnable() {
                                 @Override public void run() { image.setImageBitmap(bitmap); }
                             });
@@ -133,12 +139,27 @@ public final class MainActivity extends Activity {
         for (int i=0;i<bytes.length;i+=97) sum=31*sum+(bytes[i]&255);
         return sum;
     }
-    private static Bitmap thumbnail(CameraService.Frame frame) {
+    private boolean isColorCamera(String id) {
+        if (cameras==null) return false;
+        for (CameraService.Descriptor camera:cameras) if (camera.id.equals(id))
+            return camera.colorFilter!=CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_MONO
+                && camera.colorFilter!=CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_NIR;
+        return false;
+    }
+    private static int clamp(int value) { return Math.max(0,Math.min(255,value)); }
+    private static Bitmap thumbnail(CameraService.Frame frame,boolean color) {
         int w=160,h=120;
         int[] pixels=new int[w*h];
         for(int y=0;y<h;y++) for(int x=0;x<w;x++) {
-            int lum=frame.i420[(y*frame.height/h)*frame.width+x*frame.width/w]&255;
-            pixels[y*w+x]=Color.rgb(lum,lum,lum);
+            int sx=x*frame.width/w, sy=y*frame.height/h;
+            int lum=frame.i420[sy*frame.width+sx]&255;
+            if (!color) { pixels[y*w+x]=Color.rgb(lum,lum,lum); continue; }
+            int chroma=(sy/2)*(frame.width/2)+sx/2;
+            int u=(frame.i420[frame.width*frame.height+chroma]&255)-128;
+            int v=(frame.i420[frame.width*frame.height*5/4+chroma]&255)-128;
+            int c=Math.max(0,lum-16);
+            pixels[y*w+x]=Color.rgb(clamp((298*c+409*v+128)>>8),
+                clamp((298*c-100*u-208*v+128)>>8),clamp((298*c+516*u+128)>>8));
         }
         return Bitmap.createBitmap(pixels,w,h,Bitmap.Config.ARGB_8888);
     }
@@ -153,6 +174,7 @@ public final class MainActivity extends Activity {
                      .append(" facing=").append(d.facing==CameraCharacteristics.LENS_FACING_FRONT?"FRONT":
                         d.facing==CameraCharacteristics.LENS_FACING_BACK?"BACK":"OTHER")
                      .append(" physical=").append(java.util.Arrays.toString(d.physicalIds))
+                     .append(" sensor=").append(colorName(d.colorFilter))
                      .append(" YUV modes=").append(d.yuvSizes.length).append('\n');
                 }
                 CameraService.Descriptor d=cameras.isEmpty()?null:cameras.get(index);
@@ -170,6 +192,16 @@ public final class MainActivity extends Activity {
             ui.postDelayed(this,1000);
         }
     };
+    private static String colorName(int filter) {
+        if (filter==CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_MONO) return "MONO";
+        if (filter==CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_NIR) return "NIR";
+        if (filter==CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_BGGR) return "BGGR/color";
+        if (filter==CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_RGGB) return "RGGB/color";
+        if (filter==CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GRBG) return "GRBG/color";
+        if (filter==CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GBRG) return "GBRG/color";
+        if (filter==CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_RGB) return "RGB";
+        return "UNKNOWN";
+    }
     @Override protected void onPause() {
         ui.removeCallbacks(tick);
         if(service!=null) { service.close(); service=null; preview=second=null; }
