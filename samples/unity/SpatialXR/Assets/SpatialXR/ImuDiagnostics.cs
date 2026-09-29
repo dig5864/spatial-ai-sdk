@@ -23,6 +23,11 @@ namespace SpatialAI.Samples
         private float nextLogTime;
         private float nextReadoutTime;
         private string lastReadout = "";
+        private float frameWindowStart;
+        private float measuredFps;
+        private float maxFrameMs;
+        private float measuredMaxFrameMs;
+        private int frameCount;
         private int resetCount;
         private string lastReset = "startup";
         private string poseSource = "none";
@@ -31,6 +36,10 @@ namespace SpatialAI.Samples
 
         private void Start()
         {
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 72;
+            frameWindowStart = Time.unscaledTime;
             bridge = GetComponent<SpatialCardboardBridge>();
             Input.gyro.enabled = true;
             if (xrCamera == null) return;
@@ -49,6 +58,17 @@ namespace SpatialAI.Samples
 
         private void Update()
         {
+            frameCount++;
+            maxFrameMs = Mathf.Max(maxFrameMs, Time.unscaledDeltaTime * 1000f);
+            var frameWindowSeconds = Time.unscaledTime - frameWindowStart;
+            if (frameWindowSeconds >= 1f)
+            {
+                measuredFps = frameCount / frameWindowSeconds;
+                measuredMaxFrameMs = maxFrameMs;
+                frameWindowStart = Time.unscaledTime;
+                frameCount = 0;
+                maxFrameMs = 0f;
+            }
             var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
             Quaternion rotation = Quaternion.identity;
             poseAvailable = TryReadPose(head, out rotation);
@@ -114,6 +134,8 @@ namespace SpatialAI.Samples
                 nextReadoutTime = Time.unscaledTime + 0.1f;
                 lastReadout = "SPATIAL AI | IMU CHECK\n" +
                     "XR: " + (xrReady ? "RUNNING" : "WAIT") + "   Pose: " + poseSource + "\n" +
+                    "FPS: " + measuredFps.ToString("0.0") + " / 72   Max frame: " +
+                    measuredMaxFrameMs.ToString("0.0") + " ms\n" +
                     "Relative head angle (deg)\n" +
                     "Yaw   Y: " + Format(euler.y) + "  turn left/right\n" +
                     "Pitch X: " + Format(euler.x) + "  look up/down\n" +
