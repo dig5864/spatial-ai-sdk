@@ -21,6 +21,8 @@ namespace SpatialAI.Samples
         private bool poseAvailable;
         private bool previousTrigger;
         private float nextLogTime;
+        private int resetCount;
+        private string lastReset = "startup";
         private string poseSource = "none";
         private readonly List<UnityEngine.XR.InputDevice> headDevices = new List<UnityEngine.XR.InputDevice>();
         private GameObject axes;
@@ -80,11 +82,8 @@ namespace SpatialAI.Samples
             }
 
             var trigger = bridge != null && bridge.TriggerPressed;
-            if (Input.GetMouseButtonDown(0) || (trigger && !previousTrigger))
-            {
-                hasReference = false;
-                if (axes != null) PlaceWorldAxes();
-            }
+            var resetInput = ReadResetInput(trigger && !previousTrigger);
+            if (resetInput != null) ResetReference(rotation, poseAvailable, resetInput);
             previousTrigger = trigger;
 
             var xrReady = bridge != null && bridge.XrRunning;
@@ -119,7 +118,8 @@ namespace SpatialAI.Samples
                 "Phone accel g (device XYZ)\n" +
                 "  " + Format(acceleration.x) + "  " + Format(acceleration.y) + "  " + Format(acceleration.z) + "\n" +
                 "Eye XYZ m: " + Format(position.x) + " " + Format(position.y) + " " + Format(position.z) + "\n" +
-                "Tap / trigger: zero + face axes";
+                "Tap / trigger / R: ZERO + face axes\n" +
+                "Reset #" + resetCount + " via " + lastReset;
             if (readout != null) readout.text = message;
 
             if (Time.unscaledTime >= nextLogTime)
@@ -140,6 +140,33 @@ namespace SpatialAI.Samples
             return device.isValid &&
                 (device.TryGetFeatureValue(XRCommonUsages.centerEyeRotation, out rotation) ||
                  device.TryGetFeatureValue(XRCommonUsages.deviceRotation, out rotation));
+        }
+
+        private static string ReadResetInput(bool triggerPressed)
+        {
+            var touchscreen = Touchscreen.current;
+            if (touchscreen != null && touchscreen.primaryTouch.press.wasPressedThisFrame)
+                return "touch (Input System)";
+            for (var i = 0; i < Input.touchCount; i++)
+                if (Input.GetTouch(i).phase == UnityEngine.TouchPhase.Began) return "touch (Unity)";
+            if (Input.GetMouseButtonDown(0) ||
+                (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
+                return "mouse";
+            if (Input.GetKeyDown(KeyCode.R) ||
+                (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame))
+                return "R key";
+            return triggerPressed ? "Cardboard trigger" : null;
+        }
+
+        private void ResetReference(Quaternion rotation, bool valid, string source)
+        {
+            referenceRotation = rotation;
+            hasReference = valid;
+            resetCount++;
+            lastReset = source;
+            if (axes != null) PlaceWorldAxes();
+            Debug.Log("SpatialAI IMU RESET #" + resetCount + " via " + source +
+                "; pose " + (valid ? "captured" : "pending"));
         }
 
         private void CreateWorldAxes()
