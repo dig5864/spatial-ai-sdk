@@ -1,6 +1,6 @@
 # Spatial AI SDK
 
-本仓库是 Spatial AI SDK 主工程。`SDK/xms-xr-sdk` 是历史参考工程。Android CameraService 与手势库源码位于独立的 `visor-x/spatial-ai-android` 仓库；本仓库保留锁定版本的 Unity AAR。当前可运行的消费工程为 `samples/unity/SpatialXR/`；Unity 6、团结、WebXR、OpenXR 与 Native 的目标目录和边界见 [目录设计](docs/REPOSITORY_LAYOUT.md)。
+本仓库是 Spatial AI SDK 主工程。`SDK/xms-xr-sdk` 是历史参考工程。Android CameraService 与手势库源码位于独立的 `visor-x/spatial-ai-android` 仓库；本仓库保留锁定版本的 Unity AAR。当前可运行的消费工程为 `samples/unity/SpatialXR/`；[Group 与仓库职责](docs/GROUP_OVERVIEW.md)、Unity 6、团结、WebXR、OpenXR 与 Native 的[目标目录和边界](docs/REPOSITORY_LAYOUT.md)另有说明。
 
 ## 当前状态
 
