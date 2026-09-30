@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0-preview.6
+
+- Moved Android camera and MediaPipe source to `visor-x/spatial-ai-android`.
+- Pinned the bundled Unity AAR to an Android repository commit and SHA-256.
+
 ## 0.2.0-preview.5
 
 - Added RhinoX Pro diagnostic optics mesh and design IMU-to-eye offset to the Cardboard XR sample.

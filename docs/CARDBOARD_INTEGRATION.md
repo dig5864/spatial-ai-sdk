@@ -1,6 +1,6 @@
 # Cardboard 接入：已完成基线与下一阶段实现约束
 
-日期：2026-09-28。产品名称 Spatial AI SDK；当前 UPM 预览包为 0.2.0-preview.5。近期运行状态见 `docs/VALIDATION.md`。
+日期：2026-09-28。产品名称 Spatial AI SDK；当前 UPM 预览包为 0.2.0-preview.6。近期运行状态见 `docs/VALIDATION.md`。
 
 iOS 使用同一个 Unity 包与 Cardboard XR 插件的 iOS Provider。手机插入式 Viewer 是首个 iOS 基线，消费工程提供 iOS XR Loader 配置和 Xcode 导出入口。外接 RhinoX 需另接 iOS 设备协议、头戴姿态、外屏显示与光学标定，不能直接复用手机屏幕的 Cardboard Viewer 参数。
 

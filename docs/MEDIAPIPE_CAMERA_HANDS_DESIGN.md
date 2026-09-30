@@ -38,8 +38,8 @@ Cardboard 继续负责显示/头姿。相机、手势与 Vuforia 不拥有 XR �
 | 模块 | 建议位置 | 边界 |
 | --- | --- | --- |
 | 设备相机配置、坐标/时间契约 | `runtime/devices/rhinox-pro/`、`runtime/include/` | 与 Unity、模型无关 |
-| Android Camera2/UVC 采集与帧分发 | `runtime/platform/android/camera/` | 一个物理源一个采集所有者 |
-| MediaPipe Android 适配 | `runtime/platform/android/hands/mediapipe/` | 只接 `CameraFrame`，只产 `HandFrame` |
+| Android Camera2/UVC 采集与帧分发 | `spatial-ai-android/runtime/platform/android/camera/` | 一个物理源一个采集所有者；UVC 尚未实现 |
+| MediaPipe Android 适配 | `spatial-ai-android/runtime/platform/android/hands/` | 当前通过 `SpatialHandBridge` 提供 Unity JSON 快照 |
 | Unity 手势/XRI 桥接 | `packages/com.spatialai.sdk/Runtime/Hands/` | 可选包依赖，不影响现有样例 |
 | Vuforia Driver | 独立可选集成包，待可行性验证后定名 | 不进入基础 UPM 包 |
 | 诊断与验收 | `samples/android/`、`samples/unity/`、`tests/` | 记录设备与版本 |

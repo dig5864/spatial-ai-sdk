@@ -38,6 +38,8 @@ the physical left/right hand labels remain to be validated. The sample does not
 yet use hands to select a world-space object. iOS hand tracking is not included.
 This Android preview currently requires API level 28 or newer.
 
-To rebuild the Android library and model asset, run `tools/BuildHandDiagnostic.ps1`
-with the Android Player path, then build the Unity sample using `BuildAndroid.bat` in
-this directory. The Unity Gradle postprocessor pins MediaPipe Tasks Vision to 1.0.0.
+The Android library source and its build script are in the separate
+`visor-x/spatial-ai-android` repository. Build its AAR there, then verify the pinned
+revision and SHA-256 with `tools/VerifyAndroidHandAar.ps1 -AndroidRepoPath <path>` in
+the SDK repository. Build this Unity sample with `BuildAndroid.bat`. The Unity Gradle
+postprocessor pins MediaPipe Tasks Vision to 1.0.0.

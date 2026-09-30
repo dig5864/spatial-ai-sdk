@@ -1,6 +1,6 @@
 # Spatial AI SDK 多平台目录设计
 
-状态：2026-09-28 已落实当前源码目录。开发主工程为 `E:\wuyc\visor-x\SpatialAISDK`；`SDK/xms-xr-sdk` 是历史参考工程。WebXR、OpenXR 和 Native SDK 仍是后续规划。
+状态：2026-09-30。开发主工程为 `E:\wuyc\visor-x\SpatialAISDK`；Android CameraService 与 MediaPipe 手势库已拆至 `visor-x/spatial-ai-android` 独立仓库，Unity 包保留按提交和 SHA-256 锁定的 AAR。`SDK/xms-xr-sdk` 是历史参考工程。WebXR、OpenXR 和 Native SDK 仍是后续规划。
 
 ## 一、先定边界
 
@@ -31,7 +31,7 @@ SpatialAISDK/
 ├─ runtime/                     设备侧共用 Runtime；不引用 Unity/浏览器 API
 │  ├─ include/                  稳定 C ABI 与公开数据结构
 │  ├─ core/                     会话、能力、时间、坐标、错误、资源所有权
-│  ├─ platform/android/         未来 Android 传感器、USB、显示与系统生命周期
+│  ├─ platform/android/         未来与共用 Core 紧耦合的 Android 适配；相机/手势库在独立仓库
 │  └─ devices/                  RhinoX、Cardboard 等设备适配及其标定
 ├─ packages/                    真正交给开发者安装的包
 │  ├─ com.spatialai.sdk/        现有 Unity UPM 包；Unity/团结共用 API
@@ -51,7 +51,7 @@ SpatialAISDK/
 └─ dist/                        忽略的本地发布候选包；按版本归档
 ```
 
-**按需建目录。** 当前源码已归入 `runtime/`、`packages/com.spatialai.sdk/`、`samples/android/imu-diagnostic/`、`tests/`、`tools/` 和 `third_party/`。图中的 Web、OpenXR、Native 包及其他未来模块尚未建立，不生成空工程。`build/legacy/` 保留迁移前的构建记录和未完成下载。
+**按需建目录。** 当前源码已归入 `runtime/`、`packages/com.spatialai.sdk/`、`samples/android/imu-diagnostic/`、`tests/`、`tools/` 和 `third_party/`。Camera2、MediaPipe Java 源码及其诊断工程在独立 Android 仓库。图中的 Web、OpenXR、Native 包及其他未来模块尚未建立，不生成空工程。`build/legacy/` 保留迁移前的构建记录和未完成下载。
 
 ### 发布包的位置
 
@@ -85,9 +85,9 @@ build/
 
 ```text
 dist/
-└─ 0.2.0-preview.5/
+└─ 0.2.0-preview.6/
    ├─ unity/
-   │  ├─ com.spatialai.sdk-0.2.0-preview.5.tgz
+   │  ├─ com.spatialai.sdk-0.2.0-preview.6.tgz
    │  ├─ SHA256SUMS.txt
    │  └─ release-manifest.json
    ├─ web/                       未来 npm 包

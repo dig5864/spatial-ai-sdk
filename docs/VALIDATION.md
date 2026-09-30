@@ -2,6 +2,7 @@
 
 ## 当前开发基线（2026-09-30）
 
+- Android CameraService、MediaPipe 桥接、相机与手势诊断工程已拆到 `visor-x/spatial-ai-android`，提交 `31e528b48afd0fcc2dd49b5402aa5ec400e62045`。独立仓库的手势 APK、AAR 和相机诊断 APK 均构建通过；新 AAR 的 SHA-256 与当前 Unity 包内 AAR 完全一致，锁定信息见 `third_party/spatial-ai-android.lock.json`。
 - Unity 2022.3.14f1c1 的 `samples/unity/SpatialXR/BuildAndroid.ps1` 已完成编辑器构建，APK 为 `build/samples/android/spatialxr.apk`；已在 RhinoX 开发设备 `03D11C420163` 安装并启动。构建输出与设备日志保存在忽略的 `build/` 中。
 - Cardboard XR Display/Input 已启动；设备日志报告 RhinoX Pro Sharp 畸变网格每眼 2601 顶点已启用。实际光学等效、逐台标定及运动下画质仍需人工验收。
 - RGB Camera2 ID 2 使用 1440×1080 帧；MediaPipe 在 384×288 图像上运行。无手时设备日志约 22–27 FPS，有手时此前测得约 17–19 FPS。示例用 RGB 标定参数和候选 RGB→eye 外参绘制骨架，手部深度按手掌图像尺寸近似估算。近远两档合成射线检查已通过，实际近远尺度仍待佩戴复测。

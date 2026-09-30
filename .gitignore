@@ -16,3 +16,6 @@ third_party/archives/
 /samples/unity/SpatialXR_ImuBuild/
 /samples/unity/SpatialXR_OpticsBuild/
 /samples/unity/SpatialXR_OpticsClean/
+# Residual local caches from Android diagnostics, now maintained in spatial-ai-android.
+/samples/android/hand-diagnostic/
+/samples/android/camera-diagnostic/

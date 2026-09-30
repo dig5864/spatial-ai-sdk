@@ -1,4 +1,4 @@
-# Spatial AI SDK — 0.2.0-preview.5
+# Spatial AI SDK — 0.2.0-preview.6
 
 这是可导入的预览包，提供纯 C# Core、Unity Host、模拟示例、设备 ID 到光学 Profile 的匹配，以及 Cardboard XR Sample。RhinoX Pro 光学网格和 IMU 设计偏移已接入 Android 诊断路径，尚未完成逐台光学校准；独立 3DoF 手柄尚未接入。
 
@@ -18,7 +18,7 @@ Unity 6 与团结引擎是支持目标，准确版本仍待实测；当前消费
 
 ## 手部跟踪预览
 
-`Plugins/Android/spatial-hand-unity.aar` 封装 Camera2 与 MediaPipe，Unity 侧通过
+`Plugins/Android/spatial-hand-unity.aar` 封装 Camera2 与 MediaPipe；源码与构建脚本位于独立的 `visor-x/spatial-ai-android` 仓库，当前二进制的提交和 SHA-256 记录在 SDK 仓库的 `third_party/spatial-ai-android.lock.json`。Unity 侧通过
 `SpatialAI.Unity.SpatialHandTracking` 获取归一化图像坐标中的 21 点及原始手别标签。
 `HelloSpatialXR` 示例显示诊断骨架和捏合次数。RhinoX 参考配置采用设备提供的
 1440×1080 RGB 内参及 8 项畸变系数，将图像点还原成相机射线。只有 Camera2 ID 为
