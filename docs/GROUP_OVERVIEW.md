@@ -38,6 +38,8 @@ Unity SDK 的 `SpatialHandTracking.FrameUpdated` 提供逐帧手部结果。每�
 
 **Unity 接口边界：**双目显示和头部姿态已使用 Unity 标准 XR 链路；手势目前通过 Spatial AI SDK 自有 C# 接口提供。手部关键点尚未注册为 Unity XR Hands 的 `XRHandSubsystem`，捏合与选中也尚未映射到 XR Interaction Toolkit 的标准交互输入。Demo 的 `Select` 是应用交互结果，并非 MediaPipe 内置类别。
 
+当前头姿为 3DoF，**Tag 定位追踪尚未实现**；现有手部跟踪也不提供头显在空间中的定位。
+
 ### 开发与构建闭环
 
 主仓库已有可直接用 Unity 打开的消费工程、自动 APK 构建脚本、本地 UPM 候选包和验证文档；Android 仓库已有 AAR 构建与独立诊断脚本。`0.2.0-preview.9` APK 已在 RhinoX 开发设备安装运行。当前有手日志约为一只手 16–17 FPS、两只手 12 FPS；各类别准确率和长时间稳定性尚未量化。具体验证边界见 [验证记录](VALIDATION.md)。
@@ -48,10 +50,11 @@ Unity SDK 的 `SpatialHandTracking.FrameUpdated` 提供逐帧手部结果。每�
 2. **Android 手机接入：**确定首批兼容手机，处理屏幕、传感器、相机、USB 连接及外置 RhinoX Pro 头显适配；目前没有正式手机兼容列表。
 3. **iOS 手机接入：**完成外置头显连接、显示、传感器和相机链路，并进行 iPhone 真机验收。
 4. **UVC 摄像头接入：**增加独立 USB UVC 采集适配器，覆盖设备发现、权限、分辨率与帧率选择、图像格式和生命周期；接入统一帧分发后供手势及后续 Vuforia 等算法复用。当前 UVC 采集、Unity 接口和真机测试均未开始。
-5. **标定与交互精度：**完成逐台光学标定、RGB 相机到眼睛的外参验证、手部尺度与深度校准，并量化手势准确率。
-6. **Unity 标准手部接口：**将关键点适配到 Unity XR Hands，并将捏合、选中等动作适配到 XR Interaction Toolkit；独立 3DoF 手柄也仍待接入。
-7. **其他平台：**验证 Unity 6 与团结引擎，后续按产品进度扩展 WebXR、OpenXR 和 Native。
-8. **平台商业层：**在开发者闭环稳定后，逐步建设 Spatial Runtime、Spatial AI 能力与空间工具接口，以及应用分发、授权和支付；企业部署再围绕设备、用户、内容、数据和 AI 用量形成订阅服务。
+5. **Tag 定位追踪：**定义 Tag 类型、相机输入与坐标系，接入检测、位姿估计、持续追踪和丢失恢复，再向 Unity 提供定位状态与位姿接口。当前算法、SDK 接口、Demo 和真机验收均未实现。
+6. **标定与交互精度：**完成逐台光学标定、RGB 相机到眼睛的外参验证、手部尺度与深度校准，并量化手势准确率。
+7. **Unity 标准手部接口：**将关键点适配到 Unity XR Hands，并将捏合、选中等动作适配到 XR Interaction Toolkit；独立 3DoF 手柄也仍待接入。
+8. **其他平台：**验证 Unity 6 与团结引擎，后续按产品进度扩展 WebXR、OpenXR 和 Native。
+9. **平台商业层：**在开发者闭环稳定后，逐步建设 Spatial Runtime、Spatial AI 能力与空间工具接口，以及应用分发、授权和支付；企业部署再围绕设备、用户、内容、数据和 AI 用量形成订阅服务。
 
 当前阶段的核心验收目标是：外部 Unity 开发者能够导入 SDK，在目标设备上稳定完成双目显示、头部跟踪和基础手势交互。
 
