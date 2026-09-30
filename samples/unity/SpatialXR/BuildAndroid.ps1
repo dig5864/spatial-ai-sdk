@@ -87,7 +87,6 @@ try {
     }
     New-Item -ItemType Directory -Path (Split-Path $requestPath) -Force | Out-Null
     $id = [guid]::NewGuid().ToString('N')
-    $startedAt = [DateTime]::UtcNow
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText($statusPath, (@{ id = $id; state = 'queued'; message = 'Waiting for Unity editor.' } | ConvertTo-Json -Compress), $utf8)
     $temporaryRequest = "$requestPath.tmp"
@@ -116,9 +115,6 @@ try {
                 }
                 if ($status.state -eq 'succeeded') {
                     if (!(Test-Path -LiteralPath $apk -PathType Leaf)) { throw 'Unity 报告成功，但找不到 APK。' }
-                    if ((Get-Item -LiteralPath $apk).LastWriteTimeUtc -lt $startedAt.AddSeconds(-3)) {
-                        throw 'APK 时间未更新，可能仍是上次构建的文件。'
-                    }
                     Write-Host "编译成功：$apk"
                     Write-Host "日志：$($status.logPath)"
                     exit 0

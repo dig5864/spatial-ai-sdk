@@ -26,6 +26,16 @@ public sealed class SpatialXRAndroidGradle : IPostGenerateGradleAndroidProject
             properties += "\nandroid.useAndroidX=true\n";
         if (!properties.Contains("android.enableJetifier="))
             properties += "android.enableJetifier=true\n";
+        // Unity's parallel Gradle setting has intermittently locked classes2.dex
+        // during mergeDexRelease on the Windows development machine.
+        if (properties.Contains("org.gradle.parallel="))
+            properties = Regex.Replace(properties, @"(?m)^org\.gradle\.parallel=.*$", "org.gradle.parallel=false");
+        else
+            properties += "\norg.gradle.parallel=false\n";
+        if (properties.Contains("org.gradle.workers.max="))
+            properties = Regex.Replace(properties, @"(?m)^org\.gradle\.workers\.max=.*$", "org.gradle.workers.max=1");
+        else
+            properties += "org.gradle.workers.max=1\n";
         File.WriteAllText(gradleProperties, properties);
     }
 

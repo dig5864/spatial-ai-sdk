@@ -26,8 +26,11 @@ Unity 6 与团结引擎是支持目标，准确版本仍待实测；当前消费
 已读取测试机 `03D11C420163` 的 `/backup/slam/device_calibration.xml` 与
 `/backup/rgb_vio_camera_params.xml`，并按旧版 `CameraParamLoader` 的矩阵链和 RhinoX Pro
 设计 Eye→IMU 值计算 RGB→眼中心矩阵。该机 `/backup/aio/rgb_vio_camera_params.xml` 不存在。
-示例在**假定 RGB 相机前方 0.65 m** 的位置显示骨架；单目 MediaPipe 没有手部绝对深度，
+示例在**假定 RGB 相机前方 0.35 m** 的位置显示骨架，以对应当前 30–40 cm 的近距离测试；单目 MediaPipe 没有手部绝对深度，
 设备标定文件中的 `deviceUID` 也为 `not_configured`。外参目前只作为这台测试机的候选值，
 必须通过镜中实测对位后才能标记为已验证；其他设备应读取并转换各自的标定文件。
+手势推理输入按原始 1440×1080 的宽高比缩至 384×288，最短取帧间隔为 33 ms；
+画面显示实际结果 FPS、像素转换耗时、模型推理耗时，以及相机时间戳可用时的采集到结果耗时。
+这几个数值用于判断是否还需要 GPU 推理或更低分辨率，不能把取帧间隔当成实际帧率。
 Android 构建时包内的 Gradle 后处理器会加入固定版本
 `com.google.mediapipe:tasks-vision:1.0.0`；手势预览最低需要 Android API 28。

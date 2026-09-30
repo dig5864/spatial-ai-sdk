@@ -21,8 +21,8 @@ import org.json.JSONObject;
 
 /** Android inference adapter. Unity reads an immutable JSON snapshot on its main thread. */
 public final class SpatialHandBridge {
-    private static final int INPUT_WIDTH=640;
-    private static final long INPUT_INTERVAL_NS=100_000_000L;
+    private static final int INPUT_WIDTH=384;
+    private static final long INPUT_INTERVAL_NS=33_000_000L;
     private final Activity activity;
     private final Object inferenceLock=new Object();
     private CameraService camera;
@@ -32,6 +32,8 @@ public final class SpatialHandBridge {
     private volatile String latest="";
     private volatile boolean running;
     private long lastInputNs;
+    private long lastCompletedNs;
+    private float smoothedFps;
     private long inferenceCount;
 
     public SpatialHandBridge(Activity activity) { this.activity=activity; }
@@ -96,10 +98,22 @@ public final class SpatialHandBridge {
             if (!running || landmarker==null) return;
             try {
                 Bitmap bitmap=smallBitmap(frame);
+                long convertedAtNs=SystemClock.elapsedRealtimeNanos();
                 MPImage input=new BitmapImageBuilder(bitmap).build();
                 HandLandmarkerResult result;
                 try { result=landmarker.detectForVideo(input,frame.timestampNs/1_000_000L); }
                 finally { input.close(); }
+                long completedAtNs=SystemClock.elapsedRealtimeNanos();
+                if (lastCompletedNs>0) {
+                    float instantFps=1_000_000_000f/(completedAtNs-lastCompletedNs);
+                    smoothedFps=smoothedFps==0?instantFps:smoothedFps*0.8f+instantFps*0.2f;
+                }
+                lastCompletedNs=completedAtNs;
+                float convertMs=(convertedAtNs-now)/1_000_000f;
+                float inferenceMs=(completedAtNs-convertedAtNs)/1_000_000f;
+                float captureToResultMs=frame.timestampSource==
+                    CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME
+                    ?(completedAtNs-frame.timestampNs)/1_000_000f:-1f;
                 JSONObject payload=new JSONObject();
                 payload.put("cameraId",frame.cameraId);
                 payload.put("imageWidth",frame.width);
@@ -107,6 +121,10 @@ public final class SpatialHandBridge {
                 payload.put("sequence",frame.sequence);
                 payload.put("timestampNs",frame.timestampNs);
                 payload.put("receivedAtNs",SystemClock.elapsedRealtimeNanos());
+                payload.put("resultFps",smoothedFps);
+                payload.put("conversionMs",convertMs);
+                payload.put("inferenceMs",inferenceMs);
+                payload.put("captureToResultMs",captureToResultMs);
                 JSONArray hands=new JSONArray();
                 for (int handIndex=0;handIndex<result.landmarks().size();handIndex++) {
                     List<NormalizedLandmark> landmarks=result.landmarks().get(handIndex);
@@ -126,7 +144,9 @@ public final class SpatialHandBridge {
                 latest=payload.toString();
                 if (++inferenceCount%30==0)
                     Log.i("SpatialHands","inference="+inferenceCount+" hands="+hands.length()+
-                        " camera="+frame.cameraId);
+                        " camera="+frame.cameraId+" fps="+smoothedFps+
+                        " convertMs="+convertMs+" inferMs="+inferenceMs+
+                        " captureToResultMs="+captureToResultMs);
             } catch (Exception | UnsatisfiedLinkError error) {
                 state="inference error: "+error;
                 Log.e("SpatialHands",state,error);

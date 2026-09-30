@@ -45,6 +45,10 @@ namespace SpatialAI.Unity
         public long sequence;
         public long timestampNs;
         public long receivedAtNs;
+        public float resultFps;
+        public float conversionMs;
+        public float inferenceMs;
+        public float captureToResultMs;
         public SpatialHand[] hands;
     }
 
@@ -82,7 +86,7 @@ namespace SpatialAI.Unity
                 bridge.Call("start");
             }
             if (Time.unscaledTime < nextPoll) return;
-            nextPoll = Time.unscaledTime + 0.05f;
+            nextPoll = Time.unscaledTime + 0.016f;
             State = bridge.Call<string>("getState");
             var json = bridge.Call<string>("getLatestJson");
             if (string.IsNullOrEmpty(json)) return;

@@ -8,7 +8,7 @@ namespace SpatialAI.Samples
     public sealed class HandTrackingDemo : MonoBehaviour
     {
         public Camera xrCamera;
-        public float assumedHandDepthMetres = 0.65f;
+        public float assumedHandDepthMetres = 0.35f;
         private static readonly int[] Edges = {
             0,1, 1,2, 2,3, 3,4, 0,5, 5,6, 6,7, 7,8,
             0,9, 9,10, 10,11, 11,12, 0,13, 13,14, 14,15, 15,16,
@@ -108,7 +108,11 @@ namespace SpatialAI.Samples
                         " differs from 1440x1080";
                 status.text = "HANDS  " + tracking.State + "\n" +
                     "Seen " + count + "   Pinch " + pinchEvents + "\n" +
-                    geometry + "\nDepth assumed 0.65m; eye alignment unverified";
+                    geometry + "\nFPS " + (frame == null ? 0f : frame.resultFps).ToString("F1") +
+                    "  CV " + (frame == null ? 0f : frame.conversionMs).ToString("F0") +
+                    "ms  AI " + (frame == null ? 0f : frame.inferenceMs).ToString("F0") +
+                    "ms  Age " + (frame == null ? -1f : frame.captureToResultMs).ToString("F0") +
+                    "ms\nDepth assumed " + assumedHandDepthMetres.ToString("F2") + "m";
             }
         }
 
