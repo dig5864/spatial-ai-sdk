@@ -1,5 +1,11 @@
 # 验证记录
 
+## 0.2.0-preview.8 手势分类接口（2026-09-30）
+
+- 用户确认上一版两只手均可识别。本版 Android Unity 桥接改用 MediaPipe Gesture Recognizer，一次推理输出每只手的 21 点、手别、类别和置信度，仍配置最多两只手；`Pinching` 与 Demo `Select` 保持原规则。
+- Android AAR 从 `spatial-ai-android` 提交 `4febce284506a94d607513e23653025ff27803cc` 构建通过，SHA-256 为 `5c487032f7f8d4de1aecadfee237f32bb085ffcf532257ce41dafeb619b342ff`；官方手势模型校验值记录在 lock 文件，模型随 AAR 进入 APK。
+- Unity 2022.3.14f1c1 消费工程的 Android APK 构建通过；本地 UPM 候选包位于 `dist/0.2.0-preview.8/unity/`。启动日志、实际类别与置信度、双手同时分类、帧率及头显中文字布局仍待真机检查；构建时 ADB 未连接。
+
 ## 捏合交互接口预览（2026-09-30）
 
 `HelloSpatialXR` 通过 SDK 的 `SpatialHandTracking.FrameUpdated` 事件消费 RGB 手帧，显示指尖指向、目标悬停和捏合选中计数。Unity 2022 Android APK 已构建并安装到 RhinoX 开发设备 `03D11C420163`。首次安装发现示例场景在裁剪 `SphereCollider` 后初始化失败；已改为直接生成纯显示球体，重新构建、安装并验证启动日志出现 `SpatialAI hand interaction demo ready`，未再出现组件或空引用错误。无手状态下 MediaPipe 持续输出约 20–27 FPS。手到目标的真机命中率、延迟、左右手标识及重复触发仍待佩戴实测。此示例验证 Spatial AI 自有事件接口，不代表 `XRHandSubsystem` 或 XRI 标准输入已接入。

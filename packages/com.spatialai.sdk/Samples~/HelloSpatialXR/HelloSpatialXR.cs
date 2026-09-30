@@ -35,12 +35,12 @@ namespace SpatialAI.Samples
             {
                 var statusObject = new GameObject("Spatial XR status HUD");
                 statusObject.transform.SetParent(xrCamera.transform, false);
-                statusObject.transform.localPosition = new Vector3(-0.36f, 0.22f, 1.8f);
+                statusObject.transform.localPosition = new Vector3(-0.37f, 0.34f, 1.8f);
                 statusText = statusObject.AddComponent<TextMesh>();
                 statusText.anchor = TextAnchor.UpperLeft;
                 statusText.alignment = TextAlignment.Left;
                 statusText.fontSize = 48;
-                statusText.characterSize = 0.012f;
+                statusText.characterSize = 0.006f;
                 statusText.color = Color.white;
             }
         }
@@ -117,12 +117,13 @@ namespace SpatialAI.Samples
             var pose = headPoseAvailable ? "XR feature" : "unavailable";
             var gaze = hovered ? "Target " + (int)(100f * Mathf.Clamp01(hoverSeconds / Mathf.Max(0.1f, dwellSeconds))) + "%" : "Find cyan cube";
             statusText.text = "SPATIAL XR\n" +
-                "Display " + display + "  Viewer " + viewer + "\n" +
-                "Head " + pose + "  " + gaze + "\n" +
-                "Hits " + hits + "  Last " + lastActivation + "\n" +
-                "RhinoX optics: unverified";
+                "Display " + display + " Viewer " + viewer + "\n" +
+                "Head " + pose + " | " + gaze + "\n" +
+                "Hits " + hits + " | " + lastActivation + "\n" +
+                "RhinoX mesh " + (bridge != null && bridge.RhinoXLegacyMeshApplied ? "ON" : "OFF");
         }
 
+#if UNITY_EDITOR
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(12, 12, 520, 260), GUI.skin.box);
@@ -138,10 +139,11 @@ namespace SpatialAI.Samples
                 GUILayout.Label("Matched optics: " + bridge.MatchedProfile.profileId);
             if (bridge != null && !bridge.ProfileResult.Success)
                 GUILayout.Label("Optics status: " + bridge.ProfileResult.Message);
-            GUILayout.Label("Cardboard renders with its viewer profile; RhinoX OST calibration is not applied.");
+            GUILayout.Label("RhinoX Pro Sharp mesh: " + (bridge != null && bridge.RhinoXLegacyMeshApplied ? "applied" : "not applied") + "; visual calibration pending.");
             GUILayout.Label("Head pose availability is not a sensor health check.");
             GUILayout.EndArea();
         }
+#endif
     }
 }
 #endif

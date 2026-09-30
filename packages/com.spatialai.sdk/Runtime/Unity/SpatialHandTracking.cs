@@ -6,6 +6,19 @@ using UnityEngine.Android;
 
 namespace SpatialAI.Unity
 {
+    public enum SpatialGestureKind
+    {
+        None,
+        ClosedFist,
+        OpenPalm,
+        PointingUp,
+        ThumbDown,
+        ThumbUp,
+        Victory,
+        ILoveYou,
+        Unknown
+    }
+
     [Serializable]
     public sealed class SpatialHandJoint
     {
@@ -19,6 +32,30 @@ namespace SpatialAI.Unity
     {
         public SpatialHandJoint[] joints;
         public string rawHandedness;
+        public string rawGesture;
+        public float gestureScore;
+
+        /// <summary>MediaPipe's per-frame category; Pinching is calculated separately from landmarks.</summary>
+        public SpatialGestureKind Gesture
+        {
+            get
+            {
+                switch (rawGesture)
+                {
+                    case null:
+                    case "":
+                    case "None": return SpatialGestureKind.None;
+                    case "Closed_Fist": return SpatialGestureKind.ClosedFist;
+                    case "Open_Palm": return SpatialGestureKind.OpenPalm;
+                    case "Pointing_Up": return SpatialGestureKind.PointingUp;
+                    case "Thumb_Down": return SpatialGestureKind.ThumbDown;
+                    case "Thumb_Up": return SpatialGestureKind.ThumbUp;
+                    case "Victory": return SpatialGestureKind.Victory;
+                    case "ILoveYou": return SpatialGestureKind.ILoveYou;
+                    default: return SpatialGestureKind.Unknown;
+                }
+            }
+        }
 
         public bool Pinching
         {

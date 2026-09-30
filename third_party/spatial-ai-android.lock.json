@@ -1,9 +1,10 @@
 {
   "repository": "http://gitlab.ximmerse.com/visor-x/spatial-ai-android.git",
-  "revision": "31e528b48afd0fcc2dd49b5402aa5ec400e62045",
+  "revision": "4febce284506a94d607513e23653025ff27803cc",
   "artifact": "packages/com.spatialai.sdk/Plugins/Android/spatial-hand-unity.aar",
-  "sha256": "aef4045bebc094dbfc7fc35149fcad47248509aeac548ae7d8dcf9f261f80b13",
+  "sha256": "5c487032f7f8d4de1aecadfee237f32bb085ffcf532257ce41dafeb619b342ff",
   "modelSha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1",
+  "gestureModelSha256": "97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482",
   "minAndroidApi": 28,
   "mediaPipeTasksVision": "1.0.0"
 }

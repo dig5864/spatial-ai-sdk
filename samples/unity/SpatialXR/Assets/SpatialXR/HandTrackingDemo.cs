@@ -142,11 +142,11 @@ namespace SpatialAI.Samples
             }
             var label = new GameObject("Hand tracking readout");
             label.transform.SetParent(xrCamera.transform, false);
-            label.transform.localPosition = new Vector3(0.1f, 0.34f, 1.8f);
+            label.transform.localPosition = new Vector3(0.05f, 0.34f, 1.8f);
             status = label.AddComponent<TextMesh>();
             status.anchor = TextAnchor.UpperLeft;
             status.fontSize = 48;
-            status.characterSize = 0.008f;
+            status.characterSize = 0.006f;
             status.color = Color.white;
             initialized = true;
             Debug.Log("SpatialAI hand interaction demo ready");
@@ -169,6 +169,19 @@ namespace SpatialAI.Samples
         {
             latestFrame = frame;
             frameEvents++;
+        }
+
+        private static string HandGestureText(SpatialHandFrame frame, string handedness)
+        {
+            if (frame == null || frame.hands == null) return handedness + ": --";
+            for (var i = 0; i < frame.hands.Length; i++)
+            {
+                var hand = frame.hands[i];
+                if (hand == null || hand.rawHandedness != handedness) continue;
+                return handedness + ": " + hand.Gesture + " " +
+                    hand.gestureScore.ToString("F2") + (hand.Pinching ? " PINCH" : "");
+            }
+            return handedness + ": --";
         }
 
         private void LateUpdate()
@@ -276,24 +289,15 @@ namespace SpatialAI.Samples
             {
                 var count = frame != null && frame.hands != null && Time.unscaledTime - lastFrameTime < 0.35f
                     ? frame.hands.Length : 0;
-                var geometry = calibration == null ? "RGB calibration missing" :
-                    frame == null ? "Waiting for RGB frame" :
-                    frame.cameraId != calibration.cameraId ? "RGB camera ID mismatch: " + frame.cameraId :
-                    frame.imageWidth == calibration.imageWidth && frame.imageHeight == calibration.imageHeight
-                        ? "RGB -> eye: design extrinsics" :
-                        "RGB size " + frame.imageWidth + "x" + frame.imageHeight +
-                        " differs from 1440x1080";
-                status.text = "HANDS  " + tracking.State + "  Events " + frameEvents + "\n" +
-                    "Seen " + count + "   Pinch " + pinchEvents +
-                    "   Select " + selectionEvents + "\n" +
-                    geometry + "\nFPS " + (frame == null ? 0f : frame.resultFps).ToString("F1") +
-                    "  CV " + (frame == null ? 0f : frame.conversionMs).ToString("F0") +
-                    "ms  AI " + (frame == null ? 0f : frame.inferenceMs).ToString("F0") +
-                    "ms  Age " + (frame == null ? -1f : frame.captureToResultMs).ToString("F0") +
-                    "ms\nDepth approx " + (count > 0 && hasHandDepth[0]
-                        ? handDepth[0].ToString("F2") : "--") + "m" +
-                    (count > 1 ? " / " + (hasHandDepth[1] ? handDepth[1].ToString("F2") : "--") + "m" : "") +
-                    "\nMove dot onto orb; pinch to select";
+                var freshFrame = count > 0 ? frame : null;
+                status.text = "GESTURES | " + (frame == null ? tracking.State :
+                    frame.resultFps.ToString("F1") + " FPS") + "\n" +
+                    "Hands " + count + "  Pinch " + pinchEvents + "  Select " + selectionEvents + "\n" +
+                    HandGestureText(freshFrame, "Left") + "\n" +
+                    HandGestureText(freshFrame, "Right") + "\n" +
+                    "AI " + (frame == null ? 0f : frame.inferenceMs).ToString("F0") +
+                    "ms Age " + (frame == null ? -1f : frame.captureToResultMs).ToString("F0") + "ms\n" +
+                    "Point at orb, then pinch";
             }
         }
     }

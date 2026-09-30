@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0-preview.8
+
+- Added MediaPipe gesture categories and confidence to each `SpatialHand` while retaining landmark based pinch and sample selection.
+- Replaced the Android Unity bridge's separate hand landmarker with one Gesture Recognizer inference path for up to two hands.
+- Reworked the XR sample's stereo status panels to show left and right gesture results without overlapping diagnostic text.
+
 ## 0.2.0-preview.7
 
 - Added two head-locked pinch targets to the XR sample to verify frame events, hand projection, pointer hover and selection.
