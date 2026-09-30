@@ -5,6 +5,7 @@
 - preview.8 在 RhinoX 真机上安装并加载 `gesture_recognizer.task` 成功；无手时约 20–28 FPS。用户伸手后反馈卡顿、手势消失。日志确认 MediaPipe 视频模式的 `ConcatenateTensorVectorCalculator` 重复抛出 `Packet isn't the sole owner of the holder`，并每帧重试。
 - preview.9 将分类器切换到图像模式，并在第一次推理失败时关闭分类器、切换到原先双手 Hand Landmarker；切换后 `gestureSource` 标明 `landmarks-fallback`，Demo 显示 `HANDS ONLY`。故障回退保证骨架与捏合路径不会因分类器内部错误持续重试，但分类类别仍需真机有手场景验收。
 - Android AAR 与 Unity 2022 Android APK 编译通过，AAR 的 SHA-256 为 `7b30ef330152d275a0db5c5b1424eb8af71daa2df954342d27c1df91fde99dc2`；本地 UPM 候选包位于 `dist/0.2.0-preview.9/unity/`。构建时设备已断开 ADB，preview.9 的有手场景实测尚未完成。Demo 用单块深色双目面板显示 XR、左右手类别和计数，待佩戴检查可读性。
+- 随后设备 `03D11C420163` 重新连接，preview.9 APK 安装成功。有手日志持续为 `mode=gesture`，一只手约 16–17 FPS、两只手约 12 FPS，未见旧版图错误或回退。截图 `build/screenshots/spatial-gesture-preview9-live.png`（本机忽略的构建目录）显示骨架、单块深色面板、`Right: None 0.81 PINCH`、`Pinch 10 Select 1`；分类接口、捏合和选中计数在该场景同时工作。用户佩戴测试确认画面流畅，张掌和握拳时类别会变化；各类别准确率及长时间稳定性尚未量化。
 
 ## 0.2.0-preview.8 手势分类接口（2026-09-30）
 
