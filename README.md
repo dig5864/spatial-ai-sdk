@@ -24,6 +24,8 @@ UPM 包版本为 `0.2.0-preview.6`。Unity 2022.3.14f1c1 示例已在 RhinoX 开
 
 ## 开始使用
 
+示例入口与用途见 [SDK 示例索引](samples/README.md)。
+
 1. 在新机器准备固定版本 Cardboard 依赖。运行 `tools/BuildRhinoXCardboard.ps1` 会获取 v1.30.1 源码和 Unity 插件，构建并安装 RhinoX 诊断 AAR；要求 Android NDK、CMake、Ninja、Python 和网络。具体要求见 [RhinoX 构建说明](third_party/rhinox/README.md)。
 2. 在 Unity Hub 打开 `samples/unity/SpatialXR/`。工程通过相对路径引用本仓库 UPM 包和本地 Cardboard 插件。场景、XR Camera 以及 Android/iOS 设置见 [示例说明](samples/unity/SpatialXR/README.md)。
 3. 在 Windows 上双击 `samples/unity/SpatialXR/BuildAndroid.bat` 构建 Android APK，输出到 `build/samples/android/spatialxr.apk`。该脚本不会自动安装；连接设备后用 `adb install -r build/samples/android/spatialxr.apk` 安装。手部预览最低需要 Android API 28。

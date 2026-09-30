@@ -1,45 +1,44 @@
-# Spatial XR Unity 消费工程
+# Spatial XR Unity 示例工程
 
-这是独立的 Unity 2022.3.14f1c1 基线工程，使用相对路径导入当前 Spatial AI UPM 包和固定版本 Cardboard XR Plugin。Unity 6 与团结引擎仍需各自导入测试。
+这是 Unity **2022.3.14f1c1** 消费工程，通过相对路径引用本仓库的 Spatial AI UPM 包和 Cardboard XR Plugin v1.30.1。Unity 6 与团结引擎仍需分别导入和实机验证。工程内三个场景用于不同测试，默认 APK 只打包 `HelloSpatialXR`。
 
-1. 在 Unity Hub 中打开本目录，等待 Package Manager 导入依赖。工程已有导入的 XR Sample 和 `Assets/Scenes/HelloSpatialXR.unity`。
-2. 如需重新建立场景，菜单 `Spatial AI > Create Cardboard XR Sample Scene`，保存场景；通过 `Spatial AI > Configure Cardboard Android XR` 或 `Configure Cardboard iOS XR` 配置对应平台的 XR Loader。
-   现有场景的 `XR Camera` 是普通 Unity Camera 加 Input System 的 `Tracked Pose Driver`，由 Cardboard XR Provider 提供双眼渲染与头姿输入。若编辑器打开期间未刷新到最新场景，执行 `Spatial AI > Repair XR Sample Camera`，保存场景；无需运行 Unity 的“Upgrade to XR Rig”菜单。
-3. Android 构建入口为菜单 `Spatial AI > Build Android XR Sample` 或方法 `SpatialXRSetup.BuildAndroidSample`，成功时输出到 SDK 的 `build/samples/android/spatialxr.apk`。工程为 Unity 2022 固定 Cardboard XR Plugin v1.30.1（UPM 包版本号 1.30.0）；脚本设置 ARM64、OpenGLES3、横屏和 Cardboard Loader。`SpatialXRAndroidGradle` 为此示例加入 Cardboard 所需 AndroidX 依赖，并使用 Android SDK Platform 34 / Build Tools 30.0.3。当前机器会优先读取 `SPATIALAI_ANDROID_SDK_ROOT`、`ANDROID_SDK_ROOT` 或 `ANDROID_HOME`，再使用 `D:\AndroidSdk\sdk`；其他机器应设置 `SPATIALAI_ANDROID_SDK_ROOT`。这些配置仅针对 Unity 2022 示例，Unity 6 与团结需分别验证。
+## 场景与用途
 
-   Windows 上也可直接双击工程根目录的 `BuildAndroid.bat`。它会检查 Unity 版本、Android SDK 和场景；如果工程已在 Unity 打开，就请求该编辑器构建；否则启动对应版本的 Unity，等待其导入并构建。首次新增脚本后若一直显示“等待编辑器”，请切回 Unity 窗口一次，待脚本导入完成。窗口会显示结果，详细日志保存在 SDK 的 `build/logs/`。仅检查环境可运行 `BuildAndroid.bat -CheckOnly`。脚本不会自动安装到设备。
-4. iOS 构建入口为菜单 `Spatial AI > Build iOS Xcode Sample` 或编辑器方法 `SpatialXRSetup.BuildIosSample`。在 macOS 上安装 iOS Build Support 和 Xcode 后运行，输出到 SDK 的 `build/samples/ios/spatialxr-xcode/`；再在 Xcode 中配置签名，安装到 iPhone。脚本设置横屏、Metal、IL2CPP、iOS 12.0 最低版本以及扫描 Cardboard Viewer 二维码所需的相机用途说明。此路径未在本机运行。
-5. 安装到测试设备后打开 `SpatialXRSample`：画面应出现双眼视图、状态文字和正前方的青色方块。转头观察视图是否跟随；注视方块时它变黄，持续约 1.5 秒后变绿，`Hits` 增加；Cardboard Viewer 扳机也可触发。状态文字分别显示 XR display、Viewer 参数、头姿和触发次数。可用 `adb shell am start -n com.spatialai.samples.xr/com.unity3d.player.UnityPlayerActivity` 启动应用。RhinoX 光学仍需等效验收。
+| 场景 | 用途 | 构建入口与输出 |
+| --- | --- | --- |
+| `Assets/Scenes/HelloSpatialXR.unity` | Cardboard 双目、3DoF 头姿、注视方块、RGB/MediaPipe 手骨架与捏合计数 | 双击 `BuildAndroid.bat` 或菜单 `Spatial AI > Build Android XR Sample`；`build/samples/android/spatialxr.apk` |
+| `Assets/Scenes/ImuDiagnostics.unity` | 头姿轴向与归零、手机传感器读数、空间尺寸目标 | 菜单 `Spatial AI > Build IMU Diagnostics APK`；`build/samples/android/imu-diagnostics.apk` |
+| `Assets/Scenes/OpticsComparison.unity` | 2160×2160 网格图的双目畸变对比 | 菜单 `Spatial AI > Build Optics Comparison APK`；`build/samples/android/optics-comparison.apk` |
 
-此示例在 Android 没有保存 Viewer 参数时，会自动载入 Cardboard I/O 2015 **通用测试参数**，以便先验证画面、头姿和注视交互；画面标记 `GENERIC TEST ONLY`。该参数与 RhinoX Pro 的镜片、屏幕位置及 OST 畸变无关，不能用于图像质量或光学验收。拿到真实 Viewer 二维码后，可通过 Cardboard 齿轮入口扫描替换；也可以取消场景根节点 `SpatialCardboardBridge` 的 `Use Generic Viewer For Diagnostics`，要求必须使用真实参数。
+三个 APK 都是诊断或预览应用。构建输出在 SDK 根目录的 `build/`，不上传 Git。
 
-Sample 在 Android 读取 `Build.MANUFACTURER`、`MODEL`、`DEVICE`，在 iOS 使用 Unity 报告的手机型号；这都是手机身份。未来外接眼镜的真实 ID 由设备服务填入 `SpatialCardboardBridge.headsetDeviceId`。当前已知的一体机身份 `QUALCOMM / RhinoX / kona` 会精确映射到 RhinoX Pro 历史参考参数，不会仅凭通用 `kona` 代码匹配其他设备。该参数尚未完成硬件校准，因此正式配置校验仍会拒绝。独立 3DoF 手柄尚未接入；iPhone 外接 RhinoX 的显示路由、通信和头姿仍需单独实现。
+## 首次打开与构建
 
-RhinoX Android 诊断版使用历史 RhinoX Pro 分支的 `Sharp_2k_Seperate` 默认 `gXimmerseAR_WarpMesh` 左右眼网格。首次使用前，在 SDK 根目录运行 `tools/BuildRhinoXCardboard.ps1`，它按固定的 Cardboard v1.30.1 源码和仓库内补丁编译 Android arm64 库，生成 `third_party/rhinox/GfxPluginCardboard-rhinox.aar`，并替换本地 Unity Cardboard 插件的 Android AAR。场景中 `Use Rhino X Legacy Mesh For Diagnostics` 已启用。运行时状态显示 `RhinoX Pro Sharp mesh: applied` 才说明原生渲染器使用了该网格；其他设备继续使用 Cardboard 网格。可在场景根节点取消该选项进行对照。显示生效不等于光学验收，仍需在眼镜中检查双眼对齐、畸变方向和视场边缘。
+1. 在 SDK 根目录运行 `tools/BuildRhinoXCardboard.ps1`，准备固定版本 Cardboard 插件及 RhinoX 诊断 AAR。脚本需要 Android NDK、CMake、Ninja 和 Python；详情见 `third_party/rhinox/README.md`。
+2. 在 Unity Hub 打开本目录，等待 Package Manager 导入。工程内已保存 XR Loader 和三个场景；普通开发者无需重新生成场景。`XR Camera` 使用 Input System `Tracked Pose Driver` 读取头部旋转，Cardboard XR Provider 负责双目渲染。
+3. 在 Windows 上双击 `BuildAndroid.bat` 构建默认场景。它检测工程所需 Unity 版本、Android SDK Platform 34 和 Build Tools 30.0.3；如需指定 SDK，设置 `SPATIALAI_ANDROID_SDK_ROOT`。仅检查环境可运行 `BuildAndroid.bat -CheckOnly`。脚本会复用已打开的 Unity 编辑器，或启动它后自动构建。日志在 `build/logs/`。
+4. 连接测试设备后运行 `adb install -r build/samples/android/spatialxr.apk`，再启动应用。首次启动手部预览需允许相机权限。构建脚本本身不安装 APK。
 
-光学对比场景位于 `Assets/Scenes/OpticsComparison.unity`，可通过 `Spatial AI > Create Optics Comparison Scene` 生成，并通过 `Spatial AI > Build Optics Comparison APK` 构建到 `build/samples/android/optics-comparison.apk`。它与历史工程 `OpticsReference` 使用字节完全相同的 2160×2160 测试图，分别交给两套 XR Runtime 做畸变。两张真机原始截图需要比较每眼方向、中心、网格线与边缘；当前尚未达到光学等效验收。
+若修改过 XR 场景，可使用 `Spatial AI > Repair XR Sample Camera` 修复 `Tracked Pose Driver` 并保存。`Spatial AI > Create Cardboard XR Sample Scene`、`Create IMU Diagnostics Scene`、`Create Optics Comparison Scene` 用于重新生成场景，会覆盖当前打开的场景；先保存自己的改动。
 
-IMU 调试场景位于 `Assets/Scenes/ImuDiagnostics.unity`。菜单 `Spatial AI > Create IMU Diagnostics Scene` 可重新生成场景，`Spatial AI > Build IMU Diagnostics APK` 构建独立安装包 `build/samples/android/imu-diagnostics.apk`。安装后打开 **Spatial XR IMU Diagnostics**，画面会显示 Cardboard XR 的相对 yaw、pitch、roll、眼中心位置，以及手机陀螺仪角速度和加速度；每秒以 `SpatialAI IMU` 前缀写一条 Android 日志。红 X、绿 Y、蓝 Z 轴在 XR 启动时放到视线前方，之后保持世界方向不动，供 3DoF 转头观察；点按屏幕、使用触发键或发送 R 键可将角度归零并把轴重新放到当前视线前方。屏幕会显示归零次数和输入来源，Android 日志会写出 `SpatialAI IMU RESET`。原始手机传感器值使用设备坐标，XR 姿态使用 Cardboard/Unity 坐标，两者不能直接逐轴等同。真机逐轴转动与符号校验完成前，RhinoX 的 Android IMU 轴映射仍视为未验证。
+## 默认 XR 与手势预览
 
-无法方便触摸屏幕时，可在 Windows 终端执行 `adb shell input keyevent 46` 发送 R 键归零；测试过此命令和 `adb shell input tap 900 1000` 都会触发归零日志。归零时先将设备保持正视且静止，再分别小角度抬头、右转、侧倾，读取 `Relative head angle` 的 X/Y/Z 变化。
-# Hand tracking preview
+画面应显示双目视图和状态文字。正前方青色方块被注视时变黄；持续注视约 1.5 秒或使用 Cardboard Viewer 扳机后变绿，`Hits` 增加。它是注视交互示例，**独立 3DoF 手柄尚未接入**。
 
-The `HelloSpatialXR` scene now starts the Android RGB hand tracker and draws up to two
-21-joint skeletons in the eye render frame. It shows a pinch counter. The
-first launch requests camera permission. This uses the RhinoX development device's
-RGB Camera2 stream and the MediaPipe Hand Landmarker model in the packaged Android
-library. The same camera capture service can have more consumers later.
+RhinoX 开发设备使用历史 `Sharp_2k_Seperate` OST 网格。状态文字中的 `RhinoX Pro Sharp mesh: ON` 表示原生渲染器已启用该网格，仍需在眼镜中检查双眼对齐、畸变方向与边缘。没有 Viewer 参数时，示例可能载入 Cardboard 通用测试参数并显示 `GENERIC TEST`；它不代表 RhinoX 光学校准完成。
 
-The skeleton is **approximate diagnostic output**, not a metric hand pose or an XR
-Hands provider. It uses the device RGB intrinsics and distortion calibration plus a
-candidate RGB-to-eye transform. Depth is estimated from palm size in the image and
-depends on the user's hand dimensions and hand orientation. Per-device extrinsics and
-the physical left/right hand labels remain to be validated. The sample does not
-yet use hands to select a world-space object. iOS hand tracking is not included.
-This Android preview currently requires API level 28 or newer.
+同一场景会从 RGB Camera2 读取帧并显示最多两只手的 21 点骨架、捏合计数、实际推理帧率和耗时。图像点经过 RhinoX RGB 内参和畸变校正，再按开发设备的候选 RGB→eye 外参投到眼空间。`Depth approx` 使用手掌图像尺寸估算深度；手的实际尺寸和朝向会影响该值。它还不是精确的手部位置，也未接入 Unity XR Hands。Android 手势预览最低需要 API 28，iOS 手势尚未实现。
 
-The Android library source and its build script are in the separate
-`visor-x/spatial-ai-android` repository. Build its AAR there, then verify the pinned
-revision and SHA-256 with `tools/VerifyAndroidHandAar.ps1 -AndroidRepoPath <path>` in
-the SDK repository. Build this Unity sample with `BuildAndroid.bat`. The Unity Gradle
-postprocessor pins MediaPipe Tasks Vision to 1.0.0.
+Android 相机和 MediaPipe 库的源码、诊断工程在独立的 [`spatial-ai-android`](http://gitlab.ximmerse.com/visor-x/spatial-ai-android) 仓库。当前 Unity 包自带已验证 SHA-256 的 AAR；更新后可用 SDK 的 `tools/VerifyAndroidHandAar.ps1 -AndroidRepoPath <路径>` 核对。Unity Gradle 后处理器固定 MediaPipe Tasks Vision `1.0.0`。
+
+## IMU 与空间尺寸场景
+
+`ImuDiagnostics` 显示 Cardboard XR 相对 yaw、pitch、roll、眼中心位置以及手机陀螺仪和加速度计数据。红 X、绿 Y、蓝 Z 轴在启动时置于视线前方，随后保持世界方向。点按屏幕、按触发键或发送 R 键可归零；不便触屏时使用 `adb shell input keyevent 46`。
+
+场景在 **0.6 m** 放置 **20 cm** 方块，在 **1.0、1.3、1.6 m** 放置 **40 cm** 方块；**2.6 m** 处有 **4×2 m** 棋盘格，每格 **20 cm**。这些目标用于观察尺度与转头时的畸变。它们不在默认的 `HelloSpatialXR` 场景中。
+
+## 光学场景与 iOS
+
+`OpticsComparison` 使用与历史工程 `OpticsReference` 相同的 2160×2160 测试图。需分别截取两个 Runtime 的真机原始画面，比较每眼方向、中心网格和边缘；当前尚未完成光学等效验收。
+
+菜单 `Spatial AI > Build iOS Xcode Sample` 可在安装 iOS Build Support 的 macOS Unity 中导出 Xcode 工程，再由 Xcode 签名安装。iPhone 与外接 RhinoX 的显示路由、通信和头姿尚未实机验证。更多已验证范围见 [验证记录](../../../docs/VALIDATION.md)。
