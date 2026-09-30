@@ -87,6 +87,7 @@ namespace SpatialAI.Unity
         public float conversionMs;
         public float inferenceMs;
         public float captureToResultMs;
+        public string gestureSource;
         public SpatialHand[] hands;
     }
 

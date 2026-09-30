@@ -31,6 +31,8 @@ namespace SpatialAI.Samples
             var hands = gameObject.AddComponent<HandTrackingDemo>();
             hands.xrCamera = xrCamera;
             if (target != null) targetMaterial = target.material;
+            // Device diagnostics share one stereo panel in HandTrackingDemo.
+#if UNITY_EDITOR
             if (xrCamera != null)
             {
                 var statusObject = new GameObject("Spatial XR status HUD");
@@ -43,6 +45,7 @@ namespace SpatialAI.Samples
                 statusText.characterSize = 0.006f;
                 statusText.color = Color.white;
             }
+#endif
         }
 
         private void LateUpdate()

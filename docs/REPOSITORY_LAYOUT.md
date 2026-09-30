@@ -85,9 +85,9 @@ build/
 
 ```text
 dist/
-└─ 0.2.0-preview.8/
+└─ 0.2.0-preview.9/
    ├─ unity/
-   │  ├─ com.spatialai.sdk-0.2.0-preview.8.tgz
+   │  ├─ com.spatialai.sdk-0.2.0-preview.9.tgz
    │  ├─ SHA256SUMS.txt
    │  └─ release-manifest.json
    ├─ web/                       未来 npm 包

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0-preview.9
+
+- Switched gesture classification to image mode after the RhinoX device's video graph failed when hands appeared.
+- Added a one-time Hand Landmarker fallback so a classifier failure cannot repeatedly stall hand tracking; frames report `gestureSource`.
+- Combined XR and hand status into one dark stereo panel to keep text readable over scene geometry.
+
 ## 0.2.0-preview.8
 
 - Added MediaPipe gesture categories and confidence to each `SpatialHand` while retaining landmark based pinch and sample selection.

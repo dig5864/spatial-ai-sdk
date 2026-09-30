@@ -1,5 +1,11 @@
 # 验证记录
 
+## 0.2.0-preview.9 手势故障恢复（2026-09-30）
+
+- preview.8 在 RhinoX 真机上安装并加载 `gesture_recognizer.task` 成功；无手时约 20–28 FPS。用户伸手后反馈卡顿、手势消失。日志确认 MediaPipe 视频模式的 `ConcatenateTensorVectorCalculator` 重复抛出 `Packet isn't the sole owner of the holder`，并每帧重试。
+- preview.9 将分类器切换到图像模式，并在第一次推理失败时关闭分类器、切换到原先双手 Hand Landmarker；切换后 `gestureSource` 标明 `landmarks-fallback`，Demo 显示 `HANDS ONLY`。故障回退保证骨架与捏合路径不会因分类器内部错误持续重试，但分类类别仍需真机有手场景验收。
+- Android AAR 与 Unity 2022 Android APK 编译通过，AAR 的 SHA-256 为 `7b30ef330152d275a0db5c5b1424eb8af71daa2df954342d27c1df91fde99dc2`；本地 UPM 候选包位于 `dist/0.2.0-preview.9/unity/`。构建时设备已断开 ADB，preview.9 的有手场景实测尚未完成。Demo 用单块深色双目面板显示 XR、左右手类别和计数，待佩戴检查可读性。
+
 ## 0.2.0-preview.8 手势分类接口（2026-09-30）
 
 - 用户确认上一版两只手均可识别。本版 Android Unity 桥接改用 MediaPipe Gesture Recognizer，一次推理输出每只手的 21 点、手别、类别和置信度，仍配置最多两只手；`Pinching` 与 Demo `Select` 保持原规则。

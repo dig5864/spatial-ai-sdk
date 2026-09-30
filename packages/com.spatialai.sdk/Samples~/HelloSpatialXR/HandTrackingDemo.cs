@@ -1,5 +1,6 @@
 #if SPATIALAI_HAS_CARDBOARD
 using SpatialAI.Unity;
+using SpatialAI.Cardboard;
 using UnityEngine;
 
 namespace SpatialAI.Samples
@@ -26,6 +27,7 @@ namespace SpatialAI.Samples
         private readonly bool[] targetHovered = new bool[2];
         private readonly float[] targetFeedbackUntil = new float[2];
         private SpatialHandTracking tracking;
+        private SpatialCardboardBridge xrBridge;
         private SpatialHandFrame latestFrame;
         private SpatialRgbCalibration calibration;
         private TextMesh status;
@@ -94,6 +96,7 @@ namespace SpatialAI.Samples
             calibration = SpatialRgbCalibration.LoadRhinoXReference();
             Debug.Log("SpatialAI hand demo init: tracker");
             tracking = GetComponent<SpatialHandTracking>();
+            xrBridge = GetComponent<SpatialCardboardBridge>();
             if (tracking == null) tracking = gameObject.AddComponent<SpatialHandTracking>();
             tracking.FrameUpdated += OnHandFrame;
             var shader = Shader.Find("Sprites/Default");
@@ -142,12 +145,26 @@ namespace SpatialAI.Samples
             }
             var label = new GameObject("Hand tracking readout");
             label.transform.SetParent(xrCamera.transform, false);
-            label.transform.localPosition = new Vector3(0.05f, 0.34f, 1.8f);
+            label.transform.localPosition = new Vector3(-0.34f, 0.34f, 1.8f);
             status = label.AddComponent<TextMesh>();
             status.anchor = TextAnchor.UpperLeft;
             status.fontSize = 48;
             status.characterSize = 0.006f;
             status.color = Color.white;
+            var backdrop = new GameObject("Hand status backdrop");
+            backdrop.transform.SetParent(xrCamera.transform, false);
+            backdrop.transform.localPosition = new Vector3(-0.35f, 0.35f, 1.82f);
+            var panelMesh = new Mesh { name = "SpatialAI status panel" };
+            panelMesh.vertices = new[] {
+                Vector3.zero, new Vector3(0.49f, 0f, 0f),
+                new Vector3(0f, -0.25f, 0f), new Vector3(0.49f, -0.25f, 0f)
+            };
+            panelMesh.triangles = new[] { 0, 1, 2, 1, 3, 2 };
+            panelMesh.RecalculateNormals();
+            backdrop.AddComponent<MeshFilter>().sharedMesh = panelMesh;
+            var panelMaterial = new Material(targetShader);
+            panelMaterial.color = new Color(0.015f, 0.02f, 0.04f, 1f);
+            backdrop.AddComponent<MeshRenderer>().sharedMaterial = panelMaterial;
             initialized = true;
             Debug.Log("SpatialAI hand interaction demo ready");
         }
@@ -290,8 +307,11 @@ namespace SpatialAI.Samples
                 var count = frame != null && frame.hands != null && Time.unscaledTime - lastFrameTime < 0.35f
                     ? frame.hands.Length : 0;
                 var freshFrame = count > 0 ? frame : null;
-                status.text = "GESTURES | " + (frame == null ? tracking.State :
-                    frame.resultFps.ToString("F1") + " FPS") + "\n" +
+                status.text = "XR " + (xrBridge != null && xrBridge.XrRunning ? "ON" : "WAIT") +
+                    "  Mesh " + (xrBridge != null && xrBridge.RhinoXLegacyMeshApplied ? "ON" : "OFF") + "\n" +
+                    (frame != null && frame.gestureSource == "landmarks-fallback"
+                        ? "HANDS ONLY | " : "GESTURES | ") +
+                    (frame == null ? tracking.State : frame.resultFps.ToString("F1") + " FPS") + "\n" +
                     "Hands " + count + "  Pinch " + pinchEvents + "  Select " + selectionEvents + "\n" +
                     HandGestureText(freshFrame, "Left") + "\n" +
                     HandGestureText(freshFrame, "Right") + "\n" +
