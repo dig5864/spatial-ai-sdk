@@ -1,5 +1,12 @@
 # 验证记录
 
+## 当前开发基线（2026-09-30）
+
+- Unity 2022.3.14f1c1 的 `samples/unity/SpatialXR/BuildAndroid.ps1` 已完成编辑器构建，APK 为 `build/samples/android/spatialxr.apk`；已在 RhinoX 开发设备 `03D11C420163` 安装并启动。构建输出与设备日志保存在忽略的 `build/` 中。
+- Cardboard XR Display/Input 已启动；设备日志报告 RhinoX Pro Sharp 畸变网格每眼 2601 顶点已启用。实际光学等效、逐台标定及运动下画质仍需人工验收。
+- RGB Camera2 ID 2 使用 1440×1080 帧；MediaPipe 在 384×288 图像上运行。无手时设备日志约 22–27 FPS，有手时此前测得约 17–19 FPS。示例用 RGB 标定参数和候选 RGB→eye 外参绘制骨架，手部深度按手掌图像尺寸近似估算。近远两档合成射线检查已通过，实际近远尺度仍待佩戴复测。
+- iOS、Unity 6、团结、独立 3DoF 手柄、Unity XR Hands、手机兼容列表均未完成验收。以下较早日期的记录保留当时状态；其中“无 APK”“无设备”不是当前结论。
+
 ## Unity 2022 Android APK 构建（2026-09-28）
 
 Unity 2022.3.14f1c1 的菜单构建先后暴露两项 Gradle 问题：Cardboard v1.35.0 AAR 使用 Java 17 字节码，旧 D8 无法处理；切换到 v1.30.1 后，缺少 AppCompat 依赖导致 `Theme.AppCompat.NoActionBar` 找不到。已为 Unity 2022 示例固定 v1.30.1，加入 Cardboard 官方要求的 AndroidX、Vision、Material、protobuf 依赖。依赖要求编译 SDK 至少 34；旧 AGP 的 AAPT2 无法读取 SDK 35 平台资源，因此本示例选择 SDK 34。

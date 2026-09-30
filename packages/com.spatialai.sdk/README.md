@@ -1,6 +1,6 @@
-# Spatial AI SDK — 0.2.0-preview.4
+# Spatial AI SDK — 0.2.0-preview.5
 
-这是可导入的预览框架，提供纯 C# Core、Unity Host、构建预检、模拟示例、设备 ID 到光学 Profile 的匹配，以及可选的 Cardboard XR 基线 Sample。Cardboard XR Plugin 负责其自身的双目显示和头姿；**RhinoX Pro 光学与独立手柄尚未接入**。
+这是可导入的预览包，提供纯 C# Core、Unity Host、模拟示例、设备 ID 到光学 Profile 的匹配，以及 Cardboard XR Sample。RhinoX Pro 光学网格和 IMU 设计偏移已接入 Android 诊断路径，尚未完成逐台光学校准；独立 3DoF 手柄尚未接入。
 
 通过 Package Manager 的 Add package from disk 选择本目录 package.json。导入 Hello Spatial (Simulator) Sample，再使用菜单 Spatial AI > Create Simulator Scene；保存场景，进入 Play。用头姿与手柄滑条改变方向，目标变黄后按住 Trigger，Hits 增加一次；松开再按可重复触发。
 
@@ -8,9 +8,9 @@
 
 ## Cardboard XR 基线 Sample
 
-仓库内的消费工程位于 `samples/unity/SpatialXR/`，Unity 2022 示例使用 Cardboard XR Plugin v1.30.1（其 UPM 包版本号为 1.30.0）。导入 `Hello Spatial XR (Cardboard baseline)`，创建 Sample 场景，并在 Android 的 XR Plug-in Management 中启用 Cardboard。`SpatialAI.Cardboard` 是条件编译的适配层；没有 Cardboard 包时不参与编译。Sample 的 Camera 使用 Input System Tracked Pose Driver 读取 XR HMD 旋转，Cardboard 的 XR Display/Input 子系统负责双目、Viewer 参数与畸变；Spatial AI 只读取设备 ID、匹配自有 Profile 并显示标定状态。
+仓库内的消费工程位于 `samples/unity/SpatialXR/`，Unity 2022 示例使用 Cardboard XR Plugin v1.30.1（其 UPM 包版本号为 1.30.0）。导入 `Hello Spatial XR (Cardboard baseline)`，创建 Sample 场景，并在 Android 的 XR Plug-in Management 中启用 Cardboard。`SpatialAI.Cardboard` 是条件编译的适配层；没有 Cardboard 包时不参与编译。Sample 的 Camera 使用 Input System Tracked Pose Driver 读取 XR HMD 旋转，Cardboard 的 XR Display/Input 子系统负责双目、Viewer 参数与畸变；RhinoX Android 诊断版另外载入历史光学网格与 IMU 设计偏移。
 
-Android 身份读取 `Build.MANUFACTURER`、`MODEL`、`DEVICE`；iOS 读取 Unity 提供的手机型号。外接眼镜 ID 须由未来的设备连接服务填入，不使用手机 ID 冒充外接眼镜 ID。精确匹配失败或 Profile 未验证时返回错误；已收录的 RhinoX Pro 旧数据只供诊断，未应用于 Cardboard 渲染。该 Sample 的注视与 Cardboard 触发不等于 3DoF 手柄。消费工程同时提供 Android 与 iOS 的 Cardboard XR Loader 配置；iOS 构建仍需在 macOS 上导出 Xcode 工程并完成真机验证。
+Android 身份读取 `Build.MANUFACTURER`、`MODEL`、`DEVICE`；iOS 读取 Unity 提供的手机型号。外接眼镜 ID 须由未来的设备连接服务填入，不使用手机 ID 冒充外接眼镜 ID。RhinoX Pro 诊断网格使用旧硬件数据，尚未完成逐台光学等效验收。该 Sample 的注视与 Cardboard 触发不等于 3DoF 手柄。消费工程同时提供 Android 与 iOS 的 Cardboard XR Loader 配置；iOS 构建仍需在 macOS 上导出 Xcode 工程并完成真机验证。
 
 Unity 6 与团结引擎是支持目标，准确版本仍待实测；当前消费工程使用 Unity 2022.3.14f1c1 编译基线。
 
@@ -26,7 +26,7 @@ Unity 6 与团结引擎是支持目标，准确版本仍待实测；当前消费
 已读取测试机 `03D11C420163` 的 `/backup/slam/device_calibration.xml` 与
 `/backup/rgb_vio_camera_params.xml`，并按旧版 `CameraParamLoader` 的矩阵链和 RhinoX Pro
 设计 Eye→IMU 值计算 RGB→眼中心矩阵。该机 `/backup/aio/rgb_vio_camera_params.xml` 不存在。
-示例在**假定 RGB 相机前方 0.35 m** 的位置显示骨架，以对应当前 30–40 cm 的近距离测试；单目 MediaPipe 没有手部绝对深度，
+示例根据去畸变后的手掌宽度与长度估算每只手的深度，估算失败时回退到 0.35 m；单目 MediaPipe 没有手部绝对深度，估值会随实际手掌尺寸和手掌朝向变化，
 设备标定文件中的 `deviceUID` 也为 `not_configured`。外参目前只作为这台测试机的候选值，
 必须通过镜中实测对位后才能标记为已验证；其他设备应读取并转换各自的标定文件。
 手势推理输入按原始 1440×1080 的宽高比缩至 384×288，最短取帧间隔为 33 ms；

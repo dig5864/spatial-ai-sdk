@@ -1,5 +1,7 @@
 # Cardboard 上游基线
 
+当前 RhinoX Unity 2022 诊断工程使用 Cardboard v1.30.1；以下 v1.35.0 记录是更早的通用原生基线，不是该示例的构建版本。最新验证见 `docs/VALIDATION.md`。
+
 已固定两个仓库的版本，并完成原生 SDK 的 Android arm64 编译。通用候选版本记录在 `cardboard.lock.json`；源码使用稀疏检出，保持上游文件不修改。Unity 2022 RhinoX 诊断版另行固定 Cardboard v1.30.1，在 `third_party/rhinox/` 保存原生补丁和网格数据，并通过 `tools/BuildRhinoXCardboard.ps1` 生成对应的 Android AAR。
 
 | 项目 | 地址 | 候选版本 | 状态 |

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-preview.5
+
+- Added RhinoX Pro diagnostic optics mesh and design IMU-to-eye offset to the Cardboard XR sample.
+- Added an Android RGB Camera2 and MediaPipe hand tracking preview with shared camera service.
+- Projected RGB landmarks into eye space using device camera calibration and approximate per-hand depth.
+- Added a repeatable Unity 2022 Android APK build script and on-screen tracking timing diagnostics.
+- Android hand tracking is a preview; metric hand pose, XR Hands integration, iOS hands, Unity 6 and Tuanjie validation remain open.
+
 ## 0.2.0-preview.4
 
 - Made the XR sample camera follow the XR HMD rotation with the Input System Tracked Pose Driver.

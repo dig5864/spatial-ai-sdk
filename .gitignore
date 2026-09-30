@@ -9,3 +9,10 @@ dist/
 third_party/checkouts/
 third_party/archives/
 *.tgz
+**/__pycache__/
+*.pyc
+# Local Unity build/diagnostic copies; the maintained sample is samples/unity/SpatialXR/.
+/samples/unity/SpatialXR_HandBuild/
+/samples/unity/SpatialXR_ImuBuild/
+/samples/unity/SpatialXR_OpticsBuild/
+/samples/unity/SpatialXR_OpticsClean/

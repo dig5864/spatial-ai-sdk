@@ -1,6 +1,6 @@
 # Spatial AI SDK：多相机、MediaPipe 手势与 Vuforia 复用设计（评估稿）
 
-日期：2026-09-29。范围是架构和验证计划；尚未合入 MediaPipe、Vuforia 或相机采集代码。
+日期：2026-09-29。本文保留当时的架构和验证计划。Android RGB Camera2 与 MediaPipe 手部预览现已合入；Vuforia 尚未合入。当前实现与限制见仓库 `README.md` 和 `docs/VALIDATION.md`。
 
 ## 1. 当前基线与结论
 

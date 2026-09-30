@@ -9,7 +9,7 @@
 
    Windows 上也可直接双击工程根目录的 `BuildAndroid.bat`。它会检查 Unity 版本、Android SDK 和场景；如果工程已在 Unity 打开，就请求该编辑器构建；否则启动对应版本的 Unity，等待其导入并构建。首次新增脚本后若一直显示“等待编辑器”，请切回 Unity 窗口一次，待脚本导入完成。窗口会显示结果，详细日志保存在 SDK 的 `build/logs/`。仅检查环境可运行 `BuildAndroid.bat -CheckOnly`。脚本不会自动安装到设备。
 4. iOS 构建入口为菜单 `Spatial AI > Build iOS Xcode Sample` 或编辑器方法 `SpatialXRSetup.BuildIosSample`。在 macOS 上安装 iOS Build Support 和 Xcode 后运行，输出到 SDK 的 `build/samples/ios/spatialxr-xcode/`；再在 Xcode 中配置签名，安装到 iPhone。脚本设置横屏、Metal、IL2CPP、iOS 12.0 最低版本以及扫描 Cardboard Viewer 二维码所需的相机用途说明。此路径未在本机运行。
-5. 安装到测试设备后打开 `SpatialXRSample`：画面应出现双眼视图、状态文字和正前方的青色方块。转头观察视图是否跟随；注视方块时它变黄，持续约 1.5 秒后变绿，`Hits` 增加；Cardboard Viewer 扳机也可触发。状态文字分别显示 XR display、Viewer 参数、头姿和触发次数。可用 `adb -s 03P11D14106Y shell am start -n com.spatialai.samples.xr/com.unity3d.player.UnityPlayerActivity` 启动当前测试设备上的应用。当前没有完成 RhinoX 光学验收。
+5. 安装到测试设备后打开 `SpatialXRSample`：画面应出现双眼视图、状态文字和正前方的青色方块。转头观察视图是否跟随；注视方块时它变黄，持续约 1.5 秒后变绿，`Hits` 增加；Cardboard Viewer 扳机也可触发。状态文字分别显示 XR display、Viewer 参数、头姿和触发次数。可用 `adb shell am start -n com.spatialai.samples.xr/com.unity3d.player.UnityPlayerActivity` 启动应用。RhinoX 光学仍需等效验收。
 
 此示例在 Android 没有保存 Viewer 参数时，会自动载入 Cardboard I/O 2015 **通用测试参数**，以便先验证画面、头姿和注视交互；画面标记 `GENERIC TEST ONLY`。该参数与 RhinoX Pro 的镜片、屏幕位置及 OST 畸变无关，不能用于图像质量或光学验收。拿到真实 Viewer 二维码后，可通过 Cardboard 齿轮入口扫描替换；也可以取消场景根节点 `SpatialCardboardBridge` 的 `Use Generic Viewer For Diagnostics`，要求必须使用真实参数。
 
@@ -25,14 +25,16 @@ IMU 调试场景位于 `Assets/Scenes/ImuDiagnostics.unity`。菜单 `Spatial AI
 # Hand tracking preview
 
 The `HelloSpatialXR` scene now starts the Android RGB hand tracker and draws up to two
-21-joint skeletons on a head-locked diagnostic plane. It shows a pinch counter. The
+21-joint skeletons in the eye render frame. It shows a pinch counter. The
 first launch requests camera permission. This uses the RhinoX development device's
 RGB Camera2 stream and the MediaPipe Hand Landmarker model in the packaged Android
 library. The same camera capture service can have more consumers later.
 
-The skeleton is **image-plane diagnostic output**, not a metric hand pose or an XR
-Hands provider. The RGB camera's pose relative to the eye render frame, distortion,
-and the physical left/right hand labels remain to be calibrated. The sample does not
+The skeleton is **approximate diagnostic output**, not a metric hand pose or an XR
+Hands provider. It uses the device RGB intrinsics and distortion calibration plus a
+candidate RGB-to-eye transform. Depth is estimated from palm size in the image and
+depends on the user's hand dimensions and hand orientation. Per-device extrinsics and
+the physical left/right hand labels remain to be validated. The sample does not
 yet use hands to select a world-space object. iOS hand tracking is not included.
 This Android preview currently requires API level 28 or newer.
 
