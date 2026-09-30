@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace SpatialAI.Unity
 {
-    /// <summary>RhinoX RGB intrinsics and RGB-to-VIO relation. Eye extrinsics require VIO/IMU calibration.</summary>
+    /// <summary>RhinoX RGB intrinsics and provisional RGB-to-eye calibration.</summary>
     [Serializable]
     public sealed class SpatialRgbCalibration
     {
@@ -106,6 +106,32 @@ namespace SpatialAI.Unity
                 return false;
             // OpenCV camera: right/down/forward. Unity eye-local: right/up/forward.
             ray = new Vector3((float)x, (float)-y, 1f);
+            return true;
+        }
+
+        /// <summary>
+        /// Approximate monocular hand depth from the undistorted palm span. The physical palm
+        /// dimensions are user-dependent, so this is suitable for a demo, not metric tracking.
+        /// The shorter of two depth estimates limits errors when one palm axis is foreshortened.
+        /// </summary>
+        public bool TryEstimateApproximateHandDepth(SpatialHandJoint[] joints, int frameWidth,
+            int frameHeight, float palmWidthMetres, float wristToMiddleMetres, out float depthMetres)
+        {
+            depthMetres = 0f;
+            if (joints == null || joints.Length < 21 || palmWidthMetres <= 0f ||
+                wristToMiddleMetres <= 0f) return false;
+            Vector3 indexKnuckle, pinkyKnuckle, wrist, middleKnuckle;
+            if (!TryCameraRay(joints[5], frameWidth, frameHeight, out indexKnuckle) ||
+                !TryCameraRay(joints[17], frameWidth, frameHeight, out pinkyKnuckle) ||
+                !TryCameraRay(joints[0], frameWidth, frameHeight, out wrist) ||
+                !TryCameraRay(joints[9], frameWidth, frameHeight, out middleKnuckle)) return false;
+            var widthRay = Math.Sqrt(Math.Pow(indexKnuckle.x - pinkyKnuckle.x, 2) +
+                Math.Pow(indexKnuckle.y - pinkyKnuckle.y, 2));
+            var lengthRay = Math.Sqrt(Math.Pow(wrist.x - middleKnuckle.x, 2) +
+                Math.Pow(wrist.y - middleKnuckle.y, 2));
+            if (widthRay < 0.005f || lengthRay < 0.005f) return false;
+            depthMetres = (float)Math.Max(0.2, Math.Min(1.5,
+                Math.Min(palmWidthMetres / widthRay, wristToMiddleMetres / lengthRay)));
             return true;
         }
 

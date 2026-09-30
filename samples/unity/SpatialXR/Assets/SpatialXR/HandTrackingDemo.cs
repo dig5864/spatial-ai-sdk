@@ -4,11 +4,13 @@ using UnityEngine;
 
 namespace SpatialAI.Samples
 {
-    /// <summary>RGB image points in the eye render frame at an assumed camera depth.</summary>
+    /// <summary>RGB hand landmarks projected into eye space with approximate per-hand depth.</summary>
     public sealed class HandTrackingDemo : MonoBehaviour
     {
         public Camera xrCamera;
         public float assumedHandDepthMetres = 0.35f;
+        public float palmWidthMetres = 0.075f;
+        public float wristToMiddleMetres = 0.10f;
         private static readonly int[] Edges = {
             0,1, 1,2, 2,3, 3,4, 0,5, 5,6, 6,7, 7,8,
             0,9, 9,10, 10,11, 11,12, 0,13, 13,14, 14,15, 15,16,
@@ -22,6 +24,11 @@ namespace SpatialAI.Samples
         private float lastFrameTime;
         private int pinchEvents;
         private readonly bool[] wasPinching = new bool[2];
+        private readonly float[] handDepth = new float[2];
+        private readonly bool[] hasHandDepth = new bool[2];
+        private readonly Vector2[] lastWrist = new Vector2[2];
+        private readonly Vector3[,] eyeJoints = new Vector3[2, 21];
+        private readonly bool[,] eyeJointValid = new bool[2, 21];
 
         private void Start()
         {
@@ -72,20 +79,36 @@ namespace SpatialAI.Samples
                         calibration != null && frame.cameraId == calibration.cameraId &&
                         frame.imageWidth == calibration.imageWidth &&
                         frame.imageHeight == calibration.imageHeight;
+                    if (valid)
+                    {
+                        float measuredDepth;
+                        var wrist = new Vector2(hand.joints[0].x, hand.joints[0].y);
+                        if (calibration.TryEstimateApproximateHandDepth(hand.joints,
+                            frame.imageWidth, frame.imageHeight, palmWidthMetres,
+                            wristToMiddleMetres, out measuredDepth))
+                        {
+                            var sameHand = hasHandDepth[h] &&
+                                (wrist - lastWrist[h]).sqrMagnitude < 0.09f;
+                            handDepth[h] = sameHand ? Mathf.Lerp(handDepth[h], measuredDepth, 0.55f)
+                                : measuredDepth;
+                            hasHandDepth[h] = true;
+                        }
+                        else if (!hasHandDepth[h]) handDepth[h] = Mathf.Max(0.2f, assumedHandDepthMetres);
+                        lastWrist[h] = wrist;
+                        for (var j = 0; j < 21; j++)
+                            eyeJointValid[h, j] = calibration.TryEyePoint(hand.joints[j],
+                                frame.imageWidth, frame.imageHeight, handDepth[h], out eyeJoints[h, j]);
+                    }
+                    else hasHandDepth[h] = false;
                     for (var e = 0; e < Edges.Length / 2; e++)
                     {
                         var line = bones[h, e];
-                        line.enabled = valid;
-                        if (!valid) continue;
-                        Vector3 first, second;
-                        if (!OnPlane(hand.joints[Edges[e * 2]], frame, out first) ||
-                            !OnPlane(hand.joints[Edges[e * 2 + 1]], frame, out second))
-                        {
-                            line.enabled = false;
-                            continue;
-                        }
-                        line.SetPosition(0, first);
-                        line.SetPosition(1, second);
+                        var first = Edges[e * 2];
+                        var second = Edges[e * 2 + 1];
+                        line.enabled = valid && eyeJointValid[h, first] && eyeJointValid[h, second];
+                        if (!line.enabled) continue;
+                        line.SetPosition(0, eyeJoints[h, first]);
+                        line.SetPosition(1, eyeJoints[h, second]);
                     }
                     var pinching = valid && hand.Pinching;
                     if (pinching && !wasPinching[h]) pinchEvents++;
@@ -112,15 +135,10 @@ namespace SpatialAI.Samples
                     "  CV " + (frame == null ? 0f : frame.conversionMs).ToString("F0") +
                     "ms  AI " + (frame == null ? 0f : frame.inferenceMs).ToString("F0") +
                     "ms  Age " + (frame == null ? -1f : frame.captureToResultMs).ToString("F0") +
-                    "ms\nDepth assumed " + assumedHandDepthMetres.ToString("F2") + "m";
+                    "ms\nDepth approx " + (count > 0 && hasHandDepth[0]
+                        ? handDepth[0].ToString("F2") : "--") + "m" +
+                    (count > 1 ? " / " + (hasHandDepth[1] ? handDepth[1].ToString("F2") : "--") + "m" : "");
             }
-        }
-
-        private bool OnPlane(SpatialHandJoint joint, SpatialHandFrame frame, out Vector3 point)
-        {
-            point = Vector3.zero;
-            var depth = Mathf.Max(0.2f, assumedHandDepthMetres);
-            return calibration.TryEyePoint(joint, frame.imageWidth, frame.imageHeight, depth, out point);
         }
     }
 }
