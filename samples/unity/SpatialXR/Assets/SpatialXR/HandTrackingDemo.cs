@@ -40,11 +40,59 @@ namespace SpatialAI.Samples
         private readonly Vector2[] lastWrist = new Vector2[2];
         private readonly Vector3[,] eyeJoints = new Vector3[2, 21];
         private readonly bool[,] eyeJointValid = new bool[2, 21];
+        private bool initialized;
+        private static Mesh sphereMesh;
+
+        private static GameObject CreateVisualSphere(string name, Material material)
+        {
+            if (sphereMesh == null)
+            {
+                const int longitude = 24;
+                const int latitude = 12;
+                var vertices = new Vector3[(longitude + 1) * (latitude + 1)];
+                var triangles = new int[longitude * latitude * 6];
+                for (var y = 0; y <= latitude; y++)
+                {
+                    var polar = Mathf.PI * y / latitude;
+                    for (var x = 0; x <= longitude; x++)
+                    {
+                        var azimuth = 2f * Mathf.PI * x / longitude;
+                        vertices[y * (longitude + 1) + x] = new Vector3(
+                            0.5f * Mathf.Sin(polar) * Mathf.Cos(azimuth),
+                            0.5f * Mathf.Cos(polar),
+                            0.5f * Mathf.Sin(polar) * Mathf.Sin(azimuth));
+                    }
+                }
+                for (var y = 0; y < latitude; y++)
+                    for (var x = 0; x < longitude; x++)
+                    {
+                        var a = y * (longitude + 1) + x;
+                        var b = a + longitude + 1;
+                        var t = (y * longitude + x) * 6;
+                        triangles[t] = a;
+                        triangles[t + 1] = a + 1;
+                        triangles[t + 2] = b;
+                        triangles[t + 3] = b;
+                        triangles[t + 4] = a + 1;
+                        triangles[t + 5] = b + 1;
+                    }
+                sphereMesh = new Mesh { name = "SpatialAI hand target sphere" };
+                sphereMesh.vertices = vertices;
+                sphereMesh.triangles = triangles;
+                sphereMesh.RecalculateNormals();
+            }
+            var visual = new GameObject(name);
+            visual.AddComponent<MeshFilter>().sharedMesh = sphereMesh;
+            visual.AddComponent<MeshRenderer>().sharedMaterial = material;
+            return visual;
+        }
 
         private void Start()
         {
             if (xrCamera == null) { enabled = false; return; }
+            Debug.Log("SpatialAI hand demo init: calibration");
             calibration = SpatialRgbCalibration.LoadRhinoXReference();
+            Debug.Log("SpatialAI hand demo init: tracker");
             tracking = GetComponent<SpatialHandTracking>();
             if (tracking == null) tracking = gameObject.AddComponent<SpatialHandTracking>();
             tracking.FrameUpdated += OnHandFrame;
@@ -52,8 +100,15 @@ namespace SpatialAI.Samples
             if (shader == null) shader = Shader.Find("Unlit/Color");
             var targetShader = Shader.Find("Unlit/Color");
             if (targetShader == null) targetShader = shader;
+            if (shader == null || targetShader == null)
+            {
+                Debug.LogError("SpatialAI hand demo requires an included unlit shader.");
+                enabled = false;
+                return;
+            }
             for (var hand = 0; hand < 2; hand++)
             {
+                Debug.Log("SpatialAI hand demo init: visuals " + hand);
                 var material = new Material(shader);
                 material.color = hand == 0 ? Color.green : Color.cyan;
                 for (var edge = 0; edge < Edges.Length / 2; edge++)
@@ -68,26 +123,21 @@ namespace SpatialAI.Samples
                     line.enabled = false;
                     bones[hand, edge] = line;
                 }
-                var cursor = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                cursor.name = "Hand " + hand + " pinch pointer";
+                var cursor = CreateVisualSphere("Hand " + hand + " pinch pointer", material);
                 cursor.transform.SetParent(xrCamera.transform, false);
                 cursor.transform.localScale = Vector3.one * 0.025f;
-                cursor.GetComponent<Collider>().enabled = false;
-                cursor.GetComponent<Renderer>().material = material;
                 cursor.SetActive(false);
                 cursors[hand] = cursor;
             }
             for (var i = 0; i < TargetPositions.Length; i++)
             {
-                var target = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                target.name = "Pinch target " + (i + 1);
+                Debug.Log("SpatialAI hand demo init: target " + i);
+                var material = new Material(targetShader);
+                material.color = Color.cyan;
+                var target = CreateVisualSphere("Pinch target " + (i + 1), material);
                 target.transform.SetParent(xrCamera.transform, false);
                 target.transform.localPosition = TargetPositions[i];
                 target.transform.localScale = Vector3.one * 0.13f;
-                target.GetComponent<Collider>().enabled = false;
-                var material = new Material(targetShader);
-                material.color = Color.cyan;
-                target.GetComponent<Renderer>().material = material;
                 targetMaterials[i] = material;
             }
             var label = new GameObject("Hand tracking readout");
@@ -98,6 +148,8 @@ namespace SpatialAI.Samples
             status.fontSize = 48;
             status.characterSize = 0.008f;
             status.color = Color.white;
+            initialized = true;
+            Debug.Log("SpatialAI hand interaction demo ready");
         }
 
         private void OnEnable()
@@ -121,7 +173,7 @@ namespace SpatialAI.Samples
 
         private void LateUpdate()
         {
-            if (tracking == null) return;
+            if (!initialized || tracking == null) return;
             var frame = latestFrame;
             if (frame != null && frame.sequence != lastSequence)
             {
@@ -211,14 +263,15 @@ namespace SpatialAI.Samples
             {
                 for (var h = 0; h < 2; h++)
                 {
-                    cursors[h].SetActive(false);
+                    if (cursors[h] != null) cursors[h].SetActive(false);
                     for (var e = 0; e < Edges.Length / 2; e++) bones[h, e].enabled = false;
                 }
                 for (var i = 0; i < targetHovered.Length; i++) targetHovered[i] = false;
             }
             for (var i = 0; i < targetMaterials.Length; i++)
-                targetMaterials[i].color = Time.unscaledTime < targetFeedbackUntil[i] ? Color.green :
-                    targetHovered[i] ? Color.yellow : Color.cyan;
+                if (targetMaterials[i] != null)
+                    targetMaterials[i].color = Time.unscaledTime < targetFeedbackUntil[i] ? Color.green :
+                        targetHovered[i] ? Color.yellow : Color.cyan;
             if (status != null)
             {
                 var count = frame != null && frame.hands != null && Time.unscaledTime - lastFrameTime < 0.35f

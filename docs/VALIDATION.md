@@ -2,7 +2,9 @@
 
 ## 捏合交互接口预览（2026-09-30）
 
-`HelloSpatialXR` 现通过 SDK 的 `SpatialHandTracking.FrameUpdated` 事件消费 RGB 手帧，显示指尖指向、目标悬停和捏合选中计数。Unity 2022 Android APK 已构建通过；当前设备未连接 ADB，手到目标的真机命中率、延迟、左右手标识及重复触发仍待实测。此示例验证 Spatial AI 自有事件接口，不代表 `XRHandSubsystem` 或 XRI 标准输入已接入。
+`HelloSpatialXR` 通过 SDK 的 `SpatialHandTracking.FrameUpdated` 事件消费 RGB 手帧，显示指尖指向、目标悬停和捏合选中计数。Unity 2022 Android APK 已构建并安装到 RhinoX 开发设备 `03D11C420163`。首次安装发现示例场景在裁剪 `SphereCollider` 后初始化失败；已改为直接生成纯显示球体，重新构建、安装并验证启动日志出现 `SpatialAI hand interaction demo ready`，未再出现组件或空引用错误。无手状态下 MediaPipe 持续输出约 20–27 FPS。手到目标的真机命中率、延迟、左右手标识及重复触发仍待佩戴实测。此示例验证 Spatial AI 自有事件接口，不代表 `XRHandSubsystem` 或 XRI 标准输入已接入。
+
+`dist/0.2.0-preview.7/` 是本次修复前生成的候选包；当前交互测试请使用源码工程或已安装的最新 APK，后续打包时递增版本号。
 
 ## 当前开发基线（2026-09-30）
 
