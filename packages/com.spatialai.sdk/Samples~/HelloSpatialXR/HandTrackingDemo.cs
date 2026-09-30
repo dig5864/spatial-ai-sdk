@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace SpatialAI.Samples
 {
-    /// <summary>RGB calibrated rays at an assumed depth; camera-to-eye extrinsics remain pending.</summary>
+    /// <summary>RGB image points in the eye render frame at an assumed camera depth.</summary>
     public sealed class HandTrackingDemo : MonoBehaviour
     {
         public Camera xrCamera;
@@ -103,24 +103,20 @@ namespace SpatialAI.Samples
                     frame == null ? "Waiting for RGB frame" :
                     frame.cameraId != calibration.cameraId ? "RGB camera ID mismatch: " + frame.cameraId :
                     frame.imageWidth == calibration.imageWidth && frame.imageHeight == calibration.imageHeight
-                        ? "RGB rays: calibrated intrinsics" :
+                        ? "RGB -> eye: design extrinsics" :
                         "RGB size " + frame.imageWidth + "x" + frame.imageHeight +
                         " differs from 1440x1080";
                 status.text = "HANDS  " + tracking.State + "\n" +
                     "Seen " + count + "   Pinch " + pinchEvents + "\n" +
-                    geometry + "\nEye offset / metric depth pending";
+                    geometry + "\nDepth assumed 0.65m; eye alignment unverified";
             }
         }
 
         private bool OnPlane(SpatialHandJoint joint, SpatialHandFrame frame, out Vector3 point)
         {
             point = Vector3.zero;
-            Vector3 ray;
-            if (!calibration.TryCameraRay(joint, frame.imageWidth, frame.imageHeight, out ray))
-                return false;
             var depth = Mathf.Max(0.2f, assumedHandDepthMetres);
-            point = new Vector3(ray.x * depth, ray.y * depth, depth);
-            return true;
+            return calibration.TryEyePoint(joint, frame.imageWidth, frame.imageHeight, depth, out point);
         }
     }
 }

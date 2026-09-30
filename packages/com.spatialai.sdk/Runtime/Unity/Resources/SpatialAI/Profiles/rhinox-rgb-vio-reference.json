@@ -22,5 +22,13 @@
   "rgbToVioRightTranslationMetres": [
     -0.014160466091845167, -0.0007313442567565548, 0.00033729294528246141
   ],
-  "eyeTransformComplete": false
+  "eyeTransformComplete": true,
+  "eyeTransformValidated": false,
+  "eyeTransformSource": "RhinoX 03D11C420163 /backup/slam/device_calibration.xml + /backup/rgb_vio_camera_params.xml; legacy CameraParamLoader::ParamInit_PRO and design EyeRender2Design/Eye2IMU",
+  "rgbToEyeUnityRowMajor": [
+    0.999930443, -0.005562480, -0.010382540, 0.027002244,
+    0.006896933, 0.991055685, 0.133270115, -0.052379439,
+    0.009549083, -0.133333040, 0.991025175, 0.104417244,
+    0, 0, 0, 1
+  ]
 }

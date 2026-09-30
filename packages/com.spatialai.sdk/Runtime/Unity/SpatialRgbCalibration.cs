@@ -17,6 +17,9 @@ namespace SpatialAI.Unity
         public float[] rgbToVioRightRotationRowMajor;
         public float[] rgbToVioRightTranslationMetres;
         public bool eyeTransformComplete;
+        public bool eyeTransformValidated;
+        public string eyeTransformSource;
+        public float[] rgbToEyeUnityRowMajor;
 
         public static SpatialRgbCalibration LoadRhinoXReference()
         {
@@ -104,6 +107,26 @@ namespace SpatialAI.Unity
             // OpenCV camera: right/down/forward. Unity eye-local: right/up/forward.
             ray = new Vector3((float)x, (float)-y, 1f);
             return true;
+        }
+
+        /// <summary>At a provisional RGB-camera depth, map the ray into the eye render frame.</summary>
+        public bool TryEyePoint(SpatialHandJoint joint, int frameWidth, int frameHeight,
+            float assumedCameraDepthMetres, out Vector3 eyePoint)
+        {
+            eyePoint = Vector3.zero;
+            Vector3 ray;
+            if (!eyeTransformComplete || rgbToEyeUnityRowMajor == null ||
+                rgbToEyeUnityRowMajor.Length != 16 || assumedCameraDepthMetres <= 0 ||
+                !TryCameraRay(joint, frameWidth, frameHeight, out ray)) return false;
+            var m = rgbToEyeUnityRowMajor;
+            var x = ray.x * assumedCameraDepthMetres;
+            var y = ray.y * assumedCameraDepthMetres;
+            var z = assumedCameraDepthMetres;
+            eyePoint = new Vector3(m[0] * x + m[1] * y + m[2] * z + m[3],
+                m[4] * x + m[5] * y + m[6] * z + m[7],
+                m[8] * x + m[9] * y + m[10] * z + m[11]);
+            return eyePoint.z > 0 && !float.IsNaN(eyePoint.x) &&
+                !float.IsNaN(eyePoint.y) && !float.IsNaN(eyePoint.z);
         }
     }
 }

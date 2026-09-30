@@ -4,6 +4,14 @@
 )
 
 $ErrorActionPreference = 'Stop'
+# Unity Package Manager's Windows config lookup expects this standard variable.
+# Some command-launch environments omit it, causing package resolution to fail.
+if (-not $env:ALLUSERSPROFILE) {
+    $env:ALLUSERSPROFILE = [Environment]::GetFolderPath('CommonApplicationData')
+}
+if (-not $env:PROCESSOR_ARCHITECTURE) {
+    $env:PROCESSOR_ARCHITECTURE = if ([Environment]::Is64BitOperatingSystem) { 'AMD64' } else { 'x86' }
+}
 $project = [IO.Path]::GetFullPath($PSScriptRoot)
 $sdkRoot = [IO.Path]::GetFullPath((Join-Path $project '..\..\..'))
 $apk = Join-Path $sdkRoot 'build\samples\android\spatialxr.apk'
