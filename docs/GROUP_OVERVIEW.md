@@ -1,55 +1,64 @@
-# visor-x Group 说明
+# visor-x Group 与 Spatial AI SDK 说明
 
-**Group ID：139**
+**GitLab Group ID：139**
 
-**建议填写到 GitLab Group「Description」的简介：**
+## Group 定位
 
-> Visor-X / Spatial AI SDK 研发空间。围绕手机计算的低成本 AR 应用平台，维护设备侧 Android 能力、Unity XR SDK、示例工程和技术文档；后续按产品进度扩展 Unity 6、团结、WebXR、OpenXR 与 Native。当前以 RhinoX Pro 开发设备验证，未完成的平台和硬件组合不视为正式兼容。
+Visor-X 围绕手机计算的低成本 AR 应用平台开展研发。硬件是应用入口，SDK 是开发者入口；长期建设方向包括 Spatial Runtime、Spatial AI 能力与空间工具接口、应用分发和商业服务。当前以 RhinoX Pro 开发设备验证 Android 与 Unity XR 链路。尚未验证的手机、头显和平台组合不视为正式兼容。
+
+建议填写到 GitLab Group「Description」的简介：
+
+> Visor-X / Spatial AI SDK 研发空间。围绕手机计算的低成本 AR 应用平台，维护 Android 设备能力、Unity XR SDK、示例工程和技术文档；后续扩展 Unity 6、团结、WebXR、OpenXR 与 Native。当前以 RhinoX Pro 开发设备验证，其他手机与硬件组合仍待适配。
 
 ## 仓库分工
 
-| 项目 | 职责 | 当前状态 |
-| --- | --- | --- |
-| [`spatial-ai-sdk`](http://gitlab.ximmerse.com/visor-x/spatial-ai-sdk) | 主 SDK：跨平台能力契约、Unity 包、Cardboard/RhinoX XR 适配、Unity 示例与文档 | Unity 2022 + RhinoX 开发预览；Unity 6、团结、iOS 实机及其他平台仍待验证 |
-| [`spatial-ai-android`](http://gitlab.ximmerse.com/visor-x/spatial-ai-android) | Android 库：CameraService、MediaPipe 手部桥接、AAR 构建和独立诊断应用 | Camera2 RGB 与手势预览已在 RhinoX 开发设备验证；Vuforia、UVC 待接入 |
-| [`xms-xr-sdk`](http://gitlab.ximmerse.com/visor-x/xms-xr-sdk) | 历史 XR 工程与光学、Unity XR 代码参考 | 历史参考；当前新功能和验收以 `spatial-ai-sdk` 为准 |
-| [`demo`](http://gitlab.ximmerse.com/visor-x/demo) | Group 内已有 Demo 项目 | 本次整理不改变其内容与职责 |
+**[spatial-ai-sdk](http://gitlab.ximmerse.com/visor-x/spatial-ai-sdk)** 是主 SDK 仓库，维护跨平台能力契约、Unity UPM 包、Cardboard 与 RhinoX XR 适配、Unity 示例工程、构建脚本和文档。当前预览包为 `0.2.0-preview.9`，已在 Unity 2022.3.14f1c1 与 RhinoX 开发设备上构建、安装和测试。Unity 6、团结及 iOS 真机尚未验收。
 
-Android 仓库产出的 Unity AAR 随 `spatial-ai-sdk` 包交付。SDK 仓库的 `third_party/spatial-ai-android.lock.json` 固定 Android 源码提交号和 AAR SHA-256，便于确认 Unity 使用的二进制对应哪份源码。
+**[spatial-ai-android](http://gitlab.ximmerse.com/visor-x/spatial-ai-android)** 维护 Android CameraService、MediaPipe 手部桥接、供 Unity 使用的 AAR，以及相机和手部独立诊断应用。当前通过 RhinoX 内置 Camera2 RGB 相机取帧；UVC 摄像头、Vuforia 和手机端设备适配尚未接入。
 
-## `spatial-ai-sdk` 目录
+**[xms-xr-sdk](http://gitlab.ximmerse.com/visor-x/xms-xr-sdk)** 是历史 XR 工程，供光学参数、畸变网格和旧版 Unity XR 实现参考。当前新功能开发和验收以 `spatial-ai-sdk` 为准。
 
-| 目录 | 放什么 |
-| --- | --- |
-| `runtime/` | 平台无关的 Core、C ABI、会话和设备 Profile；不放 Unity 场景或 Android 手势 Java 源码 |
-| `packages/com.spatialai.sdk/` | 对开发者交付的 Unity UPM 包：C# 接口、Cardboard 适配、设备参数、Android AAR、可导入 Sample |
-| `samples/unity/SpatialXR/` | 可直接用 Unity 打开的消费工程；包含默认 XR/手势、IMU/尺度、光学对比三个场景 |
-| `samples/android/imu-diagnostic/` | 独立 Android IMU 诊断应用，用于验证传感器到 Cardboard EKF |
-| `tests/` | Core、原生 ABI 和 Unity API 检查 |
-| `tools/` | 依赖获取、RhinoX Cardboard 构建、AAR 校验、Unity 包打包和验证脚本 |
-| `third_party/` | Cardboard 版本锁、RhinoX 补丁与 Android AAR 来源锁定信息；上游完整源码检出不入 Git |
-| `docs/` | 架构、兼容性、设备参数、设计与验证记录 |
-| `build/` | 本机编译中间文件、APK、日志和临时工程；Git 忽略 |
-| `dist/` | 本地版本化发布候选包；Git 忽略，正式交付时再上传制品库 |
+**[demo](http://gitlab.ximmerse.com/visor-x/demo)** 是 Group 内已有的独立 Demo 项目。本次 SDK 整理不改变其内容与职责；目前 SDK 的验证示例位于主 SDK 仓库。
 
-Unity 示例的场景与构建步骤见 [`samples/unity/SpatialXR/README.md`](../samples/unity/SpatialXR/README.md)。
+Android 仓库生成的 Unity AAR 随 SDK 包交付。主仓库的 `third_party/spatial-ai-android.lock.json` 固定对应的 Android 源码提交号、模型校验值和 AAR SHA-256，便于追溯二进制来源。
 
-## `spatial-ai-android` 目录
+## 目前完成的功能
 
-| 目录 | 放什么 |
-| --- | --- |
-| `runtime/platform/android/camera/` | Camera2 相机发现、采集、帧生命周期与多消费者分发 |
-| `runtime/platform/android/hands/` | MediaPipe 手部检测与供 Unity 读取的 Android 桥接 |
-| `samples/android/camera-diagnostic/` | 相机选择、帧率及多消费者诊断 APK 的源码 |
-| `samples/android/hand-diagnostic/` | 手势诊断 APK 与 Unity AAR 的 Gradle 工程 |
-| `tools/` | 相机和手势诊断的构建脚本 |
-| `build/` | 生成的 AAR、APK、模型缓存；Git 忽略 |
+### RhinoX Pro 显示、头姿和反畸变预览
 
-Android 示例入口见该仓库的 [`samples/README.md`](http://gitlab.ximmerse.com/visor-x/spatial-ai-android/-/blob/main/samples/README.md)。
+Unity XR 示例已通过 Cardboard XR Plugin 接入 Unity 标准 XR 显示与输入链路，实现双目画面和 3DoF 头姿。示例相机使用 Input System Tracked Pose Driver，头姿通过 Unity XR Input 读取。RhinoX Pro 历史 OST 畸变网格及 IMU 到眼睛的设计偏移已合入开发预览，在 RhinoX 开发设备上运行。历史光学参数仍需逐台校准和等效验收；手机连接外置头显的链路尚未开始适配。
 
-## 开发与发布约定
+### RGB 相机与手部跟踪
 
-1. 设备侧 Android 相机和手势能力先在 `spatial-ai-android` 实现与验证，再以固定提交和校验值更新 Unity 包内 AAR。
-2. Unity/团结接口、XR 示例和跨平台能力契约维护在 `spatial-ai-sdk`。WebXR、OpenXR、Native 模块在需求和验收路径明确后再建立，不预先创建空工程。
-3. Git 保存源码、场景、配置、许可证和必要的包内二进制；Unity `Library/`、Gradle 缓存、APK、构建日志与本地发布候选包不提交。
-4. 当前目标是让外部开发者跑通稳定的 Unity XR 小应用。应用分发、账号、授权、支付和企业订阅属于后续平台阶段，尚非当前 SDK 已交付功能。
+Android CameraService 当前从 RhinoX 通过 Camera2 暴露的内置 RGB 相机采集帧，并提供多消费者分发。MediaPipe 最多输出两只手的 21 个关键点和左右手标签。Unity Demo 绘制手骨架，并依据候选相机内外参投到眼空间；手部距离目前由图像尺度估算，不是精确测距。**USB UVC 摄像头尚未合入。**
+
+### 手势接口与交互 Demo
+
+Unity SDK 的 `SpatialHandTracking.FrameUpdated` 提供逐帧手部结果。每只手包含关键点、手别、MediaPipe 手势类别与置信度；SDK 另根据关键点计算 `Pinching`。当前类别包括握拳、张掌、食指向上、拇指向上与向下、剪刀手和“我爱你”。Demo 用指向目标后捏合验证 `Select`，并显示左右手类别、帧率和计数。真机已确认双手可识别，张掌、握拳时类别会变化，修复版佩戴测试画面流畅。分类器异常时会停止重复报错并回退到手部关键点跟踪，保留骨架与捏合能力。
+
+**Unity 接口边界：**双目显示和头部姿态已使用 Unity 标准 XR 链路；手势目前通过 Spatial AI SDK 自有 C# 接口提供。手部关键点尚未注册为 Unity XR Hands 的 `XRHandSubsystem`，捏合与选中也尚未映射到 XR Interaction Toolkit 的标准交互输入。Demo 的 `Select` 是应用交互结果，并非 MediaPipe 内置类别。
+
+### 开发与构建闭环
+
+主仓库已有可直接用 Unity 打开的消费工程、自动 APK 构建脚本、本地 UPM 候选包和验证文档；Android 仓库已有 AAR 构建与独立诊断脚本。`0.2.0-preview.9` APK 已在 RhinoX 开发设备安装运行。当前有手日志约为一只手 16–17 FPS、两只手 12 FPS；各类别准确率和长时间稳定性尚未量化。具体验证边界见 [验证记录](VALIDATION.md)。
+
+## 待优化与待接入
+
+1. **延时预测与性能：**测量相机采集、推理、Unity 绘制到显示的端到端时延；优化头部与手部预测、抖动抑制以及双手推理帧率。
+2. **Android 手机接入：**确定首批兼容手机，处理屏幕、传感器、相机、USB 连接及外置 RhinoX Pro 头显适配；目前没有正式手机兼容列表。
+3. **iOS 手机接入：**完成外置头显连接、显示、传感器和相机链路，并进行 iPhone 真机验收。
+4. **UVC 摄像头接入：**增加独立 USB UVC 采集适配器，覆盖设备发现、权限、分辨率与帧率选择、图像格式和生命周期；接入统一帧分发后供手势及后续 Vuforia 等算法复用。当前 UVC 采集、Unity 接口和真机测试均未开始。
+5. **标定与交互精度：**完成逐台光学标定、RGB 相机到眼睛的外参验证、手部尺度与深度校准，并量化手势准确率。
+6. **Unity 标准手部接口：**将关键点适配到 Unity XR Hands，并将捏合、选中等动作适配到 XR Interaction Toolkit；独立 3DoF 手柄也仍待接入。
+7. **其他平台：**验证 Unity 6 与团结引擎，后续按产品进度扩展 WebXR、OpenXR 和 Native。
+8. **平台商业层：**在开发者闭环稳定后，逐步建设 Spatial Runtime、Spatial AI 能力与空间工具接口，以及应用分发、授权和支付；企业部署再围绕设备、用户、内容、数据和 AI 用量形成订阅服务。
+
+当前阶段的核心验收目标是：外部 Unity 开发者能够导入 SDK，在目标设备上稳定完成双目显示、头部跟踪和基础手势交互。
+
+## 目录与交付约定
+
+`spatial-ai-sdk/runtime/` 放平台无关的 Core、C ABI、会话和设备 Profile；`packages/com.spatialai.sdk/` 是交付给开发者的 Unity UPM 包；`samples/unity/SpatialXR/` 是可直接打开的 Unity 消费工程，含默认 XR/手势、IMU/尺度和光学对比场景。`tests/` 放 Core、原生 ABI 与 Unity API 检查，`tools/` 放构建和校验脚本，`third_party/` 放上游版本与 Android AAR 来源锁定信息，`docs/` 放架构和验证记录。
+
+`spatial-ai-android/runtime/platform/android/camera/` 放 Camera2 采集与帧分发，`runtime/platform/android/hands/` 放 MediaPipe 与 Unity 桥接；`samples/android/` 放相机和手部诊断工程，`tools/` 放 Android 构建脚本。
+
+两个仓库的 `build/` 均为本机编译中间文件、APK、日志或模型缓存，不提交 Git。主仓库的 `dist/` 放本地版本化 UPM 候选包，也不提交 Git；正式交付时另上传制品库。Android 能力先在 Android 仓库实现并验证，再以固定源码提交和校验值更新 Unity 包内 AAR。Unity 示例的打开和构建步骤见 [SpatialXR README](../samples/unity/SpatialXR/README.md)。
