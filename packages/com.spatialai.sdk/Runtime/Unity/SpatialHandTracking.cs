@@ -40,6 +40,8 @@ namespace SpatialAI.Unity
     public sealed class SpatialHandFrame
     {
         public string cameraId;
+        public int imageWidth;
+        public int imageHeight;
         public long sequence;
         public long timestampNs;
         public long receivedAtNs;

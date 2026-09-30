@@ -20,6 +20,12 @@ Unity 6 与团结引擎是支持目标，准确版本仍待实测；当前消费
 
 `Plugins/Android/spatial-hand-unity.aar` 封装 Camera2 与 MediaPipe，Unity 侧通过
 `SpatialAI.Unity.SpatialHandTracking` 获取归一化图像坐标中的 21 点及原始手别标签。
-`HelloSpatialXR` 示例显示诊断骨架和捏合次数。这些数据尚未标定为头部空间中的手部姿态。
+`HelloSpatialXR` 示例显示诊断骨架和捏合次数。RhinoX 参考配置采用设备提供的
+1440×1080 RGB 内参及 8 项畸变系数，将图像点还原成相机射线。只有 Camera2 ID 为
+`2` 且实际帧尺寸为 1440×1080 时才显示该骨架；尺寸或镜头不匹配会在画面上提示。
+目前骨架放在示例假定的 0.65 m 深度，**尚未完成 RGB→眼中心外参，也没有手部绝对深度**，
+不能用它判断最终的 AR 空间对位。设备上的 `/backup/aio/rgb_vio_camera_params.xml`
+可能覆盖 `/backup/rgb_vio_camera_params.xml`；还需要当前设备的
+`/backup/slam/device_calibration.xml`，才能沿旧版 `CameraParamLoader` 的矩阵链计算眼中心外参。
 Android 构建时包内的 Gradle 后处理器会加入固定版本
 `com.google.mediapipe:tasks-vision:1.0.0`；手势预览最低需要 Android API 28。

@@ -4,13 +4,11 @@ using UnityEngine;
 
 namespace SpatialAI.Samples
 {
-    /// <summary>Image-plane diagnostics; the camera-to-eye transform is not calibrated.</summary>
+    /// <summary>RGB calibrated rays at an assumed depth; camera-to-eye extrinsics remain pending.</summary>
     public sealed class HandTrackingDemo : MonoBehaviour
     {
         public Camera xrCamera;
-        private const float Depth = 1.8f;
-        private const float PlaneWidth = 1.0f;
-        private const float PlaneHeight = 0.5625f;
+        public float assumedHandDepthMetres = 0.65f;
         private static readonly int[] Edges = {
             0,1, 1,2, 2,3, 3,4, 0,5, 5,6, 6,7, 7,8,
             0,9, 9,10, 10,11, 11,12, 0,13, 13,14, 14,15, 15,16,
@@ -18,6 +16,7 @@ namespace SpatialAI.Samples
         };
         private readonly LineRenderer[,] bones = new LineRenderer[2, Edges.Length / 2];
         private SpatialHandTracking tracking;
+        private SpatialRgbCalibration calibration;
         private TextMesh status;
         private long lastSequence = -1;
         private float lastFrameTime;
@@ -27,6 +26,7 @@ namespace SpatialAI.Samples
         private void Start()
         {
             if (xrCamera == null) { enabled = false; return; }
+            calibration = SpatialRgbCalibration.LoadRhinoXReference();
             tracking = gameObject.AddComponent<SpatialHandTracking>();
             var shader = Shader.Find("Sprites/Default");
             if (shader == null) shader = Shader.Find("Unlit/Color");
@@ -49,7 +49,7 @@ namespace SpatialAI.Samples
             }
             var label = new GameObject("Hand tracking readout");
             label.transform.SetParent(xrCamera.transform, false);
-            label.transform.localPosition = new Vector3(-0.48f, 0.34f, Depth);
+            label.transform.localPosition = new Vector3(-0.48f, 0.34f, 1.8f);
             status = label.AddComponent<TextMesh>();
             status.anchor = TextAnchor.UpperLeft;
             status.fontSize = 48;
@@ -68,14 +68,24 @@ namespace SpatialAI.Samples
                 for (var h = 0; h < 2; h++)
                 {
                     var hand = frame.hands != null && h < frame.hands.Length ? frame.hands[h] : null;
-                    var valid = hand != null && hand.joints != null && hand.joints.Length >= 21;
+                    var valid = hand != null && hand.joints != null && hand.joints.Length >= 21 &&
+                        calibration != null && frame.cameraId == calibration.cameraId &&
+                        frame.imageWidth == calibration.imageWidth &&
+                        frame.imageHeight == calibration.imageHeight;
                     for (var e = 0; e < Edges.Length / 2; e++)
                     {
                         var line = bones[h, e];
                         line.enabled = valid;
                         if (!valid) continue;
-                        line.SetPosition(0, OnPlane(hand.joints[Edges[e * 2]]));
-                        line.SetPosition(1, OnPlane(hand.joints[Edges[e * 2 + 1]]));
+                        Vector3 first, second;
+                        if (!OnPlane(hand.joints[Edges[e * 2]], frame, out first) ||
+                            !OnPlane(hand.joints[Edges[e * 2 + 1]], frame, out second))
+                        {
+                            line.enabled = false;
+                            continue;
+                        }
+                        line.SetPosition(0, first);
+                        line.SetPosition(1, second);
                     }
                     var pinching = valid && hand.Pinching;
                     if (pinching && !wasPinching[h]) pinchEvents++;
@@ -89,16 +99,28 @@ namespace SpatialAI.Samples
             {
                 var count = frame != null && frame.hands != null && Time.unscaledTime - lastFrameTime < 0.35f
                     ? frame.hands.Length : 0;
+                var geometry = calibration == null ? "RGB calibration missing" :
+                    frame == null ? "Waiting for RGB frame" :
+                    frame.cameraId != calibration.cameraId ? "RGB camera ID mismatch: " + frame.cameraId :
+                    frame.imageWidth == calibration.imageWidth && frame.imageHeight == calibration.imageHeight
+                        ? "RGB rays: calibrated intrinsics" :
+                        "RGB size " + frame.imageWidth + "x" + frame.imageHeight +
+                        " differs from 1440x1080";
                 status.text = "HANDS  " + tracking.State + "\n" +
                     "Seen " + count + "   Pinch " + pinchEvents + "\n" +
-                    "Image-plane demo; no camera-to-eye calibration";
+                    geometry + "\nEye offset / metric depth pending";
             }
         }
 
-        private static Vector3 OnPlane(SpatialHandJoint joint)
+        private bool OnPlane(SpatialHandJoint joint, SpatialHandFrame frame, out Vector3 point)
         {
-            return new Vector3((joint.x - 0.5f) * PlaneWidth,
-                (0.5f - joint.y) * PlaneHeight, Depth);
+            point = Vector3.zero;
+            Vector3 ray;
+            if (!calibration.TryCameraRay(joint, frame.imageWidth, frame.imageHeight, out ray))
+                return false;
+            var depth = Mathf.Max(0.2f, assumedHandDepthMetres);
+            point = new Vector3(ray.x * depth, ray.y * depth, depth);
+            return true;
         }
     }
 }

@@ -21,7 +21,7 @@ import org.json.JSONObject;
 
 /** Android inference adapter. Unity reads an immutable JSON snapshot on its main thread. */
 public final class SpatialHandBridge {
-    private static final int INPUT_WIDTH=640, INPUT_HEIGHT=360;
+    private static final int INPUT_WIDTH=640;
     private static final long INPUT_INTERVAL_NS=100_000_000L;
     private final Activity activity;
     private final Object inferenceLock=new Object();
@@ -57,9 +57,13 @@ public final class SpatialHandBridge {
             }
             if (selected==null) throw new IllegalStateException("No RGB Camera2 sensor");
             Size size=null;
+            // The RhinoX RGB intrinsics were calibrated at 1440x1080. Prefer that
+            // exact Camera2 stream so the image-to-ray mapping has no guessed crop.
             for (Size candidate:selected.yuvSizes)
+                if (candidate.getWidth()==1440 && candidate.getHeight()==1080) { size=candidate; break; }
+            if (size==null) for (Size candidate:selected.yuvSizes)
                 if (candidate.getWidth()==1920 && candidate.getHeight()==1080) { size=candidate; break; }
-            if (size==null) throw new IllegalStateException("RGB camera has no 1920x1080 YUV mode");
+            if (size==null) throw new IllegalStateException("RGB camera has no supported YUV mode");
             subscription=camera.subscribe(new CameraService.Consumer() {
                 @Override public void onFrame(CameraService.Frame frame) { process(frame); }
             },"UnityHands");
@@ -98,6 +102,8 @@ public final class SpatialHandBridge {
                 finally { input.close(); }
                 JSONObject payload=new JSONObject();
                 payload.put("cameraId",frame.cameraId);
+                payload.put("imageWidth",frame.width);
+                payload.put("imageHeight",frame.height);
                 payload.put("sequence",frame.sequence);
                 payload.put("timestampNs",frame.timestampNs);
                 payload.put("receivedAtNs",SystemClock.elapsedRealtimeNanos());
@@ -130,10 +136,11 @@ public final class SpatialHandBridge {
 
     private static int clamp(int value) { return Math.max(0,Math.min(255,value)); }
     private static Bitmap smallBitmap(CameraService.Frame frame) {
-        int[] pixels=new int[INPUT_WIDTH*INPUT_HEIGHT];
+        final int inputHeight=frame.height*INPUT_WIDTH/frame.width;
+        int[] pixels=new int[INPUT_WIDTH*inputHeight];
         int uvOffset=frame.width*frame.height, vOffset=uvOffset+uvOffset/4;
-        for (int y=0;y<INPUT_HEIGHT;y++) {
-            int sy=y*frame.height/INPUT_HEIGHT;
+        for (int y=0;y<inputHeight;y++) {
+            int sy=y*frame.height/inputHeight;
             for (int x=0;x<INPUT_WIDTH;x++) {
                 int sx=x*frame.width/INPUT_WIDTH;
                 int yy=frame.i420[sy*frame.width+sx]&255;
@@ -145,6 +152,6 @@ public final class SpatialHandBridge {
                     clamp((298*c-100*u-208*v+128)>>8),clamp((298*c+516*u+128)>>8));
             }
         }
-        return Bitmap.createBitmap(pixels,INPUT_WIDTH,INPUT_HEIGHT,Bitmap.Config.ARGB_8888);
+        return Bitmap.createBitmap(pixels,INPUT_WIDTH,inputHeight,Bitmap.Config.ARGB_8888);
     }
 }
