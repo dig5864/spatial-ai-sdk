@@ -1,6 +1,7 @@
 # visor-x Group 说明
 
-**Group ID：139**  
+**Group ID：139**
+
 **建议填写到 GitLab Group「Description」的简介：**
 
 > Visor-X / Spatial AI SDK 研发空间。围绕手机计算的低成本 AR 应用平台，维护设备侧 Android 能力、Unity XR SDK、示例工程和技术文档；后续按产品进度扩展 Unity 6、团结、WebXR、OpenXR 与 Native。当前以 RhinoX Pro 开发设备验证，未完成的平台和硬件组合不视为正式兼容。
