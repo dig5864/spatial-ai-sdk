@@ -24,7 +24,8 @@ namespace SpatialAI.Unity
         {
             get
             {
-                if (joints == null || joints.Length < 9) return false;
+                if (joints == null || joints.Length < 18 || joints[4] == null ||
+                    joints[5] == null || joints[8] == null || joints[17] == null) return false;
                 var dx = joints[4].x - joints[8].x;
                 var dy = joints[4].y - joints[8].y;
                 var palmX = joints[5].x - joints[17].x;

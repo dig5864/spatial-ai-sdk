@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0-preview.7
+
+- Added two head-locked pinch targets to the XR sample to verify frame events, hand projection, pointer hover and selection.
+- Fixed `SpatialHand.Pinching` on incomplete landmark arrays.
+- Unity XR Hands/XRI provider integration is not included in this preview.
+
 ## 0.2.0-preview.6
 
 - Moved Android camera and MediaPipe source to `visor-x/spatial-ai-android`.

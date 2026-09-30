@@ -1,4 +1,4 @@
-# Spatial AI SDK — 0.2.0-preview.6
+# Spatial AI SDK — 0.2.0-preview.7
 
 这是可导入的预览包，提供纯 C# Core、Unity Host、模拟示例、设备 ID 到光学 Profile 的匹配，以及 Cardboard XR Sample。RhinoX Pro 光学网格和 IMU 设计偏移已接入 Android 诊断路径，尚未完成逐台光学校准；独立 3DoF 手柄尚未接入。
 

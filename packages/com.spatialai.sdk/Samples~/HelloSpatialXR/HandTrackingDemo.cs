@@ -16,13 +16,24 @@ namespace SpatialAI.Samples
             0,9, 9,10, 10,11, 11,12, 0,13, 13,14, 14,15, 15,16,
             0,17, 17,18, 18,19, 19,20, 5,9, 9,13, 13,17
         };
+        private static readonly Vector3[] TargetPositions = {
+            new Vector3(-0.17f, -0.13f, 0.8f),
+            new Vector3(0.17f, -0.13f, 0.8f)
+        };
         private readonly LineRenderer[,] bones = new LineRenderer[2, Edges.Length / 2];
+        private readonly GameObject[] cursors = new GameObject[2];
+        private readonly Material[] targetMaterials = new Material[2];
+        private readonly bool[] targetHovered = new bool[2];
+        private readonly float[] targetFeedbackUntil = new float[2];
         private SpatialHandTracking tracking;
+        private SpatialHandFrame latestFrame;
         private SpatialRgbCalibration calibration;
         private TextMesh status;
         private long lastSequence = -1;
         private float lastFrameTime;
         private int pinchEvents;
+        private int selectionEvents;
+        private int frameEvents;
         private readonly bool[] wasPinching = new bool[2];
         private readonly float[] handDepth = new float[2];
         private readonly bool[] hasHandDepth = new bool[2];
@@ -34,9 +45,13 @@ namespace SpatialAI.Samples
         {
             if (xrCamera == null) { enabled = false; return; }
             calibration = SpatialRgbCalibration.LoadRhinoXReference();
-            tracking = gameObject.AddComponent<SpatialHandTracking>();
+            tracking = GetComponent<SpatialHandTracking>();
+            if (tracking == null) tracking = gameObject.AddComponent<SpatialHandTracking>();
+            tracking.FrameUpdated += OnHandFrame;
             var shader = Shader.Find("Sprites/Default");
             if (shader == null) shader = Shader.Find("Unlit/Color");
+            var targetShader = Shader.Find("Unlit/Color");
+            if (targetShader == null) targetShader = shader;
             for (var hand = 0; hand < 2; hand++)
             {
                 var material = new Material(shader);
@@ -53,10 +68,31 @@ namespace SpatialAI.Samples
                     line.enabled = false;
                     bones[hand, edge] = line;
                 }
+                var cursor = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                cursor.name = "Hand " + hand + " pinch pointer";
+                cursor.transform.SetParent(xrCamera.transform, false);
+                cursor.transform.localScale = Vector3.one * 0.025f;
+                cursor.GetComponent<Collider>().enabled = false;
+                cursor.GetComponent<Renderer>().material = material;
+                cursor.SetActive(false);
+                cursors[hand] = cursor;
+            }
+            for (var i = 0; i < TargetPositions.Length; i++)
+            {
+                var target = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                target.name = "Pinch target " + (i + 1);
+                target.transform.SetParent(xrCamera.transform, false);
+                target.transform.localPosition = TargetPositions[i];
+                target.transform.localScale = Vector3.one * 0.13f;
+                target.GetComponent<Collider>().enabled = false;
+                var material = new Material(targetShader);
+                material.color = Color.cyan;
+                target.GetComponent<Renderer>().material = material;
+                targetMaterials[i] = material;
             }
             var label = new GameObject("Hand tracking readout");
             label.transform.SetParent(xrCamera.transform, false);
-            label.transform.localPosition = new Vector3(-0.48f, 0.34f, 1.8f);
+            label.transform.localPosition = new Vector3(0.1f, 0.34f, 1.8f);
             status = label.AddComponent<TextMesh>();
             status.anchor = TextAnchor.UpperLeft;
             status.fontSize = 48;
@@ -64,18 +100,39 @@ namespace SpatialAI.Samples
             status.color = Color.white;
         }
 
+        private void OnEnable()
+        {
+            if (tracking != null) tracking.FrameUpdated += OnHandFrame;
+        }
+
+        private void OnDisable()
+        {
+            if (tracking != null) tracking.FrameUpdated -= OnHandFrame;
+            latestFrame = null;
+            for (var h = 0; h < cursors.Length; h++)
+                if (cursors[h] != null) cursors[h].SetActive(false);
+        }
+
+        private void OnHandFrame(SpatialHandFrame frame)
+        {
+            latestFrame = frame;
+            frameEvents++;
+        }
+
         private void LateUpdate()
         {
             if (tracking == null) return;
-            var frame = tracking.Latest;
+            var frame = latestFrame;
             if (frame != null && frame.sequence != lastSequence)
             {
                 lastSequence = frame.sequence;
                 lastFrameTime = Time.unscaledTime;
+                for (var i = 0; i < targetHovered.Length; i++) targetHovered[i] = false;
                 for (var h = 0; h < 2; h++)
                 {
                     var hand = frame.hands != null && h < frame.hands.Length ? frame.hands[h] : null;
                     var valid = hand != null && hand.joints != null && hand.joints.Length >= 21 &&
+                        hand.joints[0] != null &&
                         calibration != null && frame.cameraId == calibration.cameraId &&
                         frame.imageWidth == calibration.imageWidth &&
                         frame.imageHeight == calibration.imageHeight;
@@ -110,14 +167,58 @@ namespace SpatialAI.Samples
                         line.SetPosition(0, eyeJoints[h, first]);
                         line.SetPosition(1, eyeJoints[h, second]);
                     }
+                    var hovered = -1;
+                    cursors[h].SetActive(false);
+                    if (valid && eyeJointValid[h, 4] && eyeJointValid[h, 8])
+                    {
+                        var pinchPoint = (eyeJoints[h, 4] + eyeJoints[h, 8]) * 0.5f;
+                        if (pinchPoint.z > 0.05f)
+                        {
+                            var scale = TargetPositions[0].z / pinchPoint.z;
+                            var pointer = new Vector3(pinchPoint.x * scale,
+                                pinchPoint.y * scale, TargetPositions[0].z - 0.08f);
+                            cursors[h].transform.localPosition = pointer;
+                            cursors[h].SetActive(true);
+                            for (var i = 0; i < TargetPositions.Length; i++)
+                            {
+                                var difference = pointer - TargetPositions[i];
+                                if (difference.x * difference.x + difference.y * difference.y < 0.08f * 0.08f)
+                                {
+                                    hovered = i;
+                                    targetHovered[i] = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     var pinching = valid && hand.Pinching;
-                    if (pinching && !wasPinching[h]) pinchEvents++;
+                    if (pinching && !wasPinching[h])
+                    {
+                        pinchEvents++;
+                        if (hovered >= 0)
+                        {
+                            selectionEvents++;
+                            targetFeedbackUntil[hovered] = Time.unscaledTime + 0.6f;
+                        }
+                        Debug.Log("SpatialAI HAND_PINCH hand=" + h + " target=" + hovered +
+                            " pinch=" + pinchEvents + " select=" + selectionEvents +
+                            " depth=" + handDepth[h].ToString("F2") + "m");
+                    }
                     wasPinching[h] = pinching;
                 }
             }
             if (Time.unscaledTime - lastFrameTime > 0.35f)
+            {
                 for (var h = 0; h < 2; h++)
+                {
+                    cursors[h].SetActive(false);
                     for (var e = 0; e < Edges.Length / 2; e++) bones[h, e].enabled = false;
+                }
+                for (var i = 0; i < targetHovered.Length; i++) targetHovered[i] = false;
+            }
+            for (var i = 0; i < targetMaterials.Length; i++)
+                targetMaterials[i].color = Time.unscaledTime < targetFeedbackUntil[i] ? Color.green :
+                    targetHovered[i] ? Color.yellow : Color.cyan;
             if (status != null)
             {
                 var count = frame != null && frame.hands != null && Time.unscaledTime - lastFrameTime < 0.35f
@@ -129,15 +230,17 @@ namespace SpatialAI.Samples
                         ? "RGB -> eye: design extrinsics" :
                         "RGB size " + frame.imageWidth + "x" + frame.imageHeight +
                         " differs from 1440x1080";
-                status.text = "HANDS  " + tracking.State + "\n" +
-                    "Seen " + count + "   Pinch " + pinchEvents + "\n" +
+                status.text = "HANDS  " + tracking.State + "  Events " + frameEvents + "\n" +
+                    "Seen " + count + "   Pinch " + pinchEvents +
+                    "   Select " + selectionEvents + "\n" +
                     geometry + "\nFPS " + (frame == null ? 0f : frame.resultFps).ToString("F1") +
                     "  CV " + (frame == null ? 0f : frame.conversionMs).ToString("F0") +
                     "ms  AI " + (frame == null ? 0f : frame.inferenceMs).ToString("F0") +
                     "ms  Age " + (frame == null ? -1f : frame.captureToResultMs).ToString("F0") +
                     "ms\nDepth approx " + (count > 0 && hasHandDepth[0]
                         ? handDepth[0].ToString("F2") : "--") + "m" +
-                    (count > 1 ? " / " + (hasHandDepth[1] ? handDepth[1].ToString("F2") : "--") + "m" : "");
+                    (count > 1 ? " / " + (hasHandDepth[1] ? handDepth[1].ToString("F2") : "--") + "m" : "") +
+                    "\nMove dot onto orb; pinch to select";
             }
         }
     }

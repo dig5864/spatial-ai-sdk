@@ -12,7 +12,7 @@ namespace SpatialAI.Editor
         [MenuItem("Spatial AI/Check Setup")]
         public static void CheckSetup()
         {
-            Debug.Log("Spatial AI SDK 0.2.0-preview.6 | Editor " + Application.unityVersion +
+            Debug.Log("Spatial AI SDK 0.2.0-preview.7 | Editor " + Application.unityVersion +
                 " | Target " + EditorUserBuildSettings.activeBuildTarget +
                 " | Simulator and optional Cardboard baseline available. Unity 6 and Tuanjie hardware certification is pending. " +
                 "Import Hello Spatial XR for a Cardboard test; enable its loader separately. RhinoX optics are not applied.");

@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-UPM 包版本为 `0.2.0-preview.6`。Unity 2022.3.14f1c1 示例已在 RhinoX 开发设备上编译、安装并运行 Android APK，包括 Cardboard 双目、RhinoX Pro 历史 OST 畸变网格、3DoF 头姿、RGB Camera2 采集及 MediaPipe 手部骨架预览。手骨架根据相机内参与候选外参投到眼空间，深度由图像中的手掌尺寸近似估算；屏幕显示跟踪帧率、推理时间、画面年龄和估算深度。
+UPM 包版本为 `0.2.0-preview.7`。Unity 2022.3.14f1c1 示例已在 RhinoX 开发设备上编译、安装并运行 Android APK，包括 Cardboard 双目、RhinoX Pro 历史 OST 畸变网格、3DoF 头姿、RGB Camera2 采集及 MediaPipe 手部骨架预览。手骨架根据相机内参与候选外参投到眼空间，深度由图像中的手掌尺寸近似估算；屏幕显示跟踪帧率、推理时间、画面年龄和估算深度。捏合选中目标的预览场景已可构建，待真机交互验收。
 
 当前光学与相机外参仍是开发设备的候选配置，手部深度不是精确测距。独立 3DoF 手柄、Unity XR Hands 接口、iOS 手势、Unity 6 与团结实机兼容、手机兼容列表及分体式手机与眼镜链路仍待实现或验证。`SpatialRuntimeHost` 的硬件 Backend 仍返回 Unsupported；Cardboard XR 示例使用独立桥接。最新边界见 [验证记录](docs/VALIDATION.md)。
 

@@ -29,6 +29,16 @@ RhinoX 开发设备使用历史 `Sharp_2k_Seperate` OST 网格。状态文字中
 
 同一场景会从 RGB Camera2 读取帧并显示最多两只手的 21 点骨架、捏合计数、实际推理帧率和耗时。图像点经过 RhinoX RGB 内参和畸变校正，再按开发设备的候选 RGB→eye 外参投到眼空间。`Depth approx` 使用手掌图像尺寸估算深度；手的实际尺寸和朝向会影响该值。它还不是精确的手部位置，也未接入 Unity XR Hands。Android 手势预览最低需要 API 28，iOS 手势尚未实现。
 
+### 手势交互验收
+
+默认 XR 场景在视野下方生成两个青色球。`HandTrackingDemo` 订阅 SDK 的 `SpatialHandTracking.FrameUpdated` 事件，并将拇指与食指指尖投到球体所在平面；小圆点是指向位置。依次检查：
+
+1. 伸手后骨架和小圆点出现，`Events` 持续增加；移走手约 0.35 秒后小圆点消失。
+2. 将小圆点移动到青色球上，球变黄；**保持指向并捏合一次**，球变绿，`Select` 增加一次。松开再捏合应再增加一次。
+3. 分别用左右手测试；`Pinch` 是所有检测到的捏合起始次数，`Select` 只统计命中球体的次数。若 `Pinch` 增长而 `Select` 不变，先检查小圆点是否真正进入黄色区域。
+
+球体固定在头部前方，用于验证 SDK 事件、RGB→eye 投影和捏合触发链路；它不验证世界锚点、精确手深度或标准 `XRHandSubsystem`/XRI 输入绑定。
+
 Android 相机和 MediaPipe 库的源码、诊断工程在独立的 [`spatial-ai-android`](http://gitlab.ximmerse.com/visor-x/spatial-ai-android) 仓库。当前 Unity 包自带已验证 SHA-256 的 AAR；更新后可用 SDK 的 `tools/VerifyAndroidHandAar.ps1 -AndroidRepoPath <路径>` 核对。Unity Gradle 后处理器固定 MediaPipe Tasks Vision `1.0.0`。
 
 ## IMU 与空间尺寸场景

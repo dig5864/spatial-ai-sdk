@@ -1,5 +1,9 @@
 # 验证记录
 
+## 捏合交互接口预览（2026-09-30）
+
+`HelloSpatialXR` 现通过 SDK 的 `SpatialHandTracking.FrameUpdated` 事件消费 RGB 手帧，显示指尖指向、目标悬停和捏合选中计数。Unity 2022 Android APK 已构建通过；当前设备未连接 ADB，手到目标的真机命中率、延迟、左右手标识及重复触发仍待实测。此示例验证 Spatial AI 自有事件接口，不代表 `XRHandSubsystem` 或 XRI 标准输入已接入。
+
 ## 当前开发基线（2026-09-30）
 
 - Android CameraService、MediaPipe 桥接、相机与手势诊断工程已拆到 `visor-x/spatial-ai-android`，提交 `31e528b48afd0fcc2dd49b5402aa5ec400e62045`。独立仓库的手势 APK、AAR 和相机诊断 APK 均构建通过；新 AAR 的 SHA-256 与当前 Unity 包内 AAR 完全一致，锁定信息见 `third_party/spatial-ai-android.lock.json`。
