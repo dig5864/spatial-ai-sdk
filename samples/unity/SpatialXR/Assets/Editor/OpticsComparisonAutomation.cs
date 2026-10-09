@@ -53,6 +53,7 @@ public static class OpticsComparisonAutomation
             var root = new GameObject("Spatial XR Optics Comparison");
             var bridge = root.AddComponent<SpatialCardboardBridge>();
             bridge.useGenericViewerForDiagnostics = true;
+            bridge.useRhinoXReferenceMeshForDiagnostics = true;
             var cameraObject = new GameObject("XR Camera");
             cameraObject.transform.SetParent(root.transform, false);
             cameraObject.tag = "MainCamera";

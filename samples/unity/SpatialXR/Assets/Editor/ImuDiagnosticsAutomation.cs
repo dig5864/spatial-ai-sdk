@@ -35,6 +35,7 @@ public static class ImuDiagnosticsAutomation
             var root = new GameObject("Spatial XR IMU Diagnostics");
             var bridge = root.AddComponent<SpatialCardboardBridge>();
             bridge.useGenericViewerForDiagnostics = true;
+            bridge.useRhinoXReferenceMeshForDiagnostics = true;
 
             var cameraObject = new GameObject("XR Camera");
             cameraObject.transform.SetParent(root.transform, false);

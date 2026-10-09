@@ -1,17 +1,18 @@
 diff --git a/sdk/unity/xr_provider/input.cc b/sdk/unity/xr_provider/input.cc
-index 9f40a65..64d6a2a 100644
+index 9f40a65..5fa846e 100644
 --- a/sdk/unity/xr_provider/input.cc
 +++ b/sdk/unity/xr_provider/input.cc
-@@ -26,6 +26,8 @@
+@@ -26,6 +26,9 @@
  #include "IUnityXRTrace.h"
  #include "UnitySubsystemTypes.h"
  
 +extern "C" int CardboardUnity_getSpatialTracking(float* imu_from_eye_pose);
++extern "C" void CardboardUnity_applyHostTracking(float* position, float* rotation);
 +
  #define CARDBOARD_INPUT_XR_TRACE_LOG(trace, message, ...)          \
    XR_TRACE_LOG(trace, "[CardboardXrInputProvider]: " message "\n", \
                 ##__VA_ARGS__)
-@@ -134,9 +136,14 @@ class CardboardInputProvider {
+@@ -134,9 +137,19 @@ class CardboardInputProvider {
      std::array<float, 3> out_position;
      cardboard_input_api_->GetHeadTrackerPose(out_position.data(),
                                               out_orientation.data());
@@ -25,6 +26,11 @@ index 9f40a65..64d6a2a 100644
 +    } else {
 +      head_pose_ = cardboard::unity::CardboardRotationToUnityPose(
 +          out_orientation);
++      float p[3] = {head_pose_.position.x,head_pose_.position.y,head_pose_.position.z};
++      float q[4] = {head_pose_.rotation.x,head_pose_.rotation.y,head_pose_.rotation.z,head_pose_.rotation.w};
++      CardboardUnity_applyHostTracking(p,q);
++      head_pose_.position = {p[0],p[1],p[2]};
++      head_pose_.rotation = {q[0],q[1],q[2],q[3]};
 +    }
      return kUnitySubsystemErrorCodeSuccess;
    }
@@ -76,7 +82,7 @@ index 5523c86..31de4ef 100644
  
  #endif  // CARDBOARD_SDK_UNITY_XR_PROVIDER_MATH_TOOLS_H_
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..418255b 100644
+index 6dd7d61..6934854 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 @@ -19,7 +19,9 @@
@@ -89,7 +95,7 @@ index 6dd7d61..418255b 100644
  #include <cstdint>
  #include <cstring>
  #include <memory>
-@@ -27,6 +29,19 @@
+@@ -27,9 +29,23 @@
  #include <string>
  #include <vector>
  
@@ -109,7 +115,11 @@ index 6dd7d61..418255b 100644
  // The following block makes log macros available for Android and iOS.
  #if defined(__ANDROID__)
  #include <android/log.h>
-@@ -66,6 +81,87 @@ void NSLog(CFStringRef format, ...);
++#include <GLES2/gl2.h>
+ #define LOG_TAG "CardboardXRUnity"
+ #define LOGW(fmt, ...)                                                       \
+   __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "[%s : %d] " fmt, __FILE__, \
+@@ -66,6 +82,96 @@ void NSLog(CFStringRef format, ...);
  
  namespace cardboard::unity {
  
@@ -124,11 +134,20 @@ index 6dd7d61..418255b 100644
 +  float right = 0;
 +  float top = 0;
 +  float bottom = 0;
++  bool custom_rects = false;
++  bool rotate_reference_output_180 = false;
++  std::array<float, 8> eye_rects{};
 +};
 +std::mutex spatial_optics_mutex;
 +SpatialOpticsConfiguration spatial_optics;
 +std::mutex spatial_tracking_mutex;
 +bool spatial_tracking_enabled = false;
++bool host_tracking_enabled = false;
++bool host_tracking_preserve_neck = false;
++bool host_tracking_invert_input = false;
++bool host_tracking_has_sample = false;
++std::array<float, 4> host_basis{0,0,0,1}, host_mount{0,0,0,1};
++std::array<float, 8> host_tracking_sample{};
 +// Unity-space pose of the eye center relative to the IMU: position xyz,
 +// rotation xyzw. The display's per-eye IPD offsets remain separate.
 +std::array<float, 7> spatial_imu_from_eye_pose{};
@@ -197,7 +216,7 @@ index 6dd7d61..418255b 100644
  std::atomic<CardboardDisplayApi::ScreenParams>
      CardboardDisplayApi::unity_screen_params_({0, 0, 0, 0, 0, 0});
  
-@@ -125,11 +221,32 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -125,11 +231,32 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    // Updates the screen size.
    screen_params_ = unity_screen_params_;
  
@@ -231,7 +250,7 @@ index 6dd7d61..418255b 100644
    if (size == 0) {
      // Loads Cardboard V1 device parameters when no device parameters are
      // available.
-@@ -143,6 +260,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -143,6 +270,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
          screen_params_.viewport_height);
      CardboardQrCode_destroy(data);
    }
@@ -239,7 +258,7 @@ index 6dd7d61..418255b 100644
    device_params_changed_ = false;
  
    RenderingResourcesSetup();
-@@ -181,6 +299,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -181,6 +309,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        break;
    }
  
@@ -247,19 +266,87 @@ index 6dd7d61..418255b 100644
    CardboardLensDistortion_getDistortionMesh(
        lens_distortion, CardboardEye::kLeft,
        &eye_data_[CardboardEye::kLeft].distortion_mesh);
-@@ -188,6 +307,11 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -188,6 +317,79 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        lens_distortion, CardboardEye::kRight,
        &eye_data_[CardboardEye::kRight].distortion_mesh);
  
 +  } else {
 +    eye_data_[CardboardEye::kLeft].distortion_mesh = RhinoXMesh(CardboardEye::kLeft).mesh;
 +    eye_data_[CardboardEye::kRight].distortion_mesh = RhinoXMesh(CardboardEye::kRight).mesh;
++    if (optics.custom_rects) {
++      static RhinoXMeshStorage fitted[2];
++      for (int e = 0; e < 2; ++e) {
++        const auto eye = e == 0 ? CardboardEye::kLeft : CardboardEye::kRight;
++        fitted[e] = RhinoXMesh(eye);
++        auto& out = fitted[e];
++        const float* rect = optics.eye_rects.data() + e * 4;
++        for (size_t i = 0; i < out.vertices.size(); i += 2) {
++          float u = out.vertices[i] + (e == 0 ? 1.0f : 0.0f);
++          float v_top = (1.0f - out.vertices[i + 1]) * 0.5f;
++          if (optics.rotate_reference_output_180) { u = 1.0f - u; v_top = 1.0f - v_top; }
++          out.vertices[i] = 2.0f * (rect[0] + u * rect[2]) / optics.screen_width - 1.0f;
++          out.vertices[i + 1] = 1.0f - 2.0f * (rect[1] + v_top * rect[3]) / optics.screen_height;
++        }
++        // The legacy mesh extends beyond its eye panel. Clip triangles rather
++        // than clamping vertices, which would change interpolation/distortion.
++        RhinoXMeshStorage clipped;
++        using Vertex = std::array<float, 4>;
++        const float bounds[4] = {
++            2 * rect[0] / optics.screen_width - 1,
++            2 * (rect[0] + rect[2]) / optics.screen_width - 1,
++            1 - 2 * (rect[1] + rect[3]) / optics.screen_height,
++            1 - 2 * rect[1] / optics.screen_height};
++        for (size_t t = 2; t < out.indices.size(); ++t) {
++          const int a = out.indices[t-2], b = out.indices[t-1], c = out.indices[t];
++          if (a == b || b == c || a == c) continue;
++          std::vector<Vertex> polygon;
++          for (int idx : {a, b, c}) polygon.push_back({out.vertices[idx*2],
++              out.vertices[idx*2+1], out.uvs[idx*2], out.uvs[idx*2+1]});
++          for (int plane = 0; plane < 4 && !polygon.empty(); ++plane) {
++            const int axis = plane / 2;
++            const float sign = plane % 2 == 0 ? 1.0f : -1.0f;
++            auto distance = [&](const Vertex& v) { return sign * (v[axis] - bounds[plane]); };
++            std::vector<Vertex> next;
++            Vertex prev = polygon.back();
++            float dp = distance(prev);
++            for (const auto& current : polygon) {
++              const float dc = distance(current);
++              if ((dp >= 0) != (dc >= 0)) {
++                const float fraction = dp / (dp - dc);
++                Vertex intersection;
++                for (int k = 0; k < 4; ++k) intersection[k] = prev[k] + fraction * (current[k] - prev[k]);
++                next.push_back(intersection);
++              }
++              if (dc >= 0) next.push_back(current);
++              prev = current; dp = dc;
++            }
++            polygon = std::move(next);
++          }
++          for (size_t k = 2; k < polygon.size(); ++k) {
++            const int base = static_cast<int>(clipped.vertices.size()/2);
++            for (const auto& v : {polygon[0], polygon[k-1], polygon[k]}) {
++              clipped.vertices.insert(clipped.vertices.end(), {v[0], v[1]});
++              clipped.uvs.insert(clipped.uvs.end(), {v[2], v[3]});
++            }
++            if (clipped.indices.empty()) clipped.indices.insert(clipped.indices.end(), {base,base+1,base+2});
++            else {
++              const int last = clipped.indices.back();
++              clipped.indices.insert(clipped.indices.end(), {last,last,base,base,base+1,base+2});
++            }
++          }
++        }
++        out = std::move(clipped);
++        out.mesh = {out.indices.data(), static_cast<int>(out.indices.size()),
++                    out.vertices.data(), out.uvs.data(), static_cast<int>(out.vertices.size() / 2)};
++        eye_data_[eye].distortion_mesh = out.mesh;
++      }
++    }
 +    LOGD("Spatial AI optical profile active: RhinoX Pro Sharp mesh, %d vertices/eye", 2601);
 +  }
    CardboardDistortionRenderer_setMesh(
        distortion_renderer_.get(),
        &eye_data_[CardboardEye::kLeft].distortion_mesh, CardboardEye::kLeft);
-@@ -196,6 +320,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -196,6 +398,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        &eye_data_[CardboardEye::kRight].distortion_mesh, CardboardEye::kRight);
  
    // Get eye matrices
@@ -267,7 +354,7 @@ index 6dd7d61..418255b 100644
    CardboardLensDistortion_getEyeFromHeadMatrix(
        lens_distortion, CardboardEye::kLeft,
        eye_data_[CardboardEye::kLeft].eye_from_head_matrix);
-@@ -207,7 +332,25 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -207,7 +410,25 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    CardboardLensDistortion_getFieldOfView(lens_distortion, CardboardEye::kRight,
                                           eye_data_[CardboardEye::kRight].fov);
  
@@ -294,7 +381,77 @@ index 6dd7d61..418255b 100644
  }
  
  void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
-@@ -384,6 +527,112 @@ void CardboardUnity_setDeviceParametersChanged() {
+@@ -218,11 +439,68 @@ void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
+ }
+ 
+ void CardboardDisplayApi::RenderEyesToDisplay() {
+-  const Renderer::ScreenParams screen_params =
++  Renderer::ScreenParams screen_params =
+       ScreenParamsToRendererScreenParams(screen_params_);
++  if (spatial_optics_applied) {
++    SpatialOpticsConfiguration optics;
++    { std::lock_guard<std::mutex> lock(spatial_optics_mutex); optics = spatial_optics; }
++    if (optics.custom_rects) {
++      // Rectangles are absolute Android display pixels, not safe-area pixels.
++      screen_params.viewport_x = screen_params.viewport_y = 0;
++      screen_params.viewport_width = optics.screen_width;
++      screen_params.viewport_height = optics.screen_height;
++    } else {
++    // The RhinoX reference mesh describes two square eye panels (4320x2160).
++    // Fit the complete output uniformly inside the available viewport, which
++    // may exclude a phone cutout. Do not stretch mesh geometry or alter UVs.
++    const int side = std::min(screen_params.viewport_width / 2,
++                              screen_params.viewport_height);
++    screen_params.viewport_x += (screen_params.viewport_width - side * 2) / 2;
++    screen_params.viewport_y += (screen_params.viewport_height - side) / 2;
++    screen_params.viewport_width = side * 2;
++    screen_params.viewport_height = side;
++    }
++  }
+   renderer_->RenderEyesToDisplay(distortion_renderer_.get(), screen_params,
+                                  &eye_data_[CardboardEye::kLeft].texture,
+                                  &eye_data_[CardboardEye::kRight].texture);
++#if defined(__ANDROID__)
++  // Reference-demo AA outline in final display pixels, after optical warping.
++  if (spatial_optics_applied &&
++      (selected_graphics_api_ == kOpenGlEs2 || selected_graphics_api_ == kOpenGlEs3)) {
++    SpatialOpticsConfiguration optics;
++    { std::lock_guard<std::mutex> lock(spatial_optics_mutex); optics = spatial_optics; }
++    if (optics.custom_rects) {
++      const GLboolean scissor_enabled = glIsEnabled(GL_SCISSOR_TEST);
++      GLint saved_scissor[4]; GLfloat saved_clear[4]; GLboolean saved_mask[4];
++      glGetIntegerv(GL_SCISSOR_BOX, saved_scissor);
++      glGetFloatv(GL_COLOR_CLEAR_VALUE, saved_clear);
++      glGetBooleanv(GL_COLOR_WRITEMASK, saved_mask);
++      glEnable(GL_SCISSOR_TEST);
++      glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
++      glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
++      auto edge = [](int x, int y, int w, int h) {
++        glScissor(x, y, w, h); glClear(GL_COLOR_BUFFER_BIT);
++      };
++      for (int e = 0; e < 2; ++e) {
++        const float* r = optics.eye_rects.data() + 4 * e;
++        const int x = std::lround(r[0]);
++        const int right = std::lround(r[0] + r[2]);
++        const int top = optics.screen_height - std::lround(r[1]);
++        const int y = optics.screen_height - std::lround(r[1] + r[3]);
++        const int stroke = 3, gap = 2, outset = stroke + gap;
++        edge(x - outset, y - outset, right - x + 2 * outset, stroke);
++        edge(x - outset, top + gap, right - x + 2 * outset, stroke);
++        edge(x - outset, y - outset, stroke, top - y + 2 * outset);
++        edge(right + gap, y - outset, stroke, top - y + 2 * outset);
++      }
++      glClearColor(saved_clear[0], saved_clear[1], saved_clear[2], saved_clear[3]);
++      glColorMask(saved_mask[0], saved_mask[1], saved_mask[2], saved_mask[3]);
++      glScissor(saved_scissor[0], saved_scissor[1], saved_scissor[2], saved_scissor[3]);
++      if (!scissor_enabled) glDisable(GL_SCISSOR_TEST);
++    }
++  }
++#endif
+ }
+ 
+ void CardboardDisplayApi::RenderWidgets() {
+@@ -384,6 +662,198 @@ void CardboardUnity_setDeviceParametersChanged() {
    cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
  }
  
@@ -311,6 +468,29 @@ index 6dd7d61..418255b 100644
 +    std::lock_guard<std::mutex> lock(cardboard::unity::spatial_optics_mutex);
 +    cardboard::unity::spatial_optics = {true, screen_width, screen_height,
 +        ipd, near_plane, left, right, top, bottom};
++  }
++  cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
++  return 1;
++}
++
++int CardboardUnity_configureSpatialEyeRects(float lx, float ly, float lw, float lh,
++                                           float rx, float ry, float rw, float rh,
++                                           int rotate_output_180) {
++  {
++    std::lock_guard<std::mutex> lock(cardboard::unity::spatial_optics_mutex);
++    auto& config = cardboard::unity::spatial_optics;
++    const std::array<float, 8> rects{lx, ly, lw, lh, rx, ry, rw, rh};
++    if (!config.enabled) return 0;
++    for (float value : rects) if (!std::isfinite(value)) return 0;
++    for (int e = 0; e < 2; ++e) {
++      const float* r = rects.data() + e * 4;
++      if (r[0] < e * config.screen_width * 0.5f || r[1] < 0 || r[2] <= 0 || r[3] <= 0 ||
++          r[0] + r[2] > (e + 1) * config.screen_width * 0.5f ||
++          r[1] + r[3] > config.screen_height) return 0;
++    }
++    config.eye_rects = rects;
++    config.custom_rects = true;
++    config.rotate_reference_output_180 = rotate_output_180 != 0;
 +  }
 +  cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
 +  return 1;
@@ -397,6 +577,69 @@ index 6dd7d61..418255b 100644
 +  std::memcpy(imu_from_eye_pose, cardboard::unity::spatial_imu_from_eye_pose.data(),
 +              sizeof(float) * 7);
 +  return 1;
++}
++
++int CardboardUnity_configureHostTracking(float bx, float by, float bz, float bw,
++    float mx, float my, float mz, float mw, int preserve_neck, int invert_input) {
++  std::array<float,4> basis{bx,by,bz,bw}, mount{mx,my,mz,mw};
++  for (auto* q : {&basis, &mount}) {
++    float norm = 0;
++    for (float v : *q) { if (!std::isfinite(v)) return 0; norm += v*v; }
++    if (std::abs(norm-1.0f) > 0.001f) return 0;
++    for (float& v : *q) v /= std::sqrt(norm);
++  }
++  std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
++  cardboard::unity::host_basis = basis;
++  cardboard::unity::host_mount = mount;
++  cardboard::unity::host_tracking_preserve_neck = preserve_neck != 0;
++  cardboard::unity::host_tracking_invert_input = invert_input != 0;
++  cardboard::unity::host_tracking_enabled = true;
++  cardboard::unity::host_tracking_has_sample = false;
++  return 1;
++}
++
++void CardboardUnity_applyHostTracking(float* position, float* rotation) {
++  using namespace cardboard::unity;
++  std::lock_guard<std::mutex> lock(spatial_tracking_mutex);
++  if (!host_tracking_enabled || !rotation || !position) return;
++  auto mul = [](const std::array<float,4>& a, const std::array<float,4>& b) {
++    return std::array<float,4>{a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
++      a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
++      a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
++      a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]};
++  };
++  const std::array<float,4> raw{rotation[0],rotation[1],rotation[2],rotation[3]};
++  const std::array<float,4> inverse{-host_basis[0],-host_basis[1],-host_basis[2],host_basis[3]};
++  const std::array<float,4> input = host_tracking_invert_input ?
++      std::array<float,4>{-raw[0],-raw[1],-raw[2],raw[3]} : raw;
++  auto mapped = mul(mul(mul(host_basis,input),inverse),host_mount);
++  float norm = 0; for (float v : mapped) norm += v*v;
++  if (!std::isfinite(norm) || norm < 0.000001f) return;
++  for (int i=0;i<4;++i) {
++    rotation[i] = mapped[i] / std::sqrt(norm);
++    host_tracking_sample[i] = raw[i];
++    host_tracking_sample[i+4] = rotation[i];
++  }
++  // A 3DoF phone does not measure translation. Neck-model motion is opt-in.
++  if (host_tracking_preserve_neck) {
++    const std::array<float,4> p{position[0],position[1],position[2],0};
++    auto rotated = mul(mul(host_basis,p),inverse);
++    for (int i=0;i<3;++i) position[i] = rotated[i];
++  } else { position[0] = position[1] = position[2] = 0; }
++  host_tracking_has_sample = true;
++}
++
++int CardboardUnity_getHostTrackingSample(float* sample) {
++  std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
++  if (!sample || !cardboard::unity::host_tracking_enabled || !cardboard::unity::host_tracking_has_sample) return 0;
++  std::memcpy(sample,cardboard::unity::host_tracking_sample.data(),8*sizeof(float));
++  return 1;
++}
++
++void CardboardUnity_clearHostTracking() {
++  std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
++  cardboard::unity::host_tracking_enabled = false;
++  cardboard::unity::host_tracking_has_sample = false;
 +}
 +
 +void CardboardUnity_clearSpatialTracking() {

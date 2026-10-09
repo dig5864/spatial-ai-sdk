@@ -6,6 +6,7 @@
   "unity": "2022.3",
   "keywords": ["spatial", "ar", "sdk"],
   "dependencies": {
+    "com.unity.modules.imageconversion": "1.0.0",
     "com.unity.modules.jsonserialize": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0"
   },

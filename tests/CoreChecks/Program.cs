@@ -10,6 +10,63 @@ static class Program
     {
         try
         {
+            var imu = new HostImuProfile { calibrationVersion = "unit-test" };
+            Check(imu.Validate().Success, "identity host IMU config valid");
+            var pitch = Rotation.FromYawPitch(0, 15);
+            Check(Math.Abs(imu.Map(pitch).X - pitch.X) < 0.00001f, "identity IMU preserves pitch");
+            imu.basisZ = imu.basisW = (float)Math.Sqrt(0.5);
+            var mappedPitch = imu.Map(pitch);
+            Check(Math.Abs(mappedPitch.X) < 0.00001f && Math.Abs(mappedPitch.Y - pitch.X) < 0.00001f,
+                "90 degree Z basis maps pitch X into yaw Y without changing angle");
+            imu.basisZ = 1; imu.basisW = 0;
+            Check(Math.Abs(imu.Map(pitch).X + pitch.X) < 0.00001f,
+                "180 degree Z basis reverses pitch sign");
+            var yaw = Rotation.FromYawPitch(15, 0);
+            Check(Math.Abs(imu.Map(yaw).Y + yaw.Y) < 0.00001f,
+                "180 degree Z basis reverses yaw sign");
+            imu.mountX = pitch.X; imu.mountW = pitch.W;
+            Check(Math.Abs(imu.Map(Rotation.Identity).X - pitch.X) < 0.00001f,
+                "mounting rotation composes independently of axis basis");
+            imu.basisW = 1;
+            Check(!imu.Validate().Success, "non-unit IMU basis rejected");
+            imu.basisZ = 0; imu.sourceFrame = "android-raw";
+            Check(!imu.Validate().Success, "raw Android and Cardboard pose frames cannot be mixed");
+            imu.sourceFrame = "cardboard-unity"; imu.mountX = float.NaN;
+            Check(!imu.Validate().Success, "non-finite IMU mount rejected");
+            var mayflyImu = new HostImuProfile { calibrationVersion = "observed-candidate",
+                basisX=0.5f, basisY=-0.5f, basisZ=0.5f, basisW=0.5f, invertInputRotation=true };
+            Check(mayflyImu.Validate().Success, "observed Xiaomi quaternion config valid");
+            var mappedY = mayflyImu.Map(yaw);
+            Check(Math.Abs(mappedY.X-yaw.Y)<0.00001f && Math.Abs(mappedY.Y)<0.00001f && Math.Abs(mappedY.Z)<0.00001f,
+                "observed Xiaomi raw +Y maps to Unity +X near identity");
+            var rawZ = new Rotation(0,0,pitch.X,pitch.W);
+            var mappedZ = mayflyImu.Map(rawZ);
+            Check(Math.Abs(mappedZ.Y-rawZ.Z)<0.00001f && Math.Abs(mappedZ.X)<0.00001f && Math.Abs(mappedZ.Z)<0.00001f,
+                "observed Xiaomi raw +Z maps to Unity +Y near identity");
+            var mappedX = mayflyImu.Map(pitch);
+            Check(Math.Abs(mappedX.Z+pitch.X)<0.00001f && Math.Abs(mappedX.X)<0.00001f && Math.Abs(mappedX.Y)<0.00001f,
+                "observed Xiaomi raw +X maps to Unity -Z near identity");
+            Check(mayflyImu.Map(yaw*pitch).IsUnit, "combined phone pose remains a unit quaternion");
+            var phone = new HostDeviceProfile { schemaVersion = 1, profileId = "mayfly-test",
+                manufacturer = "Xiaomi", model = "2206123SC", deviceCode = "mayfly",
+                nativePortraitWidth = 1080, nativePortraitHeight = 2400, targetFrameRate = 60,
+                displayMode = "phone-cardboard", trackingSource = "phone-cardboard", cameraSource = "external-uvc" };
+            var phoneIdentity = new DeviceIdentity { Manufacturer = "xiaomi", Model = "2206123SC", DeviceCode = "mayfly" };
+            HostDeviceProfile hostProfile;
+            Check(HostDeviceProfileSelector.Select(phoneIdentity, new[] { phone }, out hostProfile).Success && hostProfile == phone,
+                "phone host profile matches exact manufacturer, model and device code");
+            phoneIdentity.HeadsetId = "RhinoXPro";
+            Check(HostDeviceProfileSelector.Select(phoneIdentity, new[] { phone }, out hostProfile).Success,
+                "external headset identity does not replace host identity");
+            Check(HostDeviceProfileSelector.Select(phoneIdentity, new[] { phone, phone }, out hostProfile).Code == ErrorCode.InvalidArgument && hostProfile == null,
+                "ambiguous host configurations rejected");
+            phoneIdentity.Model = "another-model";
+            Check(HostDeviceProfileSelector.Select(phoneIdentity, new[] { phone }, out hostProfile).Code == ErrorCode.Unsupported && hostProfile == null,
+                "same device code alone cannot select phone profile");
+            Check(HostDeviceProfileSelector.Select(null, new[] { phone }, out hostProfile).Code == ErrorCode.InvalidArgument,
+                "missing host identity rejected");
+            phone.targetFrameRate = 0;
+            Check(!phone.Validate().Success, "invalid host frame rate rejected");
             var clock = new FakeClock();
             var simulator = new SimulatorBackend(clock);
             var session = new SpatialSession(simulator);

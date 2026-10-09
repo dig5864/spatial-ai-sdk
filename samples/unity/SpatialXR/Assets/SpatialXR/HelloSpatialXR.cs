@@ -1,5 +1,6 @@
 #if SPATIALAI_HAS_CARDBOARD
 using SpatialAI.Cardboard;
+using SpatialAI.Unity;
 using UnityEngine;
 using UnityEngine.XR;
 
@@ -24,16 +25,46 @@ namespace SpatialAI.Samples
         private float hoverSeconds;
         private float feedbackUntil;
         private string lastActivation = "none";
+        private bool phoneHost;
+        private SpatialHandTracking phoneHands;
+        private float phoneFps;
+        private Material phonePreviewMaterial;
+        private Renderer phonePreviewRenderer;
+        private float nextPhoneLog;
 
         private void Start()
         {
             bridge = GetComponent<SpatialCardboardBridge>();
-            var hands = gameObject.AddComponent<HandTrackingDemo>();
-            hands.xrCamera = xrCamera;
+            phoneHost = SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(), out var host).Success;
+            if (phoneHost)
+            {
+                phoneHands = gameObject.AddComponent<SpatialHandTracking>();
+                var preview = new GameObject("UVC camera preview");
+                preview.transform.SetParent(xrCamera.transform, false);
+                preview.transform.localPosition = new Vector3(0.32f, -0.25f, 1.8f);
+                var mesh = new Mesh { name = "UVC preview quad" };
+                mesh.vertices = new[] { new Vector3(-0.30f,-0.225f,0), new Vector3(0.30f,-0.225f,0),
+                    new Vector3(-0.30f,0.225f,0), new Vector3(0.30f,0.225f,0) };
+                mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
+                mesh.triangles = new[] { 0,2,1, 1,2,3 };
+                preview.AddComponent<MeshFilter>().sharedMesh = mesh;
+                phonePreviewMaterial = new Material(Shader.Find("Sprites/Default"));
+                phonePreviewRenderer = preview.AddComponent<MeshRenderer>();
+                phonePreviewRenderer.sharedMaterial = phonePreviewMaterial;
+                phonePreviewRenderer.enabled = false;
+            }
+            else
+            {
+                var hands = gameObject.AddComponent<HandTrackingDemo>();
+                hands.xrCamera = xrCamera;
+            }
             if (target != null) targetMaterial = target.material;
             // Device diagnostics share one stereo panel in HandTrackingDemo.
+            bool showPanel = phoneHost;
 #if UNITY_EDITOR
-            if (xrCamera != null)
+            showPanel = true;
+#endif
+            if (showPanel && xrCamera != null)
             {
                 var statusObject = new GameObject("Spatial XR status HUD");
                 statusObject.transform.SetParent(xrCamera.transform, false);
@@ -44,8 +75,23 @@ namespace SpatialAI.Samples
                 statusText.fontSize = 48;
                 statusText.characterSize = 0.006f;
                 statusText.color = Color.white;
+                if (phoneHost)
+                {
+                    statusObject.transform.localPosition = new Vector3(-0.65f, 0.40f, 1.8f);
+                    statusText.characterSize = 0.0045f;
+                }
             }
-#endif
+        }
+
+        private float opticsHoldStarted = -1f;
+        private void Update()
+        {
+            if (!phoneHost) return;
+            var point = Input.mousePosition;
+            if (!Input.GetMouseButton(0) || point.x > Screen.width * 0.2f || point.y > Screen.height * 0.2f) { opticsHoldStarted = -1f; return; }
+            if (opticsHoldStarted < 0f) opticsHoldStarted = Time.unscaledTime;
+            if (Time.unscaledTime - opticsHoldStarted > 1f && Application.CanStreamedLevelBeLoaded("OpticsComparison"))
+                UnityEngine.SceneManagement.SceneManager.LoadScene("OpticsComparison");
         }
 
         private void LateUpdate()
@@ -113,6 +159,38 @@ namespace SpatialAI.Samples
         private void UpdateStatus()
         {
             if (statusText == null) return;
+            if (phoneHost)
+            {
+                phoneFps = Mathf.Lerp(phoneFps, 1f / Mathf.Max(0.001f, Time.unscaledDeltaTime), 0.05f);
+                var angles = xrCamera.transform.rotation.eulerAngles;
+                var q = xrCamera.transform.rotation;
+                var cameraState = phoneHands != null ? phoneHands.State : "initializing";
+                var frame = phoneHands != null ? phoneHands.Latest : null;
+                if (phonePreviewMaterial != null && phoneHands.PreviewTexture != null)
+                {
+                    phonePreviewMaterial.mainTexture = phoneHands.PreviewTexture;
+                    phonePreviewRenderer.enabled = true;
+                }
+                if (Time.unscaledTime >= nextPhoneLog)
+                {
+                    nextPhoneLog = Time.unscaledTime + 3f;
+                    Debug.Log("SpatialAI PHONE profile=" + (bridge.MatchedHostProfile != null ? bridge.MatchedHostProfile.profileId : "pending") +
+                        " xr=" + bridge.XrRunning + " fps=" + phoneFps.ToString("F1") + " q=" + q.ToString("F3") + " camera=" + cameraState + " captureFps=" + phoneHands.CaptureFps.ToString("F1") + " previewFps=" + phoneHands.PreviewFps.ToString("F1"));
+                }
+                if (cameraState.Length > 42) cameraState = cameraState.Insert(42, "\n");
+                statusText.text = "Hold bottom-left: optics test\nXIAOMI 2206123SC | PHONE\n" +
+                    "XR " + (bridge.XrRunning ? "ON" : "WAIT") + " | " + phoneFps.ToString("F0") + " FPS\n" +
+                    "IMU: Cardboard phone tracking\n" +
+                    "Pitch/Yaw/Roll " + Mathf.DeltaAngle(0, angles.x).ToString("F1") + "/" +
+                    Mathf.DeltaAngle(0, angles.y).ToString("F1") + "/" + Mathf.DeltaAngle(0, angles.z).ToString("F1") + "\n" +
+                    "Q " + q.ToString("F2") + "\n" +
+                    "Viewer " + (bridge.UsingGenericViewerParams ? "GENERIC TEST" : bridge.ViewerParamsReady ? "LOADED" : "WAIT") + "\n" +
+                    "Camera: EXTERNAL UVC ONLY\n" + cameraState + "\n" +
+                    "Hands " + (frame != null && frame.hands != null ? frame.hands.Length : 0) +
+                    " | AI " + (frame != null ? frame.resultFps.ToString("F1") : "--") + " FPS\n" +
+                    "Capture " + phoneHands.CaptureFps.ToString("F1") + " | Preview " + phoneHands.PreviewFps.ToString("F1") + " FPS";
+                return;
+            }
             var display = bridge != null && bridge.XrRunning ? "ON" : "WAIT";
             var viewer = bridge != null && bridge.ViewerParamsReady
                 ? bridge.UsingGenericViewerParams ? "GENERIC TEST" : "LOADED"
@@ -126,9 +204,17 @@ namespace SpatialAI.Samples
                 "RhinoX mesh " + (bridge != null && bridge.RhinoXLegacyMeshApplied ? "ON" : "OFF");
         }
 
-#if UNITY_EDITOR
         private void OnGUI()
         {
+            if (phoneHost)
+            {
+                var style = new GUIStyle(GUI.skin.button) { fontSize = 24 };
+                if (Application.CanStreamedLevelBeLoaded("OpticsComparison") &&
+                    GUI.Button(new Rect(20, 20, 280, 65), "Optics comparison", style))
+                    UnityEngine.SceneManagement.SceneManager.LoadScene("OpticsComparison");
+                return;
+            }
+#if UNITY_EDITOR
             GUILayout.BeginArea(new Rect(12, 12, 520, 260), GUI.skin.box);
             GUILayout.Label("Spatial AI | Cardboard XR baseline");
             GUILayout.Label("XR display: " + (bridge != null && bridge.XrRunning ? "running" : "unavailable") +
@@ -145,8 +231,8 @@ namespace SpatialAI.Samples
             GUILayout.Label("RhinoX Pro Sharp mesh: " + (bridge != null && bridge.RhinoXLegacyMeshApplied ? "applied" : "not applied") + "; visual calibration pending.");
             GUILayout.Label("Head pose availability is not a sensor health check.");
             GUILayout.EndArea();
-        }
 #endif
+        }
     }
 }
 #endif

@@ -6,6 +6,19 @@ namespace SpatialAI.Unity
 {
     public static class SpatialDeviceProfiles
     {
+        public static Result SelectHost(DeviceIdentity identity, out HostDeviceProfile profile)
+        {
+            var assets = Resources.LoadAll<TextAsset>("SpatialAI/HostProfiles");
+            var catalog = new List<HostDeviceProfile>(assets.Length);
+            foreach (var asset in assets)
+            {
+                try { catalog.Add(JsonUtility.FromJson<HostDeviceProfile>(asset.text)); }
+                catch (System.Exception e)
+                { profile = null; return new Result(ErrorCode.InvalidArgument, "Invalid host profile " + asset.name + ": " + e.Message); }
+            }
+            return HostDeviceProfileSelector.Select(identity, catalog, out profile);
+        }
+
         public static DeviceIdentity ReadHostIdentity(string externalHeadsetId = null)
         {
             var identity = new DeviceIdentity { Model = SystemInfo.deviceModel, HeadsetId = externalHeadsetId };

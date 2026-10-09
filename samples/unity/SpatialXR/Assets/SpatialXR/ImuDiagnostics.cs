@@ -31,6 +31,8 @@ namespace SpatialAI.Samples
         private int resetCount;
         private string lastReset = "startup";
         private string poseSource = "none";
+        private bool hasRawReference;
+        private Quaternion rawReference;
         private readonly List<UnityEngine.XR.InputDevice> headDevices = new List<UnityEngine.XR.InputDevice>();
         private GameObject axes;
         private GameObject calibrationTargets;
@@ -39,7 +41,8 @@ namespace SpatialAI.Samples
         {
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = 72;
+            Application.targetFrameRate = SpatialAI.Unity.SpatialDeviceProfiles.SelectHost(
+                SpatialAI.Unity.SpatialDeviceProfiles.ReadHostIdentity(), out var host).Success ? host.targetFrameRate : 72;
             frameWindowStart = Time.unscaledTime;
             bridge = GetComponent<SpatialCardboardBridge>();
             Input.gyro.enabled = true;
@@ -131,12 +134,24 @@ namespace SpatialAI.Samples
             }
             else hasReference = false;
 
+            string rawReadout = "";
+            if (bridge != null && bridge.TryGetHostTrackingRotations(out var rawPose, out var mappedPose))
+            {
+                if (!hasRawReference) { rawReference = rawPose; hasRawReference = true; }
+                var rawAngles = (Quaternion.Inverse(rawReference) * rawPose).eulerAngles;
+                rawReadout = "Raw CB XYZ: " + Format(Mathf.DeltaAngle(0, rawAngles.x)) + "/" +
+                    Format(Mathf.DeltaAngle(0, rawAngles.y)) + "/" + Format(Mathf.DeltaAngle(0, rawAngles.z)) + "\n";
+            }
+
             if (Time.unscaledTime >= nextReadoutTime)
             {
                 nextReadoutTime = Time.unscaledTime + 0.1f;
                 lastReadout = "SPATIAL AI | IMU CHECK\n" +
                     "XR: " + (xrReady ? "RUNNING" : "WAIT") + "   Pose: " + poseSource + "\n" +
-                    "FPS: " + measuredFps.ToString("0.0") + " / 72   Max frame: " +
+                    "IMU: " + (bridge != null && bridge.HostTrackingConfigured ?
+                        (bridge.MatchedHostProfile.imu.validatedForHardware ? "MODEL VERIFIED" : "MODEL UNVERIFIED") : "DEFAULT") + "\n" +
+                    rawReadout +
+                    "FPS: " + measuredFps.ToString("0.0") + " / " + Application.targetFrameRate + "   Max frame: " +
                     measuredMaxFrameMs.ToString("0.0") + " ms\n" +
                     "Relative head angle (deg)\n" +
                     "Yaw   Y: " + Format(euler.y) + "  turn left/right\n" +
@@ -190,6 +205,7 @@ namespace SpatialAI.Samples
 
         private void ResetReference(Quaternion rotation, bool valid, string source)
         {
+            hasRawReference = false;
             referenceRotation = rotation;
             hasReference = valid;
             resetCount++;

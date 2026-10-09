@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "profileId": "xiaomi-2206123sc-mayfly-development",
+  "manufacturer": "Xiaomi",
+  "model": "2206123SC",
+  "deviceCode": "mayfly",
+  "nativePortraitWidth": 1080,
+  "nativePortraitHeight": 2400,
+  "targetFrameRate": 60,
+  "displayMode": "phone-cardboard",
+  "trackingSource": "phone-cardboard",
+  "cameraSource": "external-uvc",
+  "validatedForHardware": false,
+  "referenceEyeRects": [268.220, 157.045, 865.054, 865.054, 1266.727, 157.045, 865.054, 865.054],
+  "referenceOutputRotate180": true,
+  "imu": {
+    "calibrationVersion": "xiaomi-mayfly-observed-yz-minus-x-candidate-v2",
+    "sourceFrame": "cardboard-unity",
+    "screenOrientation": "landscape-left",
+    "basisX": 0.5, "basisY": -0.5, "basisZ": 0.5, "basisW": 0.5,
+    "mountX": 0, "mountY": 0, "mountZ": 0, "mountW": 1,
+    "preserveNeckModel": false,
+    "invertInputRotation": true,
+    "validatedForHardware": false
+  }
+}

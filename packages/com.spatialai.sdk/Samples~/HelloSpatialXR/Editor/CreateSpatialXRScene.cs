@@ -18,6 +18,7 @@ namespace SpatialAI.Samples.Editor
             var root = new GameObject("Spatial AI XR Sample");
             var bridge = root.AddComponent<SpatialCardboardBridge>();
             bridge.useGenericViewerForDiagnostics = true;
+            bridge.useRhinoXReferenceMeshForDiagnostics = true;
             var sample = root.AddComponent<HelloSpatialXR>();
             sample.enableGazeDwell = true;
             sample.dwellSeconds = 1.5f;

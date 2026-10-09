@@ -88,7 +88,7 @@ public static class SpatialXRSetup
         Directory.CreateDirectory(Path.GetDirectoryName(output));
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
-            scenes = new[] { scenePath }, locationPathName = output,
+            scenes = new[] { "Assets/Scenes/ImuDiagnostics.unity", scenePath, "Assets/Scenes/OpticsComparison.unity" }, locationPathName = output,
             target = BuildTarget.Android, options = BuildOptions.None
         });
         if (report.summary.result != BuildResult.Succeeded)

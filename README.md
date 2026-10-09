@@ -1,4 +1,29 @@
 # Spatial AI SDK
+## 2026-10-09 开发交接：小米手机 + UVC
+
+本阶段为开发验证版本；当前启动默认进入 ImuDiagnostics 尺度测试。测试手机为 Xiaomi 2206123SC / mayfly，手机自身屏幕和 IMU，外接 SunplusIT HXQ UVC（11cb:281b）。
+
+已完成：
+- 按厂商、型号、设备代号匹配 HostProfiles；光学、IMU、相机来源分别配置。
+- UVC 通过 Android 独立仓库接入 CameraService，手势推理与图像预览独立消费。测试中 Unity 渲染约 60 FPS，UVC 实际采集和预览约 20 FPS，手势推理约 18–22 FPS；格式协商为 640×480@30，不等于实测 30 FPS。
+- 原生 XR 加载 RhinoX 原网格；手机使用用户提供的 AA 矩形：左 (268.220,157.045,865.054,865.054)，右 (1266.727,157.045,865.054,865.054)。坐标为 2400×1080 横屏、Android 左上角原点，不叠加刘海安全区偏移。
+- 每眼等比例映射、几何裁切和 180° 输出方向配置；黄色框在 AA 外侧，间隔 2 像素、宽 3 像素。
+- IMU 配置在原生 XR 输入层生效，标准 XR CenterEye 与 TrackedPoseDriver 共用。支持坐标基四元数、安装四元数、输入姿态取逆、可选颈部模型；RhinoX 设备外参独立。
+- 尺度测试含绿色 20 cm Cube（中心距 0.6 m），青色/橙色/粉色 40 cm Cube（中心距 1.0/1.3/1.6 m），以及 20 cm 棋盘格。点按可重新摆放至当前朝向。
+
+验证边界：
+- 小米 IMU v2 是根据三轴观察构造的候选参数，仍为 UNVERIFIED。近单位姿态映射为 X←Y、Y←Z、Z←−X；取逆方案尚未完成实际佩戴和非零朝向组合动作验证。
+- AA 像素边界已通过截图检查，但物理尺度、双眼融合、FOV、畸变及动态跟随尚需佩戴验收；不要把像素截图对齐当成光学校准通过。
+- 51 项 Core 检查通过；Android AAR 哈希和原生补丁校验通过；Unity 2022.3.14f1c1 Android 构建、安装、启动及配置日志已验证。APK 位于 build/samples/android/spatialxr.apk，不进入源码 Git。
+
+下一步（按顺序）：
+1. 固定手机安装姿态，验证抬头/右转/右倾，以及右转 30° 后抬头；记录配置前后姿态，确认是否需要取逆或改为安装旋转。通过后才标记 IMU 校准完成。
+2. 用尺子、实物和佩戴观察核对 20/40 cm 物体尺度、视距、IPD/FOV、左右眼方向及动态畸变。记录镜片型号和屏幕到镜片距离。
+3. 排查 UVC 协商 30、实际约 20 FPS 的原因；测量曝光、传输、转换、推理、显示各段耗时。现有主机接收时间不代表曝光时间，端到端延迟尚未量准。
+4. 优化取帧到 Unity 纹理路径（当前 JPEG 诊断通路）、双手推理和延时预测；完善 USB 拔插、权限、暂停恢复及多相机选择回归。
+5. 扩展手机配置与兼容矩阵；逐步接入 Unity XR Hands、Vuforia 共享相机、Tag 定位。iOS、Unity 6/团结、WebXR/OpenXR/Native 按独立阶段验证。
+
+同事上手：先按下文准备 Cardboard v1.30.1 构建依赖，再用 Unity 2022.3.14f1c1 打开 samples/unity/SpatialXR，运行 BuildAndroid.bat。小米参数见 packages/com.spatialai.sdk/Runtime/Unity/Resources/SpatialAI/HostProfiles/xiaomi-mayfly.json，IMU 字段定义和测试步骤见 samples/unity/SpatialXR/README.md。Android 源码和 AAR 对应关系以 third_party/spatial-ai-android.lock.json 为准。
 
 本仓库是 Spatial AI SDK 主工程。`SDK/xms-xr-sdk` 是历史参考工程。Android CameraService 与手势库源码位于独立的 `visor-x/spatial-ai-android` 仓库；本仓库保留锁定版本的 Unity AAR。当前可运行的消费工程为 `samples/unity/SpatialXR/`；[Group 与仓库职责](docs/GROUP_OVERVIEW.md)、Unity 6、团结、WebXR、OpenXR 与 Native 的[目标目录和边界](docs/REPOSITORY_LAYOUT.md)另有说明。
 
