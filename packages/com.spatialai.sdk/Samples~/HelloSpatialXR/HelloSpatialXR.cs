@@ -175,7 +175,7 @@ namespace SpatialAI.Samples
                 {
                     nextPhoneLog = Time.unscaledTime + 3f;
                     Debug.Log("SpatialAI PHONE profile=" + (bridge.MatchedHostProfile != null ? bridge.MatchedHostProfile.profileId : "pending") +
-                        " xr=" + bridge.XrRunning + " fps=" + phoneFps.ToString("F1") + " q=" + q.ToString("F3") + " camera=" + cameraState + " captureFps=" + phoneHands.CaptureFps.ToString("F1") + " previewFps=" + phoneHands.PreviewFps.ToString("F1"));
+                        " xr=" + bridge.XrRunning + " fps=" + phoneFps.ToString("F1") + " q=" + q.ToString("F3") + " camera=" + cameraState + " captureFps=" + phoneHands.CaptureFps.ToString("F1") + " previewFps=" + phoneHands.PreviewFps.ToString("F1") + " gestures=" + SpatialHandTracking.GestureRecognitionEnabled);
                 }
                 if (cameraState.Length > 42) cameraState = cameraState.Insert(42, "\n");
                 statusText.text = "Hold bottom-left: optics test\nXIAOMI 2206123SC | PHONE\n" +
@@ -186,7 +186,7 @@ namespace SpatialAI.Samples
                     "Q " + q.ToString("F2") + "\n" +
                     "Viewer " + (bridge.UsingGenericViewerParams ? "GENERIC TEST" : bridge.ViewerParamsReady ? "LOADED" : "WAIT") + "\n" +
                     "Camera: EXTERNAL UVC ONLY\n" + cameraState + "\n" +
-                    "Hands " + (frame != null && frame.hands != null ? frame.hands.Length : 0) +
+                    "Gestures " + (SpatialHandTracking.GestureRecognitionEnabled ? "ON" : "OFF") + " | Hands " + (frame != null && frame.hands != null ? frame.hands.Length : 0) +
                     " | AI " + (frame != null ? frame.resultFps.ToString("F1") : "--") + " FPS\n" +
                     "Capture " + phoneHands.CaptureFps.ToString("F1") + " | Preview " + phoneHands.PreviewFps.ToString("F1") + " FPS";
                 return;

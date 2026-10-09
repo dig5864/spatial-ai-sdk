@@ -1,5 +1,8 @@
 # Spatial XR Unity 示例工程
 
+当前小米 UVC 曝光排查、VIDEO/GPU 手势优化结果与后续执行计划见
+[UVC 与手势识别进展](../../../docs/UVC_HAND_TRACKING_PROGRESS.md)。
+
 这是 Unity **2022.3.14f1c1** 消费工程，通过相对路径引用本仓库的 Spatial AI UPM 包和 Cardboard XR Plugin v1.30.1。Unity 6 与团结引擎仍需分别导入和实机验证。工程内三个场景用于不同测试，默认 APK 包含三个场景并从 `ImuDiagnostics` 启动。
 
 ## 场景与用途
@@ -20,6 +23,77 @@
 4. 连接测试设备后运行 `adb install -r build/samples/android/spatialxr.apk`，再启动应用。首次启动手部预览需允许相机权限。构建脚本本身不安装 APK。
 
 Unity Android 构建回调会在菜单、自动构建和 batchmode 打包前运行同一原生准备脚本，检查补丁并更新插件 AAR；依赖准备失败则停止构建。Unity 内使用 `SPATIALAI_ANDROID_NDK_ROOT` 或 External Tools 中配置的 NDK。原生源码无变化时增量构建复用结果，相同 AAR 不重写。Windows PowerShell 是当前构建流程的要求。
+
+## 通过 ADB 切换场景
+
+手势识别使用 MediaPipe `VIDEO` 模式，优先 GPU 推理、最多两只手；有效跟踪时可复用连续帧结果，
+减少重复手掌检测。`SpatialHands` 日志包含 `runningMode=VIDEO` 和 `delegate=GPU/CPU`。
+GPU 模型在相机消费线程中创建、调用和释放。GPU 初始化失败时明确记录错误并回退 CPU；
+以日志中的实际 delegate 为准。
+输入使用帧时间戳并保证毫秒值严格递增；手势开关不会重置同一模型实例的时间戳。
+
+可在相同广播中设置曝光：`--ei exposureMode 1 --ei exposureTimeUs 16600` 表示手动曝光 16.6 ms，
+`--ei exposureMode 8` 恢复当前 HXQ 摄像头原来的自动曝光模式（光圈优先）。
+模式使用 UVC 原始值 1/2/4/8；时间单位是微秒，必须为正且是 100 的倍数。
+设备曝光时间范围在设置前检查，模式设置后读回确认；`SpatialUVC` 中的 `exposure set` 输出请求值和实际值，
+`timeMatched=false` 或 `rejected/failed` 不能视为设置成功。设备报告值是否代表实际曝光仍需画面对照。
+省略两个曝光参数时保留当前设置；显式曝光请求在本进程内保留并在摄像头重新打开时应用。
+手势参数仍默认开启，单独测试曝光时应继续携带 `--ez gestures false`。
+
+```bash
+# 手动曝光 16.6 ms，关闭手势
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene hands --ez gestures false --ei exposureMode 1 --ei exposureTimeUs 16600
+# 恢复光圈优先自动曝光，保持手势关闭
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene hands --ez gestures false --ei exposureMode 8
+```
+
+UVC 曝光诊断：每个约 2 秒的采集帧率窗口后，`SpatialUVC` 输出一行 `exposure` 日志，
+读取 `exposureMode`、`exposureTimeRaw`、`exposureTimeMs` 和 `exposurePriority`。
+模式值：1=手动、2=自动、4=快门优先、8=光圈优先；曝光原始单位为 0.1 ms。
+优先级：0=固定帧率、1=允许自动曝光调整帧率。不支持的参数显示 `unsupported`，读取异常显示 `read-error`。
+参数是日志读取时刻的设备报告值，`captureFps` 是前一个窗口的平均值，二者并非逐帧曝光关联。
+诊断只读取参数，不修改曝光设置。
+
+```powershell
+adb logcat -s SpatialUVC:I
+```
+
+`hands` 场景默认开启手势识别。添加 `--ez gestures false` 可关闭识别，保留 UVC 采集和预览；
+即使当前已经在该场景也会立即生效，无需重新打开摄像头。恢复时使用 `--ez gestures true`，或省略该参数。
+开关在本次进程内保持，场景 HUD 显示 `Gestures ON/OFF`，`SpatialAI PHONE` 日志记录 `gestures=True/False`。
+
+```bash
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene hands --ez gestures false
+```
+
+默认 APK 包含三个场景，可用 Android 广播切换，无需重新安装。先启动应用，等待 Unity 初始化完成：
+
+```powershell
+adb shell am start -W -n com.spatialai.samples.xr/com.unity3d.player.UnityPlayerActivity
+```
+
+然后发送场景切换广播：
+
+```powershell
+# UVC 画面与手势预览
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene hands
+# IMU 与尺度测试
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene imu
+# 光学对比图
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene optics
+```
+
+支持短名 `hands`、`imu`、`optics`，以及完整场景名 `HelloSpatialXR`、`ImuDiagnostics`、`OpticsComparison`。其他场景名会拒绝；重复请求当前场景不会重新加载。加载期间收到新请求时，完成当前加载后处理最后一个有效请求。
+
+接口是此示例的开发调试功能，通过动态 BroadcastReceiver 注册，仅在应用进程运行并完成初始化后有效，不负责冷启动。日志 `SpatialXRScene: Broadcast ready` 表示接收器就绪；Unity 日志 `Spatial XR scene active: ...` 表示切换完成。`am broadcast` 返回完成不等于 Unity 场景已经加载完成。单场景诊断 APK 不能切到未打包的场景。
+
+```powershell
+adb logcat -s SpatialXRScene:I Unity:I
+```
+
+切换离开相机场景会销毁对应组件并关闭相机消费者；切回时重新初始化。UVC 预览仍需连接摄像头，并允许相机及 USB 权限。
+
+实现使用 Unity 的 [Java 源码插件](https://docs.unity3d.com/2022.3/Documentation/Manual/AndroidJavaSourcePlugins.html) 和 Android 的 [动态广播接收器](https://developer.android.com/develop/background-work/background-tasks/broadcasts)，没有替换 Unity 主 Activity。
 
 若修改过 XR 场景，可使用 `Spatial AI > Repair XR Sample Camera` 修复 `Tracked Pose Driver` 并保存。`Spatial AI > Create Cardboard XR Sample Scene`、`Create IMU Diagnostics Scene`、`Create Optics Comparison Scene` 用于重新生成场景，会覆盖当前打开的场景；先保存自己的改动。
 
@@ -42,7 +116,7 @@ RhinoX 开发设备使用历史 `Sharp_2k_Seperate` OST 网格。状态文字中
 
 球体固定在头部前方，用于验证 SDK 事件、RGB→eye 投影和捏合触发链路；它不验证世界锚点、精确手深度或标准 `XRHandSubsystem`/XRI 输入绑定。
 
-Android 相机和 MediaPipe 库的源码、诊断工程在独立的 [`spatial-ai-android`](http://gitlab.ximmerse.com/visor-x/spatial-ai-android) 仓库。当前 Unity 包自带已验证 SHA-256 的 AAR；更新后可用 SDK 的 `tools/VerifyAndroidHandAar.ps1 -AndroidRepoPath <路径>` 核对。Unity Gradle 后处理器固定 MediaPipe Tasks Vision `1.0.0`。
+Android 相机和 MediaPipe 库的源码、诊断工程在独立的 [`spatial-ai-android`](http://gitlab.ximmerse.com/visor-x/spatial-ai-android) 仓库。手势 AAR 不进入 Git；首次构建先在 Android 仓库生成，再用 SDK 的 `tools/VerifyAndroidHandAar.ps1 -AndroidRepoPath <路径>` 校验并复制到 Unity 包。Unity Gradle 后处理器固定 MediaPipe Tasks Vision `1.0.0`。
 
 ## IMU 与空间尺寸场景
 

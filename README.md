@@ -25,7 +25,7 @@
 
 同事上手：先按下文准备 Cardboard v1.30.1 构建依赖，再用 Unity 2022.3.14f1c1 打开 samples/unity/SpatialXR，运行 BuildAndroid.bat。小米参数见 packages/com.spatialai.sdk/Runtime/Unity/Resources/SpatialAI/HostProfiles/xiaomi-mayfly.json，IMU 字段定义和测试步骤见 samples/unity/SpatialXR/README.md。Android 源码和 AAR 对应关系以 third_party/spatial-ai-android.lock.json 为准。
 
-本仓库是 Spatial AI SDK 主工程。`SDK/xms-xr-sdk` 是历史参考工程。Android CameraService 与手势库源码位于独立的 `visor-x/spatial-ai-android` 仓库；本仓库保留锁定版本的 Unity AAR。当前可运行的消费工程为 `samples/unity/SpatialXR/`；[Group 与仓库职责](docs/GROUP_OVERVIEW.md)、Unity 6、团结、WebXR、OpenXR 与 Native 的[目标目录和边界](docs/REPOSITORY_LAYOUT.md)另有说明。
+本仓库是 Spatial AI SDK 主工程。`SDK/xms-xr-sdk` 是历史参考工程。Android CameraService 与手势库源码位于独立的 `visor-x/spatial-ai-android` 仓库；本仓库通过锁文件引用 Android 构建的 Unity AAR，制品不进入 Git。当前可运行的消费工程为 `samples/unity/SpatialXR/`；[Group 与仓库职责](docs/GROUP_OVERVIEW.md)、Unity 6、团结、WebXR、OpenXR 与 Native 的[目标目录和边界](docs/REPOSITORY_LAYOUT.md)另有说明。
 
 ## 当前状态
 
@@ -57,3 +57,13 @@ UPM 包版本为 `0.2.0-preview.9`。Unity 2022.3.14f1c1 示例已在 RhinoX 开
 4. 纯 Core 与原生 ABI 验证运行 `tools/Validate.ps1`；本地 UPM 发布候选包由 `tools/Pack.ps1` 输出到 `dist/<版本>/unity/`。候选包没有发布到远端。
 
 本仓库与独立的 `spatial-ai-android` 项目位于 GitLab `visor-x` 分组。Unity 包中的 Android AAR 对应的源码提交与 SHA-256 记录在 `third_party/spatial-ai-android.lock.json`；`tools/VerifyAndroidHandAar.ps1` 可核对它。`build/`、`dist/`、上游检出和临时 Unity 工程留在本机。正式发布时将版本化的包和校验清单上传到制品仓库，参见 [目录设计](docs/REPOSITORY_LAYOUT.md)。
+
+### 准备 Android 手势 AAR
+
+新检出不包含手势 AAR。先检出锁文件 revision 对应的 spatial-ai-android 源码，在该仓库运行 tools/BuildHandDiagnostic.ps1 -AndroidPlayerPath '<Unity AndroidPlayer 目录>'，再在 SDK 仓库执行：
+
+```powershell
+.\tools\VerifyAndroidHandAar.ps1 -AndroidRepoPath '..\spatial-ai-android'
+```
+
+脚本检查源码提交及制品 SHA-256 后，将 build/artifacts/spatial-hand-unity.aar 复制到 Unity 包。该 AAR 已忽略，.aar.meta 和 lock.json 继续跟踪；Unity 构建不会自动重建手势库。重新构建的哈希若不匹配，应先核对源码和工具链，不直接绕过校验。

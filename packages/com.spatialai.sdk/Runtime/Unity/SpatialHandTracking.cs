@@ -94,6 +94,12 @@ namespace SpatialAI.Unity
     /// <summary>Image-space hands from the Android RGB camera. No metric head-space pose is claimed.</summary>
     public sealed class SpatialHandTracking : MonoBehaviour
     {
+        public static bool GestureRecognitionEnabled { get; set; } = true;
+        private static int exposureMode = -1, exposureTimeUs = -1, exposureRevision;
+        public static void ConfigureUvcExposure(int mode, int timeUs)
+        {
+            exposureMode = mode; exposureTimeUs = timeUs; exposureRevision++;
+        }
         public SpatialHandFrame Latest { get; private set; }
         public string State { get; private set; } = "idle";
         public event Action<SpatialHandFrame> FrameUpdated;
@@ -107,6 +113,8 @@ namespace SpatialAI.Unity
         private long lastSequence = -1;
         private bool paused;
         private bool externalCamera;
+        private bool appliedGestureEnabled;
+        private int appliedExposureRevision;
         private long previewSequence = -1;
         private float previewWindowStart;
         private int previewCount;
@@ -132,7 +140,24 @@ namespace SpatialAI.Unity
                 var hostResult = SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(), out var host);
                 externalCamera = hostResult.Success && host.cameraSource == "external-uvc";
                 if (hostResult.Success) bridge.Call("setCameraSource", host.cameraSource);
+                appliedGestureEnabled = GestureRecognitionEnabled;
+                bridge.Call("setGestureEnabled", appliedGestureEnabled);
+                appliedExposureRevision = exposureRevision;
+                if (externalCamera && exposureRevision > 0)
+                    bridge.Call("setExposureConfig", exposureMode, exposureTimeUs);
                 bridge.Call("start");
+            }
+            if (externalCamera && appliedExposureRevision != exposureRevision)
+            {
+                appliedExposureRevision = exposureRevision;
+                bridge.Call("setExposureConfig", exposureMode, exposureTimeUs);
+            }
+            if (appliedGestureEnabled != GestureRecognitionEnabled)
+            {
+                appliedGestureEnabled = GestureRecognitionEnabled;
+                bridge.Call("setGestureEnabled", appliedGestureEnabled);
+                Latest = null;
+                lastSequence = -1;
             }
             if (Time.unscaledTime < nextPoll) return;
             nextPoll = Time.unscaledTime + 0.016f;
