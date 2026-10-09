@@ -33,20 +33,65 @@ static class Program
             Check(!imu.Validate().Success, "raw Android and Cardboard pose frames cannot be mixed");
             imu.sourceFrame = "cardboard-unity"; imu.mountX = float.NaN;
             Check(!imu.Validate().Success, "non-finite IMU mount rejected");
-            var mayflyImu = new HostImuProfile { calibrationVersion = "observed-candidate",
-                basisX=0.5f, basisY=-0.5f, basisZ=0.5f, basisW=0.5f, invertInputRotation=true };
+            var mayflyProfile = System.Text.Json.JsonSerializer.Deserialize<HostDeviceProfile>(
+                System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "xiaomi-mayfly.json")),
+                new System.Text.Json.JsonSerializerOptions { IncludeFields = true });
+            var mayflyImu = mayflyProfile.imu;
             Check(mayflyImu.Validate().Success, "observed Xiaomi quaternion config valid");
-            var mappedY = mayflyImu.Map(yaw);
-            Check(Math.Abs(mappedY.X-yaw.Y)<0.00001f && Math.Abs(mappedY.Y)<0.00001f && Math.Abs(mappedY.Z)<0.00001f,
-                "observed Xiaomi raw +Y maps to Unity +X near identity");
-            var rawZ = new Rotation(0,0,pitch.X,pitch.W);
-            var mappedZ = mayflyImu.Map(rawZ);
-            Check(Math.Abs(mappedZ.Y-rawZ.Z)<0.00001f && Math.Abs(mappedZ.X)<0.00001f && Math.Abs(mappedZ.Z)<0.00001f,
-                "observed Xiaomi raw +Z maps to Unity +Y near identity");
-            var mappedX = mayflyImu.Map(pitch);
-            Check(Math.Abs(mappedX.Z+pitch.X)<0.00001f && Math.Abs(mappedX.X)<0.00001f && Math.Abs(mappedX.Y)<0.00001f,
-                "observed Xiaomi raw +X maps to Unity -Z near identity");
-            Check(mayflyImu.Map(yaw*pitch).IsUnit, "combined phone pose remains a unit quaternion");
+            Check(!mayflyImu.invertInputRotation, "Cardboard Unity orientation is not inverted a second time");
+            var phoneMount = Rotation.FromYawPitch(0, -45);
+            var lookUp = Rotation.FromYawPitch(0, -15);
+            var turnRight = Rotation.FromYawPitch(30, 0);
+            var tiltRight = new Rotation(0, 0, -pitch.X, pitch.W);
+            foreach (var headRotation in new[] { Rotation.Identity, lookUp, turnRight, tiltRight,
+                turnRight * lookUp, turnRight * lookUp * tiltRight })
+            {
+                // A fixed device-to-head mount multiplies on the right of head pose.
+                // Recovering it must work at a nonzero yaw, not just near identity.
+                var recovered = mayflyImu.Map(headRotation * phoneMount);
+                var error = headRotation.Inverse() * recovered;
+                Check(recovered.IsUnit && Math.Abs(error.X) < 0.00001f &&
+                    Math.Abs(error.Y) < 0.00001f && Math.Abs(error.Z) < 0.00001f &&
+                    Math.Abs(Math.Abs(error.W) - 1) < 0.00001f,
+                    "45 degree phone mount recovers head pose including combined rotations");
+            }
+            Check(!mayflyImu.validatedForHardware, "candidate Xiaomi correction still requires hardware validation");
+            Check(mayflyProfile.invertViewPitch && mayflyProfile.invertViewRoll,
+                "reflected Xiaomi display compensates pitch and roll");
+            foreach (float heading in new[] { -170f, -30f, 0f, 30f, 170f })
+            foreach (float elevation in new[] { -80f, -15f, 0f, 15f, 80f })
+            foreach (float rollDegrees in new[] { -25f, 0f, 25f })
+            {
+                var halfRoll = rollDegrees * Math.PI / 360;
+                var rollRotation = new Rotation(0, 0, (float)Math.Sin(halfRoll), (float)Math.Cos(halfRoll));
+                var opticalInput = Rotation.FromYawPitch(heading, elevation) * rollRotation;
+                var expectedView = Rotation.FromYawPitch(heading, -elevation) * rollRotation;
+                var actualView = ReflectedViewRotation.InvertPitch(opticalInput);
+                var viewError = expectedView.Inverse() * actualView;
+                Check(actualView.IsUnit && Math.Abs(viewError.X) < 0.00001f &&
+                    Math.Abs(viewError.Y) < 0.00001f && Math.Abs(viewError.Z) < 0.00001f,
+                    "reflected view reverses pitch at nonzero yaw without changing roll");
+                foreach (bool invertPitch in new[] { false, true })
+                foreach (bool invertRoll in new[] { false, true })
+                {
+                    var expectedRoll = invertRoll ? rollRotation.Inverse() : rollRotation;
+                    var expected = Rotation.FromYawPitch(heading, invertPitch ? -elevation : elevation) * expectedRoll;
+                    var actual = ReflectedViewRotation.Apply(opticalInput, invertPitch, invertRoll);
+                    var error = expected.Inverse() * actual;
+                    Check(actual.IsUnit && Math.Abs(error.X) < 0.00001f &&
+                        Math.Abs(error.Y) < 0.00001f && Math.Abs(error.Z) < 0.00001f,
+                        "view compensation preserves yaw and controls pitch and roll independently");
+                }
+            }
+            Check(ReflectedViewRotation.InvertPitch(Rotation.FromYawPitch(0, 90)).IsUnit,
+                "vertical view pitch adjustment remains finite");
+            var combinedHead = turnRight * lookUp * tiltRight;
+            var reflectedCombined = ReflectedViewRotation.Apply(combinedHead, true, true);
+            var reflectedSteps = ReflectedViewRotation.Apply(turnRight, true, true) *
+                ReflectedViewRotation.Apply(lookUp, true, true) * ReflectedViewRotation.Apply(tiltRight, true, true);
+            var compositionError = reflectedSteps.Inverse() * reflectedCombined;
+            Check(Math.Abs(compositionError.X) < 0.00001f && Math.Abs(compositionError.Y) < 0.00001f &&
+                Math.Abs(compositionError.Z) < 0.00001f, "pitch-roll reflection preserves sequential motion composition");
             var phone = new HostDeviceProfile { schemaVersion = 1, profileId = "mayfly-test",
                 manufacturer = "Xiaomi", model = "2206123SC", deviceCode = "mayfly",
                 nativePortraitWidth = 1080, nativePortraitHeight = 2400, targetFrameRate = 60,

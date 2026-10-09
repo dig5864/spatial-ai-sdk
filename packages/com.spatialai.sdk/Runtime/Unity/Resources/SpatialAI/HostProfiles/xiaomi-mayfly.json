@@ -13,14 +13,16 @@
   "validatedForHardware": false,
   "referenceEyeRects": [268.220, 157.045, 865.054, 865.054, 1266.727, 157.045, 865.054, 865.054],
   "referenceOutputRotate180": true,
+  "invertViewPitch": true,
+  "invertViewRoll": true,
   "imu": {
-    "calibrationVersion": "xiaomi-mayfly-observed-yz-minus-x-candidate-v2",
+    "calibrationVersion": "xiaomi-mayfly-reflected-view-pitch-roll-candidate-v6",
     "sourceFrame": "cardboard-unity",
     "screenOrientation": "landscape-left",
-    "basisX": 0.5, "basisY": -0.5, "basisZ": 0.5, "basisW": 0.5,
-    "mountX": 0, "mountY": 0, "mountZ": 0, "mountW": 1,
+    "basisX": 0, "basisY": 0, "basisZ": 0, "basisW": 1,
+    "mountX": 0.38268343, "mountY": 0, "mountZ": 0, "mountW": 0.92387953,
     "preserveNeckModel": false,
-    "invertInputRotation": true,
+    "invertInputRotation": false,
     "validatedForHardware": false
   }
 }

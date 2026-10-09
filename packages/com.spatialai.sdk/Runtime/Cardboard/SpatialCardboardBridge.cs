@@ -62,6 +62,8 @@ namespace SpatialAI.Cardboard
             float mx, float my, float mz, float mw, int preserveNeck, int invertInput);
         [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_clearHostTracking")]
         private static extern void ClearHostTracking();
+        [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_setHostViewCompensation")]
+        private static extern void SetHostViewCompensation(int invertPitch, int invertRoll);
         [DllImport("GfxPluginCardboard", EntryPoint = "CardboardUnity_getHostTrackingSample")]
         private static extern int GetHostTrackingSample([Out] float[] sample);
 #endif
@@ -99,11 +101,14 @@ namespace SpatialAI.Cardboard
                             imu.mountX, imu.mountY, imu.mountZ, imu.mountW, imu.preserveNeckModel ? 1 : 0,
                             imu.invertInputRotation ? 1 : 0) != 0;
                         hostTrackingRejected = !HostTrackingConfigured;
+                        if (HostTrackingConfigured && (hostProfile.invertViewPitch || hostProfile.invertViewRoll))
+                            SetHostViewCompensation(hostProfile.invertViewPitch ? 1 : 0, hostProfile.invertViewRoll ? 1 : 0);
                         HostTrackingStatus = imu.calibrationVersion + (imu.validatedForHardware ? " VERIFIED" : " UNVERIFIED");
                         Debug.Log("Spatial phone IMU: " + HostTrackingStatus + "; configured=" + HostTrackingConfigured +
                             "; B=(" + imu.basisX + "," + imu.basisY + "," + imu.basisZ + "," + imu.basisW + ")" +
                             "; M=(" + imu.mountX + "," + imu.mountY + "," + imu.mountZ + "," + imu.mountW + ")" +
-                            "; invertInput=" + imu.invertInputRotation);
+                            "; invertInput=" + imu.invertInputRotation + "; invertViewPitch=" + hostProfile.invertViewPitch +
+                            "; invertViewRoll=" + hostProfile.invertViewRoll);
                     }
                     catch (Exception e) { hostTrackingRejected = true; HostTrackingStatus = e.Message; Debug.LogError(e); }
                 }

@@ -7,5 +7,6 @@
   <ItemGroup>
     <Compile Include="../../packages/com.spatialai.sdk/Runtime/Core/*.cs" />
     <Compile Include="Program.cs" />
+    <Content Include="../../packages/com.spatialai.sdk/Runtime/Unity/Resources/SpatialAI/HostProfiles/xiaomi-mayfly.json" Link="xiaomi-mayfly.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

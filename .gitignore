@@ -8,6 +8,8 @@ dist/
 **/UserSettings/
 third_party/checkouts/
 third_party/archives/
+# Legacy generated RhinoX AAR; current output lives under build/native/.
+/third_party/rhinox/GfxPluginCardboard-rhinox.aar
 *.tgz
 **/__pycache__/
 *.pyc

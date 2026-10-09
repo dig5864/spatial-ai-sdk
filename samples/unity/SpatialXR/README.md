@@ -1,6 +1,6 @@
 # Spatial XR Unity 示例工程
 
-这是 Unity **2022.3.14f1c1** 消费工程，通过相对路径引用本仓库的 Spatial AI UPM 包和 Cardboard XR Plugin v1.30.1。Unity 6 与团结引擎仍需分别导入和实机验证。工程内三个场景用于不同测试，默认 APK 只打包 `HelloSpatialXR`。
+这是 Unity **2022.3.14f1c1** 消费工程，通过相对路径引用本仓库的 Spatial AI UPM 包和 Cardboard XR Plugin v1.30.1。Unity 6 与团结引擎仍需分别导入和实机验证。工程内三个场景用于不同测试，默认 APK 包含三个场景并从 `ImuDiagnostics` 启动。
 
 ## 场景与用途
 
@@ -14,10 +14,12 @@
 
 ## 首次打开与构建
 
-1. 在 SDK 根目录运行 `tools/BuildRhinoXCardboard.ps1`，准备固定版本 Cardboard 插件及 RhinoX 诊断 AAR。脚本需要 Android NDK、CMake、Ninja 和 Python；详情见 `third_party/rhinox/README.md`。
+1. 首次打开 Unity 前，在 SDK 根目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/BuildRhinoXCardboard.ps1 -NdkPath "<Android NDK 目录>"`，准备固定版本 Cardboard 插件及 RhinoX 诊断 AAR。需要 Git、Android NDK、CMake、Ninja 和 Python；首次获取上游依赖需要网络。生成 AAR 位于 `build/native/cardboard-rhinox-v1301/`，不入 Git；详情见 `third_party/rhinox/README.md`。
 2. 在 Unity Hub 打开本目录，等待 Package Manager 导入。工程内已保存 XR Loader 和三个场景；普通开发者无需重新生成场景。`XR Camera` 使用 Input System `Tracked Pose Driver` 读取头部旋转，Cardboard XR Provider 负责双目渲染。
-3. 在 Windows 上双击 `BuildAndroid.bat` 构建默认场景。它检测工程所需 Unity 版本、Android SDK Platform 34 和 Build Tools 30.0.3；如需指定 SDK，设置 `SPATIALAI_ANDROID_SDK_ROOT`。仅检查环境可运行 `BuildAndroid.bat -CheckOnly`。脚本会复用已打开的 Unity 编辑器，或启动它后自动构建。日志在 `build/logs/`。
+3. 在 Windows 上双击 `BuildAndroid.bat` 构建默认 APK。它检测工程所需 Unity 版本、Android SDK Platform 34 和 Build Tools 30.0.3，并在打开 Unity 前增量准备 Cardboard 原生依赖。如需指定 SDK，设置 `SPATIALAI_ANDROID_SDK_ROOT`；指定 NDK 使用 `SPATIALAI_ANDROID_NDK_ROOT`，否则优先查找 Unity 自带 NDK。仅检查环境可运行 `BuildAndroid.bat -CheckOnly`，不会编译或获取依赖。脚本会复用已打开的 Unity 编辑器，或启动它后自动构建。日志在 `build/logs/`。
 4. 连接测试设备后运行 `adb install -r build/samples/android/spatialxr.apk`，再启动应用。首次启动手部预览需允许相机权限。构建脚本本身不安装 APK。
+
+Unity Android 构建回调会在菜单、自动构建和 batchmode 打包前运行同一原生准备脚本，检查补丁并更新插件 AAR；依赖准备失败则停止构建。Unity 内使用 `SPATIALAI_ANDROID_NDK_ROOT` 或 External Tools 中配置的 NDK。原生源码无变化时增量构建复用结果，相同 AAR 不重写。Windows PowerShell 是当前构建流程的要求。
 
 若修改过 XR 场景，可使用 `Spatial AI > Repair XR Sample Camera` 修复 `Tracked Pose Driver` 并保存。`Spatial AI > Create Cardboard XR Sample Scene`、`Create IMU Diagnostics Scene`、`Create Optics Comparison Scene` 用于重新生成场景，会覆盖当前打开的场景；先保存自己的改动。
 
@@ -99,4 +101,20 @@ imu 配置字段：
 
 例如 B=(0,0,0.70710678,0.70710678) 将正 X 旋转映射为正 Y；B=(0,0,1,0) 同时反转 X/Y 的旋转方向而保留 Z。这些是数学示例，不是小米实测值。拒绝非单位四元数、NaN、错误源坐标系和不支持的屏幕方向。
 
-小米当前候选配置 v2：B=(0.5,-0.5,0.5,0.5)，M=identity，invertInputRotation=true，仍为 UNVERIFIED。依据用户三轴观察构造，归零附近对应 X←Y、Y←Z、Z←−X；三轴观察不足以证明完整姿态方向约定，必须继续验证非零朝向下的组合动作，不能将该参数泛化到所有小米或所有安装方式。Demo 的 Raw CB XYZ 是配置前的 Cardboard 姿态，Pitch/Yaw/Roll 是 XR 配置后姿态；点击归零时分别记录两组参考。测试时分别抬头、右转、右倾约 15 度，每组动作前归零，记录主变化轴与正负号后才能填写校准配置。没有实测证据时不自动根据显示旋转猜测 IMU 轴向。
+小米当前候选配置 v4：B=identity，M=(0.38268343,0,0,0.92387953)，invertInputRotation=false，仍为 UNVERIFIED。2026-10-09 用户确认手机横放、屏幕朝外并向下倾斜约 45°，经一次反射后进入人眼。v2/v3 的轴置换及绝对姿态取逆未通过实机验证，已取消；Cardboard 已负责传感器到横屏 Unity 姿态的转换。M 是右乘的 +45° X 安装补偿候选，假设正常佩戴时原始 Unity 手机姿态约为 -45° pitch；实际装配角、横放左右方向和光路仍须逐轴及组合动作确认。反射属于显示光路，不通过对头部四元数取逆模拟；现有光学网格与输出方向保持不变。
+
+验收：每组动作前点按归零，抬头时 Pitch 应减少，右转时 Yaw 应增加，右侧倾时 Roll 应减少；再右转 30° 后抬头，检查串轴。画面运动须以经镜片反射后的人眼观感为准。诊断日志同时输出 Raw CB q、Mapped XR q 和 Camera q，便于区分传感器映射、安装外参与显示光路问题。数学回归覆盖固定安装下的三轴及组合旋转，但不替代实机校准。
+
+## 反射显示的俯仰响应候选（v5）
+
+2026-10-09，v4 实测右转、右侧倾及右转后抬头已不混轴，但抬头时反射画面向上移动。保留 v4 的固定手机安装外参，增加独立的 `HostDeviceProfile.invertViewPitch=true` 开关。它在安装转换后调整虚拟视线的俯仰，保留视线的水平朝向及残余侧倾；不是把手机传感器四元数取逆，也不是新的物理 IMU 标定。默认关闭，仅小米开发配置开启。原生 XR Provider 统一发布调整后的虚拟视图姿态，Camera 与诊断读数读取同一结果。
+
+此候选依据当前镜片中的动作反馈构建，不是任意单次反射光路的通用模型，不能替代已知镜面法线、投影及装配外参的光学校准。开关启用时 XR 姿态表示经过显示响应补偿的视图姿态，不应直接用作机器人/空间定位等用途的物理头姿。镜片中抬头画面应向下，右转仍向左，右倾表现应与 v4 一致；须复测组合动作后才能验收。
+
+## 反射显示的水平线补偿候选（v6，当前）
+
+用户明确要求内容对齐现实水平线：右侧倾头时，画面应相对视野向左补偿。此前把镜片中向右倾斜作为正确表现的验收结论取消。保留固定安装外参，当前小米配置同时开启 `invertViewPitch` 和 `invertViewRoll`。
+
+两项同时开启时采用四元数变换 `qView=(-qHead.x, qHead.y, -qHead.z, qHead.w)`，对应垂直反射下旋转轴的转换。Yaw 保持，Pitch 和 Roll 反向；该变换保留旋转的乘法组合关系，不经欧拉角拆解。这里补偿的是视图姿态，原始 IMU 与固定安装映射不变，也不把 Roll 锁为零。单开俯仰时仍支持 v5 的行为。
+
+实机验收须正常佩戴后归零：抬头背景向下，右转背景向左，右倾时背景相对视野向左倾并与现实水平线保持一致；再测试右转后抬头、右转后侧倾和往返动作。数学检查覆盖非零 Yaw/Pitch/Roll、四种开关组合以及连续旋转组合关系。此配置仍标记 UNVERIFIED，等待镜片中的实测确认。

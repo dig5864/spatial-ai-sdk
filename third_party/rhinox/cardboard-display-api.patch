@@ -82,7 +82,7 @@ index 5523c86..31de4ef 100644
  
  #endif  // CARDBOARD_SDK_UNITY_XR_PROVIDER_MATH_TOOLS_H_
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..6934854 100644
+index 6dd7d61..93c1f36 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 @@ -19,7 +19,9 @@
@@ -119,7 +119,7 @@ index 6dd7d61..6934854 100644
  #define LOG_TAG "CardboardXRUnity"
  #define LOGW(fmt, ...)                                                       \
    __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "[%s : %d] " fmt, __FILE__, \
-@@ -66,6 +82,96 @@ void NSLog(CFStringRef format, ...);
+@@ -66,6 +82,98 @@ void NSLog(CFStringRef format, ...);
  
  namespace cardboard::unity {
  
@@ -145,6 +145,8 @@ index 6dd7d61..6934854 100644
 +bool host_tracking_enabled = false;
 +bool host_tracking_preserve_neck = false;
 +bool host_tracking_invert_input = false;
++bool host_view_pitch_inverted = false;
++bool host_view_roll_inverted = false;
 +bool host_tracking_has_sample = false;
 +std::array<float, 4> host_basis{0,0,0,1}, host_mount{0,0,0,1};
 +std::array<float, 8> host_tracking_sample{};
@@ -216,7 +218,7 @@ index 6dd7d61..6934854 100644
  std::atomic<CardboardDisplayApi::ScreenParams>
      CardboardDisplayApi::unity_screen_params_({0, 0, 0, 0, 0, 0});
  
-@@ -125,11 +231,32 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -125,11 +233,32 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    // Updates the screen size.
    screen_params_ = unity_screen_params_;
  
@@ -250,7 +252,7 @@ index 6dd7d61..6934854 100644
    if (size == 0) {
      // Loads Cardboard V1 device parameters when no device parameters are
      // available.
-@@ -143,6 +270,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -143,6 +272,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
          screen_params_.viewport_height);
      CardboardQrCode_destroy(data);
    }
@@ -258,7 +260,7 @@ index 6dd7d61..6934854 100644
    device_params_changed_ = false;
  
    RenderingResourcesSetup();
-@@ -181,6 +309,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -181,6 +311,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        break;
    }
  
@@ -266,7 +268,7 @@ index 6dd7d61..6934854 100644
    CardboardLensDistortion_getDistortionMesh(
        lens_distortion, CardboardEye::kLeft,
        &eye_data_[CardboardEye::kLeft].distortion_mesh);
-@@ -188,6 +317,79 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -188,6 +319,79 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        lens_distortion, CardboardEye::kRight,
        &eye_data_[CardboardEye::kRight].distortion_mesh);
  
@@ -346,7 +348,7 @@ index 6dd7d61..6934854 100644
    CardboardDistortionRenderer_setMesh(
        distortion_renderer_.get(),
        &eye_data_[CardboardEye::kLeft].distortion_mesh, CardboardEye::kLeft);
-@@ -196,6 +398,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -196,6 +400,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        &eye_data_[CardboardEye::kRight].distortion_mesh, CardboardEye::kRight);
  
    // Get eye matrices
@@ -354,7 +356,7 @@ index 6dd7d61..6934854 100644
    CardboardLensDistortion_getEyeFromHeadMatrix(
        lens_distortion, CardboardEye::kLeft,
        eye_data_[CardboardEye::kLeft].eye_from_head_matrix);
-@@ -207,7 +410,25 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -207,7 +412,25 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    CardboardLensDistortion_getFieldOfView(lens_distortion, CardboardEye::kRight,
                                           eye_data_[CardboardEye::kRight].fov);
  
@@ -381,7 +383,7 @@ index 6dd7d61..6934854 100644
  }
  
  void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
-@@ -218,11 +439,68 @@ void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
+@@ -218,11 +441,68 @@ void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
  }
  
  void CardboardDisplayApi::RenderEyesToDisplay() {
@@ -451,7 +453,7 @@ index 6dd7d61..6934854 100644
  }
  
  void CardboardDisplayApi::RenderWidgets() {
-@@ -384,6 +662,198 @@ void CardboardUnity_setDeviceParametersChanged() {
+@@ -384,6 +664,230 @@ void CardboardUnity_setDeviceParametersChanged() {
    cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
  }
  
@@ -593,9 +595,17 @@ index 6dd7d61..6934854 100644
 +  cardboard::unity::host_mount = mount;
 +  cardboard::unity::host_tracking_preserve_neck = preserve_neck != 0;
 +  cardboard::unity::host_tracking_invert_input = invert_input != 0;
++  cardboard::unity::host_view_pitch_inverted = false;
++  cardboard::unity::host_view_roll_inverted = false;
 +  cardboard::unity::host_tracking_enabled = true;
 +  cardboard::unity::host_tracking_has_sample = false;
 +  return 1;
++}
++
++void CardboardUnity_setHostViewCompensation(int invert_pitch, int invert_roll) {
++  std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
++  cardboard::unity::host_view_pitch_inverted = invert_pitch != 0;
++  cardboard::unity::host_view_roll_inverted = invert_roll != 0;
 +}
 +
 +void CardboardUnity_applyHostTracking(float* position, float* rotation) {
@@ -615,8 +625,30 @@ index 6dd7d61..6934854 100644
 +  auto mapped = mul(mul(mul(host_basis,input),inverse),host_mount);
 +  float norm = 0; for (float v : mapped) norm += v*v;
 +  if (!std::isfinite(norm) || norm < 0.000001f) return;
++  for (float& v : mapped) v /= std::sqrt(norm);
++  if (host_view_roll_inverted) {
++    // A vertical image reflection reverses pitch and roll but preserves yaw.
++    // Conjugating the quaternion preserves composition for combined motion.
++    mapped[0] = -mapped[0];
++    mapped[2] = -mapped[2];
++  }
++  if (host_view_pitch_inverted != host_view_roll_inverted) {
++    // Optical view adjustment after the fixed sensor-to-head mount. Reflect
++    // elevation, keeping heading and the residual roll; do not invert q or
++    // negate a quaternion component, which would couple other rotation axes.
++    const float x=mapped[0], y=mapped[1], z=mapped[2], w=mapped[3];
++    const float fx=2*(x*z+w*y), fy=2*(y*z-w*x), fz=1-2*(x*x+y*y);
++    const float horizontal=std::sqrt(fx*fx+fz*fz);
++    const float heading=horizontal>0.000001f ? std::atan2(fx,fz) :
++        std::atan2(-2*(x*z-w*y),1-2*(y*y+z*z));
++    const float elevation=std::atan2(-fy,horizontal);
++    const std::array<float,4> correction{
++        -std::sin(elevation)*std::cos(heading),0,
++        std::sin(elevation)*std::sin(heading),std::cos(elevation)};
++    mapped=mul(correction,mapped);
++  }
 +  for (int i=0;i<4;++i) {
-+    rotation[i] = mapped[i] / std::sqrt(norm);
++    rotation[i] = mapped[i];
 +    host_tracking_sample[i] = raw[i];
 +    host_tracking_sample[i+4] = rotation[i];
 +  }
@@ -639,6 +671,8 @@ index 6dd7d61..6934854 100644
 +void CardboardUnity_clearHostTracking() {
 +  std::lock_guard<std::mutex> lock(cardboard::unity::spatial_tracking_mutex);
 +  cardboard::unity::host_tracking_enabled = false;
++  cardboard::unity::host_view_pitch_inverted = false;
++  cardboard::unity::host_view_roll_inverted = false;
 +  cardboard::unity::host_tracking_has_sample = false;
 +}
 +

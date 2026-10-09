@@ -47,6 +47,9 @@ namespace SpatialAI.Core
         // Left then right x,y,width,height in full-display Android pixels.
         public float[] referenceEyeRects;
         public bool referenceOutputRotate180;
+        // Candidate optical view response; separate from the physical IMU mount.
+        public bool invertViewPitch;
+        public bool invertViewRoll;
         public HostImuProfile imu;
 
         public Result Validate()
@@ -59,6 +62,36 @@ namespace SpatialAI.Core
                 cameraSource != "external-uvc")
                 return new Result(ErrorCode.InvalidArgument, "Invalid host device configuration.");
             return imu != null ? imu.Validate() : Result.Ok;
+        }
+    }
+
+    public static class ReflectedViewRotation
+    {
+        public static Rotation Apply(Rotation pose, bool invertPitch, bool invertRoll)
+        {
+            // Vertical image reflection maps axial rotation as (-X, Y, -Z).
+            // This conjugation preserves composition, including combined turns.
+            var view = invertRoll ? new Rotation(-pose.X, pose.Y, -pose.Z, pose.W) : pose;
+            return invertPitch != invertRoll ? InvertPitch(view) : view;
+        }
+
+        // Reflect only elevation of the view's forward ray. Pre-multiplying a
+        // correction around its horizontal right axis preserves heading and roll.
+        // This is an optical view adjustment, not a change of sensor coordinates.
+        public static Rotation InvertPitch(Rotation pose)
+        {
+            float fx = 2 * (pose.X * pose.Z + pose.W * pose.Y);
+            float fy = 2 * (pose.Y * pose.Z - pose.W * pose.X);
+            float fz = 1 - 2 * (pose.X * pose.X + pose.Y * pose.Y);
+            double horizontal = Math.Sqrt(fx * fx + fz * fz);
+            double heading = horizontal > 0.000001 ? Math.Atan2(fx, fz) :
+                Math.Atan2(-2 * (pose.X * pose.Z - pose.W * pose.Y),
+                    1 - 2 * (pose.Y * pose.Y + pose.Z * pose.Z));
+            double elevation = Math.Atan2(-fy, horizontal);
+            var correction = new Rotation(
+                (float)(-Math.Sin(elevation) * Math.Cos(heading)), 0,
+                (float)(Math.Sin(elevation) * Math.Sin(heading)), (float)Math.Cos(elevation));
+            return correction * pose;
         }
     }
 

@@ -16,6 +16,7 @@ namespace SpatialAI.Samples
 
         private SpatialCardboardBridge bridge;
         private TextMesh readout;
+        private Mesh readoutBackdrop;
         private Quaternion referenceRotation = Quaternion.identity;
         private bool hasReference;
         private bool poseAvailable;
@@ -58,6 +59,17 @@ namespace SpatialAI.Samples
             readout.characterSize = 0.008f;
             readout.lineSpacing = 1.2f;
             readout.color = Color.white;
+            var backdrop = new GameObject("IMU readout dark background");
+            backdrop.transform.SetParent(panel.transform, false);
+            backdrop.transform.localPosition = new Vector3(0f, 0f, 0.01f);
+            readoutBackdrop = new Mesh { name = "IMU readout background" };
+            backdrop.AddComponent<MeshFilter>().sharedMesh = readoutBackdrop;
+            var backgroundMaterial = new Material(Shader.Find("SpatialAI/DiagnosticPanel"));
+            backgroundMaterial.color = new Color(0.015f, 0.02f, 0.04f, 0.94f);
+            backdrop.AddComponent<MeshRenderer>().sharedMaterial = backgroundMaterial;
+            // Draw text after the panel, keeping both above the diagnostic scene.
+            var textRenderer = panel.GetComponent<MeshRenderer>();
+            textRenderer.material.renderQueue = 3101;
         }
 
         private void Update()
@@ -135,12 +147,15 @@ namespace SpatialAI.Samples
             else hasReference = false;
 
             string rawReadout = "";
+            string hostQuaternionLog = "";
             if (bridge != null && bridge.TryGetHostTrackingRotations(out var rawPose, out var mappedPose))
             {
                 if (!hasRawReference) { rawReference = rawPose; hasRawReference = true; }
                 var rawAngles = (Quaternion.Inverse(rawReference) * rawPose).eulerAngles;
                 rawReadout = "Raw CB XYZ: " + Format(Mathf.DeltaAngle(0, rawAngles.x)) + "/" +
                     Format(Mathf.DeltaAngle(0, rawAngles.y)) + "/" + Format(Mathf.DeltaAngle(0, rawAngles.z)) + "\n";
+                hostQuaternionLog = " | Raw CB q=" + rawPose.ToString("F5") +
+                    " Mapped XR q=" + mappedPose.ToString("F5");
             }
 
             if (Time.unscaledTime >= nextReadoutTime)
@@ -164,7 +179,11 @@ namespace SpatialAI.Samples
                     "Eye XYZ m: " + Format(position.x) + " " + Format(position.y) + " " + Format(position.z) + "\n" +
                     "Tap / trigger / R: ZERO + face axes\n" +
                     "Reset #" + resetCount + " via " + lastReset;
-                if (readout != null) readout.text = lastReadout;
+                if (readout != null)
+                {
+                    readout.text = lastReadout;
+                    UpdateReadoutBackdrop();
+                }
             }
 
             if (Time.unscaledTime >= nextLogTime)
@@ -175,8 +194,25 @@ namespace SpatialAI.Samples
                     " CenterEye valid=" + InputDevices.GetDeviceAtXRNode(XRNode.CenterEye).isValid +
                     " HMD count=" + headDevices.Count +
                     " Input HMD=" + (InputSystem.GetDevice<XRHMD>() != null) +
-                    " Camera q=" + (xrCamera != null ? xrCamera.transform.rotation.ToString("F3") : "none"));
+                    " Camera q=" + (xrCamera != null ? xrCamera.transform.rotation.ToString("F3") : "none") +
+                    hostQuaternionLog);
             }
+        }
+
+        private void UpdateReadoutBackdrop()
+        {
+            const float padding = 0.035f;
+            var bounds = readout.GetComponent<MeshRenderer>().localBounds;
+            var left = bounds.min.x - padding;
+            var right = bounds.max.x + padding;
+            var bottom = bounds.min.y - padding;
+            var top = bounds.max.y + padding;
+            readoutBackdrop.vertices = new[] {
+                new Vector3(left, bottom, 0), new Vector3(left, top, 0),
+                new Vector3(right, bottom, 0), new Vector3(right, top, 0)
+            };
+            readoutBackdrop.triangles = new[] { 0, 1, 2, 1, 3, 2 };
+            readoutBackdrop.RecalculateBounds();
         }
 
         private static bool TryReadPose(UnityEngine.XR.InputDevice device, out Quaternion rotation)

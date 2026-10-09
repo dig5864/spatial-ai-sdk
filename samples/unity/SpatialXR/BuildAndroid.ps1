@@ -60,6 +60,21 @@ function Find-AndroidSdk {
     throw '找不到 Android SDK Platform 34 和 Build Tools 30.0.3。请安装后设置 SPATIALAI_ANDROID_SDK_ROOT。'
 }
 
+function Find-AndroidNdk([string]$unityEditor, [string]$sdk) {
+    $bundled = Join-Path (Split-Path -Parent $unityEditor) 'Data\PlaybackEngines\AndroidPlayer\NDK'
+    $candidates = @($env:SPATIALAI_ANDROID_NDK_ROOT, $bundled)
+    $installed = Join-Path $sdk 'ndk'
+    if (Test-Path -LiteralPath $installed) {
+        $candidates += @(Get-ChildItem -LiteralPath $installed -Directory | Sort-Object Name -Descending | ForEach-Object { $_.FullName })
+    }
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate 'build\cmake\android.toolchain.cmake'))) {
+            return [IO.Path]::GetFullPath($candidate)
+        }
+    }
+    throw '找不到 Android NDK。请安装 Unity Android Build Support 或设置 SPATIALAI_ANDROID_NDK_ROOT。'
+}
+
 try {
     if (!(Test-Path -LiteralPath (Join-Path $project 'Assets\Scenes\HelloSpatialXR.unity') -PathType Leaf)) {
         throw '示例场景不存在：Assets\Scenes\HelloSpatialXR.unity'
@@ -70,6 +85,10 @@ try {
     $unity = Find-UnityEditor
     $androidSdk = Find-AndroidSdk
     $env:SPATIALAI_ANDROID_SDK_ROOT = $androidSdk
+    $androidNdk = Find-AndroidNdk $unity $androidSdk
+    $env:SPATIALAI_ANDROID_NDK_ROOT = $androidNdk
+    $prepare = Join-Path $sdkRoot 'tools\BuildRhinoXCardboard.ps1'
+    & $prepare -NdkPath $androidNdk -CheckOnly
     $editors = @(Get-ProjectEditor)
     if ($editors.Count -gt 1) { throw '检测到多个打开此工程的 Unity 编辑器，请先保留一个。' }
 
@@ -85,6 +104,8 @@ try {
     if (Test-Path -LiteralPath $requestPath) {
         throw '已有待处理的构建请求。请等待当前构建完成后再运行。'
     }
+    Write-Host '正在准备 Cardboard 原生依赖（增量构建）...'
+    & $prepare -NdkPath $androidNdk
     New-Item -ItemType Directory -Path (Split-Path $requestPath) -Force | Out-Null
     $id = [guid]::NewGuid().ToString('N')
     $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -96,7 +117,7 @@ try {
     $launched = $null
     if ($editors.Count -eq 0) {
         Write-Host '正在启动 Unity，导入完成后将自动编译 APK...'
-        $launched = Start-Process -FilePath $unity -ArgumentList @('-projectPath', ('"' + $project + '"')) -PassThru
+        $launched = Start-Process -FilePath $unity -WindowStyle Hidden -ArgumentList @('-projectPath', ('"' + $project + '"')) -PassThru
     } else {
         Write-Host '已连接到打开的 Unity 工程，等待编辑器开始编译...'
         Write-Host '若这是首次使用，请切回 Unity 窗口一次，让新脚本完成导入。'

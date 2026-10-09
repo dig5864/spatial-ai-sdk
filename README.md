@@ -51,9 +51,9 @@ UPM 包版本为 `0.2.0-preview.9`。Unity 2022.3.14f1c1 示例已在 RhinoX 开
 
 示例入口与用途见 [SDK 示例索引](samples/README.md)。
 
-1. 在新机器准备固定版本 Cardboard 依赖。运行 `tools/BuildRhinoXCardboard.ps1` 会获取 v1.30.1 源码和 Unity 插件，构建并安装 RhinoX 诊断 AAR；要求 Android NDK、CMake、Ninja、Python 和网络。具体要求见 [RhinoX 构建说明](third_party/rhinox/README.md)。
+1. 新机器首次打开 Unity 前，运行 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/BuildRhinoXCardboard.ps1 -NdkPath "<Android NDK 目录>"`，获取固定版本 Cardboard 源码和插件并生成原生依赖。需要 Git、Android NDK、CMake、Ninja、Python，以及首次获取依赖时的网络连接。AAR 输出到已忽略的 `build/native/cardboard-rhinox-v1301/`，不入 Git；源码、补丁和构建脚本仍入库。具体要求见 [RhinoX 构建说明](third_party/rhinox/README.md)。
 2. 在 Unity Hub 打开 `samples/unity/SpatialXR/`。工程通过相对路径引用本仓库 UPM 包和本地 Cardboard 插件。场景、XR Camera 以及 Android/iOS 设置见 [示例说明](samples/unity/SpatialXR/README.md)。
-3. 在 Windows 上双击 `samples/unity/SpatialXR/BuildAndroid.bat` 构建 Android APK，输出到 `build/samples/android/spatialxr.apk`。该脚本不会自动安装；连接设备后用 `adb install -r build/samples/android/spatialxr.apk` 安装。手部预览最低需要 Android API 28。
+3. 在 Windows 上双击 `samples/unity/SpatialXR/BuildAndroid.bat` 构建 Android APK，输出到 `build/samples/android/spatialxr.apk`。脚本在启动或通知 Unity 前准备原生依赖，Unity 的 Android 构建回调也会执行增量准备，覆盖菜单和 batchmode 入口；原生补丁变化后会重新编译并更新插件 AAR，无变化时复用编译结果。可设置 `SPATIALAI_ANDROID_NDK_ROOT` 指定 NDK。该脚本不会自动安装；连接设备后用 `adb install -r build/samples/android/spatialxr.apk` 安装。手部预览最低需要 Android API 28。
 4. 纯 Core 与原生 ABI 验证运行 `tools/Validate.ps1`；本地 UPM 发布候选包由 `tools/Pack.ps1` 输出到 `dist/<版本>/unity/`。候选包没有发布到远端。
 
 本仓库与独立的 `spatial-ai-android` 项目位于 GitLab `visor-x` 分组。Unity 包中的 Android AAR 对应的源码提交与 SHA-256 记录在 `third_party/spatial-ai-android.lock.json`；`tools/VerifyAndroidHandAar.ps1` 可核对它。`build/`、`dist/`、上游检出和临时 Unity 工程留在本机。正式发布时将版本化的包和校验清单上传到制品仓库，参见 [目录设计](docs/REPOSITORY_LAYOUT.md)。

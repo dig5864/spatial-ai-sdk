@@ -22,7 +22,10 @@ def main() -> None:
     with zipfile.ZipFile(temporary) as check:
         if check.read(member) != payload or check.testzip() is not None:
             raise ValueError("AAR verification failed")
-    os.replace(temporary, output)
+    if output.exists() and output.read_bytes() == temporary.read_bytes():
+        temporary.unlink()
+    else:
+        os.replace(temporary, output)
     print(output)
 
 
