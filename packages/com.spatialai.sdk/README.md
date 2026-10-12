@@ -1,4 +1,17 @@
-# Spatial AI SDK — 0.2.0-preview.9
+# Spatial AI SDK — 0.2.0-preview.10
+
+
+## 发布包快速接入
+
+在 Package Manager 中通过 Add package from tarball 导入 `com.spatialai.sdk-0.2.0-preview.10.tgz`；基础包自动安装内置的 Spatial 修改版 Cardboard、XR Hands 和 XR Interaction，无需独立 installer。
+运行 **Spatial AI > Setup > Configure Android XR**，设置自己的 Application Identifier，将示例加入 Build Settings，再构建 APK。
+用户不需要检出开发仓库、复制 Demo 构建脚本或编译 AAR。发布包含生成的 Android AAR 与模型，源码 Git 继续忽略 AAR。
+
+纯显示使用 **Spatial AI > Display > Create Display and 3DOF Scene** 或导入 Display and 3DOF Sample；它不创建摄像头或手势推理。
+应用获取手部、跟踪和手势使用标准 XRHandSubsystem、XRHandTrackingEvents、XRHandShape/XRHandPose、官方 StaticHandGesture 和 XRI。
+旧图像坐标与 MediaPipe 类别接口仅保留兼容和诊断用途。
+完整安装、示例、兼容矩阵及升级步骤见 [安装说明](Documentation~/INSTALL.md)，补偿策略见 [手部补偿](Documentation~/UVC_HAND_SDK_COMPENSATION.md)。
+默认 CPU / VIDEO，可通过 SDK 后端配置切换 GPU；标准 XR Hands 接口没有推理后端配置项。
 
 这是可导入的预览包，提供纯 C# Core、Unity Host、模拟示例、设备 ID 到光学 Profile 的匹配，以及 Cardboard XR Sample。RhinoX Pro 光学网格和 IMU 设计偏移已接入 Android 诊断路径，尚未完成逐台光学校准；独立 3DoF 手柄尚未接入。
 

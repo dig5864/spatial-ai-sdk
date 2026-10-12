@@ -12,10 +12,11 @@ namespace SpatialAI.Editor
         [MenuItem("Spatial AI/Check Setup")]
         public static void CheckSetup()
         {
-            Debug.Log("Spatial AI SDK 0.2.0-preview.9 | Editor " + Application.unityVersion +
+            var package = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.spatialai.sdk");
+            Debug.Log("Spatial AI SDK " + package.version + " | Editor " + Application.unityVersion +
                 " | Target " + EditorUserBuildSettings.activeBuildTarget +
                 " | Simulator and optional Cardboard baseline available. Unity 6 and Tuanjie hardware certification is pending. " +
-                "Import Hello Spatial XR for a Cardboard test; enable its loader separately. RhinoX optics are not applied.");
+                "Use Spatial AI > Setup > Configure Android XR and Spatial AI > Display to create a display-only consumer. Optical calibration remains pending.");
         }
         public void OnProcessScene(UnityEngine.SceneManagement.Scene scene, BuildReport report)
         {

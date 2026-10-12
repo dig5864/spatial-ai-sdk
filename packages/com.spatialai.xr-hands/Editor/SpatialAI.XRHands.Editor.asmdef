@@ -1,0 +1,11 @@
+{
+  "name": "SpatialAI.XRHands.Editor",
+  "references": [
+    "SpatialAI.XRHands",
+    "Unity.InputSystem",
+    "SpatialAI.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ]
+}

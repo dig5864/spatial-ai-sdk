@@ -7,6 +7,7 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.XR.Management;
+using UnityEditor.SceneManagement;
 
 public static class SpatialXRSetup
 {
@@ -76,6 +77,21 @@ public static class SpatialXRSetup
         const string scenePath = "Assets/Scenes/HelloSpatialXR.unity";
         if (!File.Exists(scenePath)) throw new FileNotFoundException("Create the XR sample scene first.", scenePath);
         ConfigureAndroidXR();
+        const string calibrationPath = "Assets/Scenes/SpatialUvcCalibration.unity";
+        if (!File.Exists(calibrationPath))
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                throw new System.OperationCanceledException("Save scenes before generating calibration capture scene.");
+            var previousScenes = EditorSceneManager.GetSceneManagerSetup();
+            var calibrationScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            SpatialAI.Editor.SpatialUvcCalibrationScene.Populate(calibrationScene);
+            EditorSceneManager.SaveScene(calibrationScene, calibrationPath);
+            if (previousScenes.Length > 0 &&
+                System.Array.Exists(previousScenes, scene => scene.isLoaded && scene.isActive) &&
+                System.Array.TrueForAll(previousScenes, scene => !string.IsNullOrEmpty(scene.path)))
+                EditorSceneManager.RestoreSceneManagerSetup(previousScenes);
+            else EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        }
         PlayerSettings.companyName = "SpatialAI";
         PlayerSettings.productName = "SpatialXRSample";
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.spatialai.samples.xr");
@@ -86,9 +102,25 @@ public static class SpatialXRSetup
         PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
         var output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "..", "..", "build", "samples", "android", "spatialxr.apk"));
         Directory.CreateDirectory(Path.GetDirectoryName(output));
+        var scenes=new System.Collections.Generic.List<string>{"Assets/Scenes/ImuDiagnostics.unity",scenePath,"Assets/Scenes/OpticsComparison.unity",calibrationPath};
+        // Optional package: base SDK samples still compile without XR Hands installed.
+        foreach(var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var factory=assembly.GetType("SpatialAI.XRHands.Editor.SpatialUvcHandsScene");
+            if(factory==null)continue;
+            factory.GetMethod("Ensure").Invoke(null,null);
+            scenes.Add("Assets/Scenes/SpatialUvcXRHands.unity");break;
+        }
+        foreach(var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var factory=assembly.GetType("SpatialAI.XRInteraction.Editor.SpatialHandInteractionScene");
+            if(factory==null)continue;
+            factory.GetMethod("Ensure").Invoke(null,null);
+            scenes.Add("Assets/Scenes/SpatialHandInteraction.unity");break;
+        }
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
-            scenes = new[] { "Assets/Scenes/ImuDiagnostics.unity", scenePath, "Assets/Scenes/OpticsComparison.unity" }, locationPathName = output,
+            scenes = scenes.ToArray(), locationPathName = output,
             target = BuildTarget.Android, options = BuildOptions.None
         });
         if (report.summary.result != BuildResult.Succeeded)

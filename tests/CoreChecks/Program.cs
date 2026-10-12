@@ -10,6 +10,8 @@ static class Program
     {
         try
         {
+            HandContractChecks.Run(Check);
+            UvcGeometryChecks.Run(Check);
             var imu = new HostImuProfile { calibrationVersion = "unit-test" };
             Check(imu.Validate().Success, "identity host IMU config valid");
             var pitch = Rotation.FromYawPitch(0, 15);

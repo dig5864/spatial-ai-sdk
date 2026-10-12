@@ -1,0 +1,5 @@
+{
+  "name":"SpatialAI.XRInteraction.Editor",
+  "references":["SpatialAI.XRInteraction","SpatialAI.XRHands","SpatialAI.XRHands.Editor","Unity.InputSystem","Unity.XR.Hands","Unity.ugui"],
+  "includePlatforms":["Editor"]
+}

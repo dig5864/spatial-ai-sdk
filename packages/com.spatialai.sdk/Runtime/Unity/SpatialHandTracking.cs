@@ -6,6 +6,7 @@ using UnityEngine.Android;
 
 namespace SpatialAI.Unity
 {
+    public enum SpatialHandInferenceBackend { CPU, GPU }
     public enum SpatialGestureKind
     {
         None,
@@ -32,6 +33,12 @@ namespace SpatialAI.Unity
     {
         public SpatialHandJoint[] joints;
         public string rawHandedness;
+        public float handednessScore;
+        public bool hasHandednessScore;
+        // Main-thread association: preserve the model's original label for diagnostics.
+        public string stabilizedHandedness;
+        public int trackingId;
+        public string EffectiveHandedness { get { return string.IsNullOrEmpty(stabilizedHandedness) ? rawHandedness : stabilizedHandedness; } }
         public string rawGesture;
         public float gestureScore;
 
@@ -88,13 +95,30 @@ namespace SpatialAI.Unity
         public float inferenceMs;
         public float captureToResultMs;
         public string gestureSource;
+        public string runningMode;
+        public string @delegate;
+        public long receivedHostStopwatchNs;
+        public float resultAgeAtReceiveMs=-1;
         public SpatialHand[] hands;
     }
 
     /// <summary>Image-space hands from the Android RGB camera. No metric head-space pose is claimed.</summary>
+    [DisallowMultipleComponent]
     public sealed class SpatialHandTracking : MonoBehaviour
     {
         public static bool GestureRecognitionEnabled { get; set; } = true;
+        private static SpatialHandInferenceBackend inferenceBackend=SpatialHandInferenceBackend.CPU;
+        /// <summary>Provider configuration; application hand data still uses standard XR Hands APIs.</summary>
+        public static SpatialHandInferenceBackend InferenceBackend
+        {
+            get { return inferenceBackend; }
+            set
+            {
+                if(value!=SpatialHandInferenceBackend.CPU&&value!=SpatialHandInferenceBackend.GPU)
+                    throw new ArgumentOutOfRangeException(nameof(value));
+                inferenceBackend=value;
+            }
+        }
         private static int exposureMode = -1, exposureTimeUs = -1, exposureRevision;
         public static void ConfigureUvcExposure(int mode, int timeUs)
         {
@@ -103,9 +127,13 @@ namespace SpatialAI.Unity
         public SpatialHandFrame Latest { get; private set; }
         public string State { get; private set; } = "idle";
         public event Action<SpatialHandFrame> FrameUpdated;
+        public event Action<string> Invalidated;
+        private static SpatialHandTracking cameraOwner;
         public Texture2D PreviewTexture { get; private set; }
         public float CaptureFps { get; private set; }
         public float PreviewFps { get; private set; }
+        public long PreviewSequence { get { return previewSequence; } }
+        private long previewSequence = -1;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
         private AndroidJavaObject bridge;
@@ -114,14 +142,17 @@ namespace SpatialAI.Unity
         private bool paused;
         private bool externalCamera;
         private bool appliedGestureEnabled;
+        private SpatialHandInferenceBackend appliedInferenceBackend;
         private int appliedExposureRevision;
-        private long previewSequence = -1;
         private float previewWindowStart;
         private int previewCount;
 
         private void Update()
         {
             if (paused) return;
+            if(cameraOwner!=null && cameraOwner!=this)
+            { State="camera owned by another SpatialHandTracking";return; }
+            cameraOwner=this;
             if (bridge == null)
             {
                 if (!Permission.HasUserAuthorizedPermission(Permission.Camera))
@@ -142,6 +173,8 @@ namespace SpatialAI.Unity
                 if (hostResult.Success) bridge.Call("setCameraSource", host.cameraSource);
                 appliedGestureEnabled = GestureRecognitionEnabled;
                 bridge.Call("setGestureEnabled", appliedGestureEnabled);
+                appliedInferenceBackend=InferenceBackend;
+                bridge.Call("setInferenceDelegate",appliedInferenceBackend.ToString());
                 appliedExposureRevision = exposureRevision;
                 if (externalCamera && exposureRevision > 0)
                     bridge.Call("setExposureConfig", exposureMode, exposureTimeUs);
@@ -158,6 +191,14 @@ namespace SpatialAI.Unity
                 bridge.Call("setGestureEnabled", appliedGestureEnabled);
                 Latest = null;
                 lastSequence = -1;
+                Invalidated?.Invoke("gesture recognition changed");
+            }
+            if(appliedInferenceBackend!=InferenceBackend)
+            {
+                appliedInferenceBackend=InferenceBackend;
+                bridge.Call("setInferenceDelegate",appliedInferenceBackend.ToString());
+                Latest=null;lastSequence=-1;
+                Invalidated?.Invoke("inference backend changed");
             }
             if (Time.unscaledTime < nextPoll) return;
             nextPoll = Time.unscaledTime + 0.016f;
@@ -190,6 +231,13 @@ namespace SpatialAI.Unity
             var frame = JsonUtility.FromJson<SpatialHandFrame>(json);
             if (frame == null || frame.sequence == lastSequence) return;
             lastSequence = frame.sequence;
+            frame.receivedHostStopwatchNs=(long)(System.Diagnostics.Stopwatch.GetTimestamp()*(1_000_000_000.0/System.Diagnostics.Stopwatch.Frequency));
+            if(frame.receivedAtNs>0)
+                using(var clock=new AndroidJavaClass("android.os.SystemClock"))
+                {
+                    long resultAge=clock.CallStatic<long>("elapsedRealtimeNanos")-frame.receivedAtNs;
+                    frame.resultAgeAtReceiveMs=resultAge>=0?resultAge/1_000_000f:-1;
+                }
             Latest = frame;
             FrameUpdated?.Invoke(frame);
         }
@@ -204,11 +252,16 @@ namespace SpatialAI.Unity
         private void OnDestroy() { StopBridge(); }
         private void StopBridge()
         {
-            if (bridge == null) return;
-            bridge.Call("stop");
-            bridge.Dispose();
-            bridge = null;
+            try { if(bridge!=null)bridge.Call("stop"); }
+            finally
+            {
+                if(bridge!=null)bridge.Dispose();bridge=null;
+                if(cameraOwner==this)cameraOwner=null;
+                State="stopped";
+                Invalidated?.Invoke("camera stopped/paused/disabled");
+            }
             Latest = null;
+            CaptureFps=PreviewFps=0;
             lastSequence = -1;
             previewSequence = -1;
             if (PreviewTexture != null) { Destroy(PreviewTexture); PreviewTexture = null; }

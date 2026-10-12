@@ -1,0 +1,26 @@
+{
+  "name": "com.spatialai.xr-hands",
+  "version": "0.1.0-preview.2",
+  "displayName": "Spatial AI XR Hands",
+  "description": "Optional XR Hands provider for simulated hands and estimated UVC hands, with frame ageing and recovery.",
+  "unity": "2022.3",
+  "dependencies": {
+    "com.spatialai.sdk": "0.2.0-preview.10",
+    "com.unity.xr.hands": "1.4.3",
+    "com.unity.inputsystem": "1.7.0",
+    "com.unity.xr.management": "4.4.0",
+    "com.unity.modules.physics": "1.0.0"
+  },
+  "samples": [
+    {
+      "displayName": "Hands Simulation",
+      "description": "Deterministic simulated 3D hands exposed through standard XR Hands APIs. No UVC or hardware tracking required.",
+      "path": "Samples~/HandsSimulation"
+    },
+    {
+      "displayName": "Real UVC Hands",
+      "description": "Estimated UVC hands consumed through XRHandSubsystem. Android Cardboard setup required; head-local preview by default.",
+      "path": "Samples~/HandsUvc"
+    }
+  ]
+}

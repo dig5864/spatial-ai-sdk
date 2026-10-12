@@ -1,0 +1,5 @@
+{
+  "name":"SpatialAI.XRInteraction",
+  "rootNamespace":"SpatialAI.XRInteraction",
+  "references":["SpatialAI.Core","SpatialAI.Unity","SpatialAI.XRHands","Unity.XR.Hands","Unity.InputSystem","Unity.XR.Interaction.Toolkit","Unity.ugui"]
+}

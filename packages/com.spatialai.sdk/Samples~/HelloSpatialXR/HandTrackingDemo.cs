@@ -1,6 +1,7 @@
 #if SPATIALAI_HAS_CARDBOARD
 using SpatialAI.Unity;
 using SpatialAI.Cardboard;
+using SpatialAI.Core;
 using UnityEngine;
 
 namespace SpatialAI.Samples
@@ -9,6 +10,13 @@ namespace SpatialAI.Samples
     public sealed class HandTrackingDemo : MonoBehaviour
     {
         public Camera xrCamera;
+        public TextAsset uvcCalibrationJson;
+        [Tooltip("Reflect rendered UVC hand X for the mirror display; physical hand data and labels stay unchanged.")]
+        public bool reflectUvcDisplayX;
+        [Tooltip("Correct UVC anatomical labels when no calibration JSON is assigned. JSON swapHandedness takes precedence.")]
+        public bool defaultUvcSwapHandedness;
+        [Tooltip("Scale all hand-demo visuals away from the eye while retaining their angular size. Presentation only.")]
+        [Range(1f, 10f)] public float presentationDistanceScale = 3f;
         public float assumedHandDepthMetres = 0.35f;
         public float palmWidthMetres = 0.075f;
         public float wristToMiddleMetres = 0.10f;
@@ -30,6 +38,17 @@ namespace SpatialAI.Samples
         private SpatialCardboardBridge xrBridge;
         private SpatialHandFrame latestFrame;
         private SpatialRgbCalibration calibration;
+        private SpatialUvcHandProcessor uvcProcessor;
+        private float renderWindowStart,renderFps;
+        private int renderFrames;
+        private bool swapUvcHandedness;
+        private long receivedHostNs;
+        private string geometryStatus = "Waiting for hands";
+        private float nextGeometryLog;
+        private readonly string[] displayState = { "hidden", "hidden" };
+        private string identityEvents = "";
+        private float nextSnapshotTime;
+        private bool staleLogged;
         private TextMesh status;
         private long lastSequence = -1;
         private float lastFrameTime;
@@ -94,11 +113,27 @@ namespace SpatialAI.Samples
             if (xrCamera == null) { enabled = false; return; }
             Debug.Log("SpatialAI hand demo init: calibration");
             calibration = SpatialRgbCalibration.LoadRhinoXReference();
+            UvcHandCalibration uvcCalibration = new UvcHandCalibration
+                { swapHandedness = defaultUvcSwapHandedness };
+            if (uvcCalibrationJson != null)
+            {
+                try { uvcCalibration = JsonUtility.FromJson<UvcHandCalibration>(uvcCalibrationJson.text); }
+                catch (System.Exception error)
+                {
+                    Debug.LogError("SpatialHands3D: invalid calibration JSON: " + error.Message);
+                    enabled = false;
+                    return;
+                }
+            }
+            uvcProcessor = new SpatialUvcHandProcessor(uvcCalibration);
+            renderWindowStart=Time.unscaledTime;
+            swapUvcHandedness = uvcCalibration != null && uvcCalibration.swapHandedness;
             Debug.Log("SpatialAI hand demo init: tracker");
             tracking = GetComponent<SpatialHandTracking>();
             xrBridge = GetComponent<SpatialCardboardBridge>();
             if (tracking == null) tracking = gameObject.AddComponent<SpatialHandTracking>();
             tracking.FrameUpdated += OnHandFrame;
+            tracking.Invalidated += OnInvalidated;
             var shader = Shader.Find("Sprites/Default");
             if (shader == null) shader = Shader.Find("Unlit/Color");
             var targetShader = Shader.Find("Unlit/Color");
@@ -109,6 +144,9 @@ namespace SpatialAI.Samples
                 enabled = false;
                 return;
             }
+            var visualRoot = new GameObject("Hand demo distance root").transform;
+            visualRoot.SetParent(xrCamera.transform, false);
+            visualRoot.localScale = Vector3.one * Mathf.Clamp(presentationDistanceScale, 1f, 10f);
             for (var hand = 0; hand < 2; hand++)
             {
                 Debug.Log("SpatialAI hand demo init: visuals " + hand);
@@ -117,7 +155,7 @@ namespace SpatialAI.Samples
                 for (var edge = 0; edge < Edges.Length / 2; edge++)
                 {
                     var segment = new GameObject("Hand " + hand + " bone " + edge);
-                    segment.transform.SetParent(xrCamera.transform, false);
+                    segment.transform.SetParent(visualRoot, false);
                     var line = segment.AddComponent<LineRenderer>();
                     line.useWorldSpace = false;
                     line.positionCount = 2;
@@ -127,7 +165,7 @@ namespace SpatialAI.Samples
                     bones[hand, edge] = line;
                 }
                 var cursor = CreateVisualSphere("Hand " + hand + " pinch pointer", material);
-                cursor.transform.SetParent(xrCamera.transform, false);
+                cursor.transform.SetParent(visualRoot, false);
                 cursor.transform.localScale = Vector3.one * 0.025f;
                 cursor.SetActive(false);
                 cursors[hand] = cursor;
@@ -138,26 +176,26 @@ namespace SpatialAI.Samples
                 var material = new Material(targetShader);
                 material.color = Color.cyan;
                 var target = CreateVisualSphere("Pinch target " + (i + 1), material);
-                target.transform.SetParent(xrCamera.transform, false);
+                target.transform.SetParent(visualRoot, false);
                 target.transform.localPosition = TargetPositions[i];
                 target.transform.localScale = Vector3.one * 0.13f;
                 targetMaterials[i] = material;
             }
             var label = new GameObject("Hand tracking readout");
-            label.transform.SetParent(xrCamera.transform, false);
+            label.transform.SetParent(visualRoot, false);
             label.transform.localPosition = new Vector3(-0.34f, 0.34f, 1.8f);
             status = label.AddComponent<TextMesh>();
             status.anchor = TextAnchor.UpperLeft;
             status.fontSize = 48;
-            status.characterSize = 0.006f;
+            status.characterSize = 0.0075f;
             status.color = Color.white;
             var backdrop = new GameObject("Hand status backdrop");
-            backdrop.transform.SetParent(xrCamera.transform, false);
+            backdrop.transform.SetParent(visualRoot, false);
             backdrop.transform.localPosition = new Vector3(-0.35f, 0.35f, 1.82f);
             var panelMesh = new Mesh { name = "SpatialAI status panel" };
             panelMesh.vertices = new[] {
-                Vector3.zero, new Vector3(0.49f, 0f, 0f),
-                new Vector3(0f, -0.25f, 0f), new Vector3(0.49f, -0.25f, 0f)
+                Vector3.zero, new Vector3(0.90f, 0f, 0f),
+                new Vector3(0f, -0.45f, 0f), new Vector3(0.90f, -0.45f, 0f)
             };
             panelMesh.triangles = new[] { 0, 1, 2, 1, 3, 2 };
             panelMesh.RecalculateNormals();
@@ -171,54 +209,160 @@ namespace SpatialAI.Samples
 
         private void OnEnable()
         {
-            if (tracking != null) tracking.FrameUpdated += OnHandFrame;
+            lastSequence = -1;
+            uvcProcessor?.Reset();
+            for (var h = 0; h < 2; h++) displayState[h] = "hidden";
+            if (tracking != null) { tracking.FrameUpdated += OnHandFrame; tracking.Invalidated += OnInvalidated; }
         }
 
         private void OnDisable()
         {
-            if (tracking != null) tracking.FrameUpdated -= OnHandFrame;
+            if (tracking != null) { tracking.FrameUpdated -= OnHandFrame; tracking.Invalidated -= OnInvalidated; }
+            uvcProcessor?.Reset("demo disabled");
             latestFrame = null;
             for (var h = 0; h < cursors.Length; h++)
+            {
                 if (cursors[h] != null) cursors[h].SetActive(false);
+                wasPinching[h] = false;
+                for (var e = 0; e < Edges.Length / 2; e++)
+                    if (bones[h, e] != null) bones[h, e].enabled = false;
+            }
         }
 
         private void OnHandFrame(SpatialHandFrame frame)
         {
-            latestFrame = frame;
+            receivedHostNs=frame!=null&&frame.receivedHostStopwatchNs>0?frame.receivedHostStopwatchNs:SpatialUvcHandProcessor.HostNowNs();
+            identityEvents="";
+            if(frame!=null&&frame.cameraId!=null&&frame.cameraId.StartsWith("uvc:"))
+            {
+                uvcProcessor.Publish(frame,Pose.identity,0);
+                latestFrame=uvcProcessor.Associated;identityEvents=uvcProcessor.IdentityEvents;
+            }
+            else latestFrame=frame;
+            staleLogged = false;
             frameEvents++;
         }
 
-        private static string HandGestureText(SpatialHandFrame frame, string handedness)
+        private void OnInvalidated(string reason)
+        {
+            uvcProcessor?.Reset(reason);latestFrame=null;lastSequence=-1;
+            for(int h=0;h<2;h++)
+            {
+                displayState[h]="hidden";wasPinching[h]=false;
+                if(cursors[h]!=null)cursors[h].SetActive(false);
+                for(int e=0;e<Edges.Length/2;e++)if(bones[h,e]!=null)bones[h,e].enabled=false;
+            }
+            for(int i=0;i<targetHovered.Length;i++)targetHovered[i]=false;
+        }
+
+        private static SpatialHand FindHand(SpatialHandFrame frame, string side)
+        {
+            foreach (var hand in frame.hands ?? new SpatialHand[0])
+                if (hand != null && hand.EffectiveHandedness == side) return hand;
+            return null;
+        }
+
+        private string HandGestureText(SpatialHandFrame frame, string handedness)
         {
             if (frame == null || frame.hands == null) return handedness + ": --";
+            var rawLabel = frame.cameraId != null && frame.cameraId.StartsWith("uvc:") && swapUvcHandedness
+                ? (handedness == "Left" ? "Right" : "Left") : handedness;
             for (var i = 0; i < frame.hands.Length; i++)
             {
                 var hand = frame.hands[i];
-                if (hand == null || hand.rawHandedness != handedness) continue;
-                return handedness + ": " + hand.Gesture + " " +
-                    hand.gestureScore.ToString("F2") + (hand.Pinching ? " PINCH" : "");
+                if (hand == null || hand.EffectiveHandedness != rawLabel) continue;
+                return handedness + ": " + hand.Gesture + " G=" + hand.gestureScore.ToString("F2") +
+                    " rawH=" + (hand.hasHandednessScore ? hand.handednessScore.ToString("F2") : "--") +
+                    (hand.rawHandedness != hand.EffectiveHandedness ? " LOCK" : "") +
+                    (hand.Pinching ? " PINCH" : "");
             }
             return handedness + ": --";
+        }
+
+        private void LogHandDiagnostics(SpatialHandFrame frame, string events, bool snapshot)
+        {
+            Debug.Log("SpatialHandsDiag event=" + events + " seq=" + frame.sequence + " camera=" + frame.cameraId +
+                " size=" + frame.imageWidth + "x" + frame.imageHeight + " receivedHostNs=" + receivedHostNs +
+                " fps=" + frame.resultFps.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) +
+                " inferMs=" + frame.inferenceMs.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) +
+                " leftDisplay=" + displayState[0] + " rightDisplay=" + displayState[1] +
+                " leftCameraDepth=" + handDepth[0].ToString("F3", System.Globalization.CultureInfo.InvariantCulture) +
+                " rightCameraDepth=" + handDepth[1].ToString("F3", System.Globalization.CultureInfo.InvariantCulture) +
+                " leftReason=" + uvcProcessor.Reason(HandSide.Left) + " rightReason=" + uvcProcessor.Reason(HandSide.Right));
+            foreach (var hand in frame.hands ?? new SpatialHand[0])
+            {
+                if (hand == null) continue;
+                var side = hand.EffectiveHandedness != "Left" && hand.EffectiveHandedness != "Right" ? "Unknown" :
+                    (hand.EffectiveHandedness == "Left") != swapUvcHandedness ? "Left" : "Right";
+                Debug.Log("SpatialHandsDiag hand seq=" + frame.sequence + " track=" + hand.trackingId +
+                    " rawSide=" + hand.rawHandedness + " stableSide=" + hand.EffectiveHandedness + " mappedSide=" + side +
+                    " handednessScore=" + (hand.hasHandednessScore ? hand.handednessScore.ToString("F3", System.Globalization.CultureInfo.InvariantCulture) : "unavailable") +
+                    " gesture=" + hand.rawGesture + " gestureScore=" + hand.gestureScore.ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            if (!snapshot || Time.unscaledTime < nextSnapshotTime) return;
+            nextSnapshotTime = Time.unscaledTime + .5f;
+            foreach (var hand in frame.hands ?? new SpatialHand[0])
+            {
+                if (hand == null) continue;
+                var json = JsonUtility.ToJson(hand);
+                const int chunkSize = 600;
+                for (var offset = 0; offset < json.Length; offset += chunkSize)
+                    Debug.Log("SpatialHandsDiag snapshot seq=" + frame.sequence + " track=" + hand.trackingId +
+                        " part=" + (offset / chunkSize + 1) + "/" + ((json.Length + chunkSize - 1) / chunkSize) + " " +
+                        json.Substring(offset, Mathf.Min(chunkSize, json.Length - offset)));
+            }
         }
 
         private void LateUpdate()
         {
             if (!initialized || tracking == null) return;
+            renderFrames++;var elapsed=Time.unscaledTime-renderWindowStart;
+            if(elapsed>=1){renderFps=renderFrames/elapsed;renderFrames=0;renderWindowStart=Time.unscaledTime;}
             var frame = latestFrame;
             if (frame != null && frame.sequence != lastSequence)
             {
                 lastSequence = frame.sequence;
                 lastFrameTime = Time.unscaledTime;
+                var uvc = frame.cameraId != null && frame.cameraId.StartsWith("uvc:");
+                SpatialHandsFrame converted = null;
+                var stateEvents = identityEvents;
+                var problem = identityEvents.Contains("label_change");
+                if (uvc)
+                {
+                    converted=uvcProcessor.Latest;
+                    geometryStatus=converted==null?"3D rejected: "+uvcProcessor.Diagnostics:
+                        uvcProcessor.CalibrationWarning.Length>0?"3D ESTIMATED | calibration defaults/unverified":"3D ESTIMATED | calibration loaded";
+                }
                 for (var i = 0; i < targetHovered.Length; i++) targetHovered[i] = false;
                 for (var h = 0; h < 2; h++)
                 {
-                    var hand = frame.hands != null && h < frame.hands.Length ? frame.hands[h] : null;
-                    var valid = hand != null && hand.joints != null && hand.joints.Length >= 21 &&
+                    var hand = uvc ? FindHand(frame, (h == 0) != swapUvcHandedness ? "Left" : "Right") :
+                        frame.hands != null && h < frame.hands.Length ? frame.hands[h] : null;
+                    var sample = converted == null ? null : h == 0 ? converted.Left : converted.Right;
+                    var valid = uvc ? sample != null && sample.IsTracked :
+                        hand != null && hand.joints != null && hand.joints.Length >= 21 &&
                         hand.joints[0] != null &&
                         calibration != null && frame.cameraId == calibration.cameraId &&
                         frame.imageWidth == calibration.imageWidth &&
                         frame.imageHeight == calibration.imageHeight;
-                    if (valid)
+                    bool displayed=valid;
+                    if(uvc)
+                    {
+                        var side=h==0?HandSide.Left:HandSide.Right;
+                        displayed=uvcProcessor.TryPresentation(side,out var positions,out var positionsValid);
+                        var state=uvcProcessor.DisplayState(side);
+                        if(state!=displayState[h]){stateEvents+=(h==0?"Left=":"Right=")+state+"; ";problem|=state!="fresh";}
+                        displayState[h]=state;handDepth[h]=uvcProcessor.CameraDepth(side);
+                        for(int j=0;j<21;j++)eyeJointValid[h,j]=false;
+                        if(displayed)for(int id=0;id<26;id++)
+                        {
+                            int landmark=MonocularHandConverter.LandmarkIndex((HandJointId)id);
+                            if(landmark<0||!positionsValid[id])continue;
+                            var point=positions[id];eyeJointValid[h,landmark]=true;
+                            eyeJoints[h,landmark]=new Vector3(reflectUvcDisplayX?-point.x:point.x,point.y,point.z);
+                        }
+                    }
+                    else if (!uvc && valid)
                     {
                         float measuredDepth;
                         var wrist = new Vector2(hand.joints[0].x, hand.joints[0].y);
@@ -244,14 +388,14 @@ namespace SpatialAI.Samples
                         var line = bones[h, e];
                         var first = Edges[e * 2];
                         var second = Edges[e * 2 + 1];
-                        line.enabled = valid && eyeJointValid[h, first] && eyeJointValid[h, second];
+                        line.enabled = displayed && eyeJointValid[h, first] && eyeJointValid[h, second];
                         if (!line.enabled) continue;
                         line.SetPosition(0, eyeJoints[h, first]);
                         line.SetPosition(1, eyeJoints[h, second]);
                     }
                     var hovered = -1;
                     cursors[h].SetActive(false);
-                    if (valid && eyeJointValid[h, 4] && eyeJointValid[h, 8])
+                    if (displayed && eyeJointValid[h, 4] && eyeJointValid[h, 8])
                     {
                         var pinchPoint = (eyeJoints[h, 4] + eyeJoints[h, 8]) * 0.5f;
                         if (pinchPoint.z > 0.05f)
@@ -261,7 +405,7 @@ namespace SpatialAI.Samples
                                 pinchPoint.y * scale, TargetPositions[0].z - 0.08f);
                             cursors[h].transform.localPosition = pointer;
                             cursors[h].SetActive(true);
-                            for (var i = 0; i < TargetPositions.Length; i++)
+                            for (var i = 0; valid && i < TargetPositions.Length; i++)
                             {
                                 var difference = pointer - TargetPositions[i];
                                 if (difference.x * difference.x + difference.y * difference.y < 0.08f * 0.08f)
@@ -273,7 +417,7 @@ namespace SpatialAI.Samples
                             }
                         }
                     }
-                    var pinching = valid && hand.Pinching;
+                    var pinching = valid && hand != null && hand.Pinching;
                     if (pinching && !wasPinching[h])
                     {
                         pinchEvents++;
@@ -288,13 +432,43 @@ namespace SpatialAI.Samples
                     }
                     wasPinching[h] = pinching;
                 }
+                if (uvc && (stateEvents.Length > 0 || Time.unscaledTime >= nextGeometryLog))
+                {
+                    nextGeometryLog = Time.unscaledTime + 2f;
+                    LogHandDiagnostics(frame, stateEvents.Length > 0 ? stateEvents : "periodic",
+                        problem || frame.hands != null && frame.hands.Length > 0 &&
+                        (displayState[0] != "fresh" && displayState[1] != "fresh"));
+                    Debug.Log("SpatialHands3D: sequence=" + frame.sequence +
+                        " left=" + (converted != null && converted.Left.IsTracked) +
+                        " right=" + (converted != null && converted.Right.IsTracked) +
+                        " displayMirrorX=" + reflectUvcDisplayX +
+                        " handednessSwap=" + swapUvcHandedness + " " + geometryStatus);
+                }
             }
-            if (Time.unscaledTime - lastFrameTime > 0.35f)
+            // The SDK owns all UVC hold and expiry decisions, including render-only expiry.
+            if(frame!=null&&frame.cameraId!=null&&frame.cameraId.StartsWith("uvc:"))for(int h=0;h<2;h++)
             {
+                var state=uvcProcessor.DisplayState(h==0?HandSide.Left:HandSide.Right);
+                if(state=="hidden"&&displayState[h]!="hidden")
+                {
+                    Debug.Log("SpatialHandsDiag event="+(displayState[h]=="missing-held"?"missing_hold_expired":"presentation_expired")+" side="+(h==0?"Left":"Right")+" seq="+lastSequence);
+                    displayState[h]=state;cursors[h].SetActive(false);wasPinching[h]=false;
+                    for(int e=0;e<Edges.Length/2;e++)bones[h,e].enabled=false;
+                }
+            }
+            if (displayState[0] == "hidden" && displayState[1] == "hidden")
+                for (var i = 0; i < targetHovered.Length; i++) targetHovered[i] = false;
+            if ((frame==null || frame.cameraId==null || !frame.cameraId.StartsWith("uvc:")) && Time.unscaledTime - lastFrameTime > 0.35f)
+            {
+                if (frame != null && !staleLogged)
+                { staleLogged = true; Debug.Log("SpatialHandsDiag event=stale seq=" + frame.sequence +
+                    " ageSeconds=" + (Time.unscaledTime - lastFrameTime).ToString("F3", System.Globalization.CultureInfo.InvariantCulture)); }
                 for (var h = 0; h < 2; h++)
                 {
+                    displayState[h] = "hidden";
                     if (cursors[h] != null) cursors[h].SetActive(false);
                     for (var e = 0; e < Edges.Length / 2; e++) bones[h, e].enabled = false;
+                    wasPinching[h] = false;
                 }
                 for (var i = 0; i < targetHovered.Length; i++) targetHovered[i] = false;
             }
@@ -306,17 +480,21 @@ namespace SpatialAI.Samples
             {
                 var count = frame != null && frame.hands != null && Time.unscaledTime - lastFrameTime < 0.35f
                     ? frame.hands.Length : 0;
-                var freshFrame = count > 0 ? frame : null;
+                var resultIsFresh = frame != null && Time.unscaledTime - lastFrameTime < 0.35f;
+                var freshFrame = resultIsFresh ? frame : null;
                 status.text = "XR " + (xrBridge != null && xrBridge.XrRunning ? "ON" : "WAIT") +
                     "  Mesh " + (xrBridge != null && xrBridge.RhinoXLegacyMeshApplied ? "ON" : "OFF") + "\n" +
                     (frame != null && frame.gestureSource == "landmarks-fallback"
                         ? "HANDS ONLY | " : "GESTURES | ") +
-                    (frame == null ? tracking.State : frame.resultFps.ToString("F1") + " FPS") + "\n" +
+                    (!resultIsFresh ? tracking.State : frame.@delegate+" "+frame.resultFps.ToString("F1") + " FPS") + "\n" +
                     "Hands " + count + "  Pinch " + pinchEvents + "  Select " + selectionEvents + "\n" +
+                    geometryStatus + "\n" +
+                    "3D Left " + displayState[0] + " | Right " + displayState[1] + "\n" +
                     HandGestureText(freshFrame, "Left") + "\n" +
                     HandGestureText(freshFrame, "Right") + "\n" +
                     "AI " + (frame == null ? 0f : frame.inferenceMs).ToString("F0") +
                     "ms Age " + (frame == null ? -1f : frame.captureToResultMs).ToString("F0") + "ms\n" +
+                    "AI " + (freshFrame==null?0:freshFrame.resultFps).ToString("F1") + " UVC " + tracking.CaptureFps.ToString("F1") + " Render " + renderFps.ToString("F1") + " FPS\n" +
                     "Point at orb, then pinch";
             }
         }

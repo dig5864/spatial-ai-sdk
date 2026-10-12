@@ -1,0 +1,5 @@
+{
+  "name": "SpatialAI.XRHands",
+  "rootNamespace": "SpatialAI.XRHands",
+  "references": ["SpatialAI.Core", "SpatialAI.Unity", "Unity.XR.Hands", "Unity.InputSystem"]
+}

@@ -50,6 +50,12 @@ namespace SpatialAI.Core
         // Candidate optical view response; separate from the physical IMU mount.
         public bool invertViewPitch;
         public bool invertViewRoll;
+        // Presentation of head-local hand visuals through the current mirror/output path.
+        // Independent of camera input mirroring and anatomical handedness.
+        public bool reflectHandDisplayX;
+        // Anatomical labels for this external UVC input, independent of optical reflection.
+        // An explicitly loaded hand calibration takes precedence over this preview default.
+        public bool uvcSwapHandedness;
         public HostImuProfile imu;
 
         public Result Validate()

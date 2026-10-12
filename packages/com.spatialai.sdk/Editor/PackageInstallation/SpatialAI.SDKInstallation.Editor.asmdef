@@ -1,0 +1,8 @@
+{
+  "name": "SpatialAI.SDKInstallation.Editor",
+  "rootNamespace": "SpatialAI.SDKInstallation",
+  "references": [],
+  "includePlatforms": [
+    "Editor"
+  ]
+}

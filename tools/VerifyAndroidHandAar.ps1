@@ -6,7 +6,7 @@ $packageAar = Join-Path $sdkRoot $lock.artifact
 $expectedHash = $lock.sha256.ToUpperInvariant()
 
 if ($AndroidRepoPath) {
-    if ($lock.sourceState -eq 'local-working-tree-external-camera-preview') {
+    if ($lock.sourceState -like 'local-working-tree-*') {
         throw 'This AAR was built from local Android changes. Commit and update the locked revision before restoring from a release source checkout.'
     }
     $androidRoot = (Resolve-Path -LiteralPath $AndroidRepoPath).Path

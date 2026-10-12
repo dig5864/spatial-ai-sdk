@@ -2,10 +2,12 @@
   "dependencies": {
     "com.google.xr.cardboard": "file:../../../../third_party/checkouts/cardboard-xr-plugin-unity2022",
     "com.spatialai.sdk": "file:../../../../packages/com.spatialai.sdk",
+    "com.spatialai.xr-hands": "file:../../../../packages/com.spatialai.xr-hands",
     "com.unity.toolchain.win-x86_64-linux-x86_64": "2.0.11",
     "com.unity.ugui": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.audio": "1.0.0",
-    "com.unity.modules.imgui": "1.0.0"
+    "com.unity.modules.imgui": "1.0.0",
+    "com.spatialai.xr-interaction": "file:../../../../packages/com.spatialai.xr-interaction"
   }
 }

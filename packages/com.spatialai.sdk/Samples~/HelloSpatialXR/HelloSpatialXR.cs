@@ -10,6 +10,7 @@ namespace SpatialAI.Samples
     public sealed class HelloSpatialXR : MonoBehaviour
     {
         public Camera xrCamera;
+        public TextAsset uvcCalibrationJson;
         public Renderer target;
         public LineRenderer gazeRay;
         public bool enableGazeDwell = true;
@@ -28,8 +29,6 @@ namespace SpatialAI.Samples
         private bool phoneHost;
         private SpatialHandTracking phoneHands;
         private float phoneFps;
-        private Material phonePreviewMaterial;
-        private Renderer phonePreviewRenderer;
         private float nextPhoneLog;
 
         private void Start()
@@ -39,28 +38,15 @@ namespace SpatialAI.Samples
             if (phoneHost)
             {
                 phoneHands = gameObject.AddComponent<SpatialHandTracking>();
-                var preview = new GameObject("UVC camera preview");
-                preview.transform.SetParent(xrCamera.transform, false);
-                preview.transform.localPosition = new Vector3(0.32f, -0.25f, 1.8f);
-                var mesh = new Mesh { name = "UVC preview quad" };
-                mesh.vertices = new[] { new Vector3(-0.30f,-0.225f,0), new Vector3(0.30f,-0.225f,0),
-                    new Vector3(-0.30f,0.225f,0), new Vector3(0.30f,0.225f,0) };
-                mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
-                mesh.triangles = new[] { 0,2,1, 1,2,3 };
-                preview.AddComponent<MeshFilter>().sharedMesh = mesh;
-                phonePreviewMaterial = new Material(Shader.Find("Sprites/Default"));
-                phonePreviewRenderer = preview.AddComponent<MeshRenderer>();
-                phonePreviewRenderer.sharedMaterial = phonePreviewMaterial;
-                phonePreviewRenderer.enabled = false;
             }
-            else
-            {
-                var hands = gameObject.AddComponent<HandTrackingDemo>();
-                hands.xrCamera = xrCamera;
-            }
+            var hands = gameObject.AddComponent<HandTrackingDemo>();
+            hands.xrCamera = xrCamera;
+            hands.uvcCalibrationJson = uvcCalibrationJson;
+            hands.reflectUvcDisplayX = phoneHost && host.reflectHandDisplayX;
+            hands.defaultUvcSwapHandedness = phoneHost && host.uvcSwapHandedness;
             if (target != null) targetMaterial = target.material;
             // Device diagnostics share one stereo panel in HandTrackingDemo.
-            bool showPanel = phoneHost;
+            bool showPanel = false;
 #if UNITY_EDITOR
             showPanel = true;
 #endif
@@ -158,7 +144,7 @@ namespace SpatialAI.Samples
 
         private void UpdateStatus()
         {
-            if (statusText == null) return;
+            if (statusText == null && !phoneHost) return;
             if (phoneHost)
             {
                 phoneFps = Mathf.Lerp(phoneFps, 1f / Mathf.Max(0.001f, Time.unscaledDeltaTime), 0.05f);
@@ -166,11 +152,6 @@ namespace SpatialAI.Samples
                 var q = xrCamera.transform.rotation;
                 var cameraState = phoneHands != null ? phoneHands.State : "initializing";
                 var frame = phoneHands != null ? phoneHands.Latest : null;
-                if (phonePreviewMaterial != null && phoneHands.PreviewTexture != null)
-                {
-                    phonePreviewMaterial.mainTexture = phoneHands.PreviewTexture;
-                    phonePreviewRenderer.enabled = true;
-                }
                 if (Time.unscaledTime >= nextPhoneLog)
                 {
                     nextPhoneLog = Time.unscaledTime + 3f;
@@ -178,7 +159,7 @@ namespace SpatialAI.Samples
                         " xr=" + bridge.XrRunning + " fps=" + phoneFps.ToString("F1") + " q=" + q.ToString("F3") + " camera=" + cameraState + " captureFps=" + phoneHands.CaptureFps.ToString("F1") + " previewFps=" + phoneHands.PreviewFps.ToString("F1") + " gestures=" + SpatialHandTracking.GestureRecognitionEnabled);
                 }
                 if (cameraState.Length > 42) cameraState = cameraState.Insert(42, "\n");
-                statusText.text = "Hold bottom-left: optics test\nXIAOMI 2206123SC | PHONE\n" +
+                if (statusText != null) statusText.text = "Hold bottom-left: optics test\nXIAOMI 2206123SC | PHONE\n" +
                     "XR " + (bridge.XrRunning ? "ON" : "WAIT") + " | " + phoneFps.ToString("F0") + " FPS\n" +
                     "IMU: Cardboard phone tracking\n" +
                     "Pitch/Yaw/Roll " + Mathf.DeltaAngle(0, angles.x).ToString("F1") + "/" +

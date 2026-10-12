@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
+using UnityEditor;
 using UnityEditor.Android;
 
 namespace SpatialAI.Editor
@@ -14,6 +16,7 @@ namespace SpatialAI.Editor
             // Unity 2022's AGP 7.1.2 dexer crashes on UVCAndroid 1.0.13.
             // Use the R8 project's supported settings-level override for this toolchain.
             var root = Path.GetFullPath(Path.Combine(unityLibraryPath, ".."));
+            ConfigureAndroidProject(root, unityLibraryPath);
             var rootBuild = Path.Combine(root, "build.gradle");
             if (File.Exists(rootBuild) && File.ReadAllText(rootBuild).Contains("7.1.2"))
             {
@@ -48,6 +51,39 @@ namespace SpatialAI.Editor
             if (!source.Contains(dependency)) source = source.Replace(marker, marker + "\n    " + dependency + "\n");
             if (!source.Contains(uvcDependency)) source = source.Replace(marker, marker + "\n    " + uvcDependency + "\n");
             File.WriteAllText(gradle, source);
+        }
+
+        private static void ConfigureAndroidProject(string root, string library)
+        {
+            var sdk = Environment.GetEnvironmentVariable("SPATIALAI_ANDROID_SDK_ROOT");
+            if (string.IsNullOrWhiteSpace(sdk)) sdk = AndroidExternalToolsSettings.sdkRootPath;
+            if (string.IsNullOrWhiteSpace(sdk) || !File.Exists(Path.Combine(sdk, "platforms/android-34/android.jar")))
+                throw new InvalidOperationException("Spatial Android: install SDK Platform 34 and configure Unity External Tools > Android SDK, or SPATIALAI_ANDROID_SDK_ROOT.");
+            if (!Directory.Exists(Path.Combine(sdk, "build-tools/30.0.3")))
+                throw new InvalidOperationException("Spatial Android Unity 2022 baseline requires Android Build Tools 30.0.3 in the configured SDK.");
+            File.WriteAllText(Path.Combine(root, "local.properties"), "sdk.dir=" + Path.GetFullPath(sdk).Replace("\\", "\\\\").Replace(":", "\\:") + "\n");
+            foreach (var module in new[] { Path.Combine(library, "build.gradle"), Path.Combine(root, "launcher/build.gradle") })
+            {
+                if (!File.Exists(module)) continue;
+                var source = File.ReadAllText(module);
+                source = Regex.Replace(source, @"compileSdkVersion\s+\d+", "compileSdkVersion 34");
+                source = Regex.Replace(source, @"minSdkVersion\s+\d+", "minSdkVersion 28");
+                source = Regex.Replace(source, @"targetSdkVersion\s+\d+", "targetSdkVersion 34");
+                source = Regex.Replace(source, "buildToolsVersion '[^']+'", "buildToolsVersion '30.0.3'");
+                if (module == Path.Combine(library, "build.gradle") && UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.google.xr.cardboard") != null)
+                    foreach (var dependency in new[] { "androidx.appcompat:appcompat:1.6.1", "com.google.android.gms:play-services-vision:20.1.3", "com.google.android.material:material:1.12.0", "com.google.protobuf:protobuf-javalite:3.19.4" })
+                        if (!source.Contains(dependency)) source = source.Replace("dependencies {", "dependencies {\n    implementation '" + dependency + "'\n");
+                File.WriteAllText(module, source);
+            }
+            var propertiesPath = Path.Combine(root, "gradle.properties");
+            var properties = File.Exists(propertiesPath) ? File.ReadAllText(propertiesPath) : "";
+            foreach (var entry in new[] { "android.useAndroidX=true", "android.enableJetifier=true", "org.gradle.parallel=false", "org.gradle.workers.max=1" })
+            {
+                var key = entry.Substring(0, entry.IndexOf('='));
+                var pattern = @"(?m)^" + Regex.Escape(key) + @"=.*$";
+                properties = Regex.IsMatch(properties, pattern) ? Regex.Replace(properties, pattern, entry) : properties + "\n" + entry + "\n";
+            }
+            File.WriteAllText(propertiesPath, properties);
         }
     }
 }

@@ -114,6 +114,9 @@ adb logcat | Select-String 'SpatialUVC|SpatialHands|SpatialAI PHONE'
 
 ## 下一步执行顺序（尚未实现）
 
+面向 Unity 标准手部接口的实现、交付与验收阶段见
+[Unity XR Hands 分阶段接入计划](UNITY_XR_HANDS_IMPLEMENTATION_PLAN.md)。本节保留识别性能优化路径。
+
 1. **增加稳定的性能统计。** 固定曝光 16.6 ms、位置、光照、双手上限和 GPU/VIDEO 配置，
    预热后分别测试无手、单手静止、单手移动、双手各至少 60 秒。
    保存完整日志，统计推理和结果间隔的平均值/P50/P95、丢帧数，并记录温度、运行时长和画面条件。
@@ -166,3 +169,109 @@ Android 库需重建、复制到 SDK `packages/com.spatialai.sdk/Plugins/Android
 证据位于本机忽略的 `build/logs/`：`uvc-exposure-*`、`uvc-manual-*`、
 `hands-video-*`、`hands-gpu-*`，包括构建和设备检查日志；不保证其他检出目录拥有这些文件。
 用户后续单/双手 22～24 FPS 日志来自本次会话，表中已明确其来源。
+
+## 2026-10-10：XR Hands 阶段 2 补充
+
+新增独立 HXQ 内参/外参配置、单目米制估算和 21→26 关节转换；所有空间输出明确为估算，
+未测配置现在仅提示，缺少参数时补开发预览默认值，允许继续发布估算结果。
+标定工具、JSON 加载和严格测量评估保留，精度验收暂缓。Android AAR 未变，GPU/VIDEO/手动曝光基线保留。
+手机标定采集场景可通过示例广播 `scene=calibration` 进入、`scene=capture` 保存图像。
+摄像头安装位置已固定，用户可采集；实际内参/外参及静态、动态对位仍待验收，
+不能复用 RhinoX 候选参数。采集、拟合和误差报告步骤见 [阶段 2](UNITY_XR_HANDS_STAGE2.md)。
+本次还没有将真实输入接入 XRHandSubsystem，这项工作在阶段 3。
+
+同日示例补充：手机分支启用 `HandTrackingDemo`，UVC 分支使用阶段 2 转换器显示独立三维手骨架，
+关闭手势场景的相机预览矩形；预览保留在标定采集场景。缺少标定时使用开发默认值并提示，
+通过 `uvcCalibrationJson` TextAsset 仍可加载参数。绿色 Left、青色 Right；加载的 `swapHandedness` 同步修正骨架与文字。
+这里只提供物理头部局部空间的随头预览，没有加入真实 XR Hands Provider 或世界空间手部跟踪。
+采集 640×480 @30，Android 实际模型输入及预览均为全视野 384×288。
+编辑器集成验证 104 项通过，覆盖双手骨架、输入顺序变化、加载配置/左右手修正、退化、超时隐藏和启停恢复：
+`build/logs/uvc-3d-hand-demo-check.log`。
+
+用户确认镜片中只有左右反向、上下正常：小米 `reflectHandDisplayX=true` 仅在手骨架/捏合指针展示时
+取反 X，物理转换、手别、相机输入与头姿不变。当前光路与输出方向的组合决定补偿轴，
+不是所有单次反射都应反 X。补偿集成验证 150 项通过：`build/logs/uvc-3d-hand-mirror-check.log`。
+
+用户确认移动方向已正确，但真实左手的原始标签为 Right，真实右手为 Left。
+小米/HXQ 无标定预览启用 `uvcSwapHandedness=true`，统一修正骨架颜色、文字、手势和捏合的解剖手别。
+显示层 X 补偿继续保留，不再次镜像位置；原始帧不改写。已加载标定 JSON 时以 `swapHandedness` 为准，
+包括 false；此安装的配置应填 true。阶段 3 接入默认参数时需继承 Host 的这一设置。
+Unity 集成验证 161 项通过：`build/logs/uvc-3d-hand-handedness-check.log`。
+
+翻手反馈之后，新增图像空间的连续身份关联与最多 150 ms 的显示退化保留；严格空间转换仍拒绝不可靠几何。
+Android 增加独立左右手置信度，Unity 记录手别跳变、拒绝原因、恢复、超时与关键点分片快照。
+UI 的 G/rawH 分别代表手势和原始手别分数，不能互用；LOCK 表示连续身份锁定覆盖了当前原始标签。
+当前仍需抓实际侧掌数据决定后续深度方案。
+新 Android AAR 为本地未提交源码构建，锁文件已记录本地状态及修改文件哈希，生成 AAR 继续忽略。
+抓取命令、日志字段、行为限制和当前制品来源见 [翻手诊断文档](UVC_HAND_DIAGNOSTICS.md)。
+
+### 同日补充：依据翻手日志改善侧掌和漏检显示
+
+实机日志 uvc-hand-turn.log 显示 Palm axes disagree、原始手别跳变和 not detected；因此增加展示退化。
+同一身份侧掌造成掌宽/掌长深度冲突时，沿用最近有效相机距离，并投影当前 21 点，显示 depth-held。
+距离仅在正常几何恢复时更新；不能跨身份继承，关键点不完整/越界或其他拒绝原因不进入该路径。
+短暂漏检保留最近画面最多 120 ms，显示 missing-held，按渲染帧到期隐藏。
+严格空间转换仍是 Untracked；退化画面不悬停或选择目标。先以正常掌姿获得距离，再翻手验收。
+快照分片改为 600 字符，避免实机 1400 字符分片被截断。日志增加左右相机距离与漏检保留到期事件。
+Unity 集成检查 188 项通过：build/logs/uvc-side-palm-check-final.log，包含持续侧掌、关键点跟随、
+身份重建禁止复用旧距离、漏检到期无新帧也隐藏及全部快照分片重建 JSON。
+操作与限制见 [翻手诊断文档](UVC_HAND_DIAGNOSTICS.md)。
+
+### Unity XR Hands 阶段 3 实机复测（2026-10-10）
+
+真实 UVC 输入已接入标准 XR Hands。用户确认左右手骨架、移动方向、双手显示和手移出/返回恢复正常。
+USB 拔插后重新获取并人工确认权限，可以恢复识别。
+首次打开应用和 USB 重插后的权限确认流程记录为 **UVC-PERM-001**，暂缓处理；
+后续需区分 USB 设备授权与 Android 运行时权限，排查请求/回调/重连流程并改善重复请求及拒绝后重试。
+详细记录与后续验收见 [阶段 3 文档](UNITY_XR_HANDS_STAGE3.md)。
+
+### Unity XR Hands 阶段 4（2026-10-10）
+
+XRI 射线、捏合选择与 UI 点击已实现，39 项契约检查、54 项集成检查及 20 次设备启停通过。
+APK 已安装，无摄像头场景显示、场景往返及前后台恢复通过。
+用户暂不连接摄像头，真实交互保留待验收；操作和完整清单见 [阶段 4 文档](UNITY_XR_HANDS_STAGE4.md)。
+
+### 3DOF UI 与标准手势调整（2026-10-12）
+
+当前交互场景移除可见射线、白球、骨架与可选方块，仅用食指圆圈配合普通 Unity Button 捏合点击。
+应用使用 Unity XR / XR Hands / XRI 标准接口；手势定义使用 XRHandShape/XRHandPose，事件使用官方 Gestures 样例 StaticHandGesture。没有新增 Spatial 专有手势事件。
+自动验证通过 46 项契约与 142 项集成检查，含双手 UI、丢失恢复、官方手势事件和生命周期。实机佩戴验收继续保留，操作见 [阶段 4 文档](UNITY_XR_HANDS_STAGE4.md)。
+### 2026-10-12：保留骨架与方块，圆圈不受捏合弯曲影响
+
+恢复标准 XR Hands 骨架和两个 XRSimpleInteractable 方块，保留世界固定位置与普通 UI。圆圈使用食指根部加掌部横轴 15mm 偏移，与骨架采用相同显示倍率和反射补偿；不读取弯曲指尖来定位，不在捏合时冻结位置，整手移动实时更新。
+调试文字顶边下移至约 0.95 单位，字体 30，添加深色背景；OPEN/FIST/PINCH/NONE 合并在左右手文字状态中，不显示按钮式手势块。
+应用事件继续使用 Unity XR Hands 官方 StaticHandGesture / XRHandTrackingEvents，方块使用 XRSimpleInteractable，按钮使用 Button.onClick；不新增应用手势接口。
+全新 Unity 工程验证日志：`build/validation/xr-hands-stage4-2e8da17e8f9d443e84fb14bd033b2287/verification.log`。检查覆盖圈选方块、松手释放、捏合前后位置不变、捏合期间整手移动、骨架恢复、手势文字与无按钮式图形、下移背景及字体大小、双手 UI 和丢失恢复。
+APK：`build/samples/android/spatialxr-xri-hand-circle-cubes.apk`；SHA256 `40f229edd0416f949dc71cfb2a0fd7a05b2b44dd31dc72adc6c96242cceefa7d`，v2 签名通过，已安装至 10.168.2.104:5555。
+实机日志及截图：`build/logs/xri-hand-circle-cubes-device.log`、`build/logs/xri-hand-circle-cubes-device.png`。启动确认骨架/方块开启、visibleRays=false、cursorPinchHold=false，UVC 约 30 FPS，GPU VIDEO 识别正常启动，无运行时异常。截图确认骨架、圆圈、两方块、下移文字 UI，且方块悬停正常；镜片合相、圆圈相对食指位置、捏合稳定性和手势准确性仍需人工验收。
+### 2026-10-12：按视频调整圆圈位置、目标跟随视线、中央调试面板
+
+依据 `C:/Users/Administrator/456.mp4`，圆圈改用拇指尖与食指尖中点的视线投影，固定深度 0.72 × 展示倍率（默认 2.16 单位）；仅改位置，原有圆环网格、尺寸、材质与颜色逻辑保留。保留骨架和标准 XRI 交互，不新增应用手势接口。
+方块与普通 UI 改为 XR 相机局部坐标，随头部转动保持视野位置。调试面板位于方块下方、按钮上方，顶边高 -0.12、底边 -0.46、深度 2.8；深色背景和文字比方块近表面 3.975 更近，避免方块遮挡，不拦截输入。
+验证日志：`build/validation/xr-hands-stage4-2e8da17e8f9d443e84fb14bd033b2287/verification-thumb-index-follow.log`。通过 46 项契约、171 项集成检查、20 次生命周期循环、7 次模拟 UI 点击；覆盖圆环尺寸保留、中点镜面投影与深度变化、方块/按钮随相机转动、调试背景前后关系、捏合和丢失恢复。
+APK：`build/samples/android/spatialxr-xri-thumb-index-follow.apk`；SHA256 `a105c32e41651669e53aa21960c199bcb82516c95dcf5d11147407bef7ce3709`，v2 签名通过，已安装至 10.168.2.104:5555 并切换到 xri 场景。
+实机日志与截图：`build/logs/xri-thumb-index-follow-device.log`、`build/logs/xri-thumb-index-follow-device.png`。日志确认 thumbIndexCursor、headLocked、centralBackground，UVC 约 30 FPS、手动曝光 16.6ms、GPU VIDEO 推理启动。截图确认调试面板在中部偏下，与方块和按钮错开；当前真实输入 hands=0，圆圈相对手部位置、捏合体验及镜片可读性仍待佩戴人工验收。
+
+### 2026-10-12：默认 CPU、SDK 统一补偿与三项 FPS
+
+Android MediaPipe 默认改为 CPU / VIDEO；SDK 配置项和 Demo 原广播的 `inferenceDelegate` 支持 CPU/GPU 切换。
+应用手部与交互仍使用 Unity XR / XR Hands / XRI 标准接口，没有新增应用手势事件。
+身份关联、侧掌最近距离投影、短暂骨架保留和漏检隐藏迁入基础 SDK，由旧 hands 场景和标准 XR Hands 可视化共用，旧场景不再独立补偿。
+显示缓存不作为有效跟踪数据，不触发悬停、点击或手势事件。相机、后端或识别状态失效时清空缓存。
+三个场景调试 UI 增加 AI / UVC / Render FPS 与实际 CPU/GPU；无手结果仍显示推理帧率，过期后清零。
+xri 面板增加一行，底边 -0.54、按钮高 -1.15，维持中央背景与目标错开。圆圈位置和样式、骨架与方块保留。
+
+阶段 3 109 项、阶段 4 47 项契约与 172 项集成、旧场景 191 项检查通过；标准生命周期和 UI 回归通过。
+实机 CPU → GPU → CPU 切换、旧场景往返通过；最终 APK 已安装至 10.168.2.104，恢复 CPU xri。
+当前实际输入 hands=0，迁移后的翻掌/双手/捏合效果和镜片显示仍需佩戴复测。
+完整命令、策略、限制、制品哈希与验证日志见 [SDK 补偿文档](UVC_HAND_SDK_COMPENSATION.md)。
+
+### 2026-10-12：SDK 消费工程交付
+
+用户已确认此前 CPU 默认、侧掌/手别补偿和基础交互无问题。SDK 四个版本化包、安装/升级说明与独立示例已完成本地预览交付；隔离工程导入、标准接口模拟运行、升级保留和 Android 构建通过。用户新工程已配置交互包和两个场景，并通过模拟运行检查。
+新 APK 的手机安装被设备限制拦截，真实消费工程 UVC/3DOF 验收保留；不将模拟结果当作真实识别性能验收。USB 权限与小米光学/标定待办不变。详细结果见 [阶段 5](UNITY_XR_HANDS_STAGE5.md)。
+
+### 2026-10-12：本轮接入完成与文件整理
+
+后续用户确认消费工程 APK 手势场景正常，Android XR 配置后显示正常，并确认基础 SDK tgz 自动安装三个配套包验证没有问题。本轮 Unity XR Hands/XRI 接入及预览 SDK 安装交付完成，详见 [阶段 5](UNITY_XR_HANDS_STAGE5.md)。
+SDK/Android 源码、示例、文档、标定工具和回归验证工具保留并暂存；用户确认后，21 个一次性迁移/用户 Demo 操作脚本和旧安装记录已删除。清单见 [改动与暂存清单](UNITY_XR_HANDS_CHANGE_REVIEW.md)。USB 授权、光学与米制精度、长时间性能及跨机型验证继续保留。

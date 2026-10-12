@@ -1,0 +1,262 @@
+{
+    "name": "Spatial Hand Actions",
+    "maps": [
+        {
+            "name": "LeftHand",
+            "id": "eac88644-5ae9-4aab-87e3-17af37b596c3",
+            "actions": [
+                {
+                    "name": "devicePosition",
+                    "type": "Value",
+                    "id": "f896cb09-9e34-450d-b15b-af66d37d3472",
+                    "expectedControlType": "Vector3",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "deviceRotation",
+                    "type": "Value",
+                    "id": "d40eb798-2bcf-47d4-bd9c-f6c632100b9a",
+                    "expectedControlType": "Quaternion",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "isTracked",
+                    "type": "Button",
+                    "id": "ae62cb8f-0d57-4d03-ba77-49050df2a4d1",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "trackingState",
+                    "type": "Value",
+                    "id": "ecb7716a-dd5f-4aa3-b4b8-5a6ceaffa7c6",
+                    "expectedControlType": "Integer",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "pinch",
+                    "type": "Button",
+                    "id": "d43778ae-85de-4713-bb13-685127613326",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "pinchStrength",
+                    "type": "Value",
+                    "id": "5565fd80-ae8f-4cd8-bd30-2f2bdad40a6d",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "6f666477-124a-4da6-b276-6f96219bcc29",
+                    "path": "<SpatialHandInputDevice>{LeftHand}/devicePosition",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "devicePosition",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "79a2d56a-3749-4093-9c5d-7fef68bbae7b",
+                    "path": "<SpatialHandInputDevice>{LeftHand}/deviceRotation",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "deviceRotation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "70e379ff-e63e-46d7-a929-e2bb3dc88c90",
+                    "path": "<SpatialHandInputDevice>{LeftHand}/isTracked",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "isTracked",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b00b41fe-c354-45ee-8317-84e432850118",
+                    "path": "<SpatialHandInputDevice>{LeftHand}/trackingState",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "trackingState",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "c6fb6c2b-12ee-48ba-a21a-2f0fcc0fe0ce",
+                    "path": "<SpatialHandInputDevice>{LeftHand}/pinch",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "pinch",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "707d4023-5eea-4846-b130-ae8d3719423d",
+                    "path": "<SpatialHandInputDevice>{LeftHand}/pinchStrength",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "pinchStrength",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "RightHand",
+            "id": "5947893e-f5f7-4f1c-a5b6-68ebdea1658c",
+            "actions": [
+                {
+                    "name": "devicePosition",
+                    "type": "Value",
+                    "id": "1ff61c03-3706-4969-9346-2dbbe9a26110",
+                    "expectedControlType": "Vector3",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "deviceRotation",
+                    "type": "Value",
+                    "id": "375d4622-a6de-4e87-b792-347c7ffaa01b",
+                    "expectedControlType": "Quaternion",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "isTracked",
+                    "type": "Button",
+                    "id": "c6192bcc-9fc7-4be0-a0b6-938d34d60531",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "trackingState",
+                    "type": "Value",
+                    "id": "50066c63-67a7-4554-9845-e15c65337462",
+                    "expectedControlType": "Integer",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "pinch",
+                    "type": "Button",
+                    "id": "fdab46bd-6f7c-4c28-b018-618145e2a39f",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "pinchStrength",
+                    "type": "Value",
+                    "id": "f0ece09b-2d99-4be9-8769-ab5f5c7c4dc3",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "7bc2ee38-2299-4fdd-9080-9fecdb88113c",
+                    "path": "<SpatialHandInputDevice>{RightHand}/devicePosition",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "devicePosition",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "84c90760-b88d-479b-8f14-67029415a9c1",
+                    "path": "<SpatialHandInputDevice>{RightHand}/deviceRotation",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "deviceRotation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b3e64148-b5f2-44ec-8c33-76238b7059a8",
+                    "path": "<SpatialHandInputDevice>{RightHand}/isTracked",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "isTracked",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "75cf68b4-0e99-4724-97c7-328d6f0d2986",
+                    "path": "<SpatialHandInputDevice>{RightHand}/trackingState",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "trackingState",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "bcb0d345-8ebf-4fe4-a159-d1d0c96a7774",
+                    "path": "<SpatialHandInputDevice>{RightHand}/pinch",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "pinch",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "2f443508-b763-4318-b248-88b687a3051a",
+                    "path": "<SpatialHandInputDevice>{RightHand}/pinchStrength",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "pinchStrength",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

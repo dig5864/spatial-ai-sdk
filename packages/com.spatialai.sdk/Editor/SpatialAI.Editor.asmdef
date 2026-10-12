@@ -1,1 +1,14 @@
-{ "name": "SpatialAI.Editor", "rootNamespace": "SpatialAI.Editor", "references": ["SpatialAI.Core", "SpatialAI.Unity"], "includePlatforms": ["Editor"] }
+{
+  "name": "SpatialAI.Editor",
+  "rootNamespace": "SpatialAI.Editor",
+  "references": [
+    "SpatialAI.Core",
+    "SpatialAI.Unity",
+    "Unity.InputSystem",
+    "Unity.XR.Management",
+    "Unity.XR.Management.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ]
+}

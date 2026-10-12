@@ -1,0 +1,21 @@
+{
+  "name": "com.spatialai.xr-interaction",
+  "version": "0.1.0-preview.2",
+  "displayName": "Spatial AI XR Interaction",
+  "description": "3DOF fingertip UI pointers and standard Unity XR Hands gesture examples.",
+  "unity": "2022.3",
+  "dependencies": {
+    "com.spatialai.xr-hands": "0.1.0-preview.2",
+    "com.unity.xr.interaction.toolkit": "2.5.4",
+    "com.unity.inputsystem": "1.7.0",
+    "com.unity.ugui": "1.0.0",
+    "com.unity.textmeshpro": "3.0.6"
+  },
+  "samples": [
+    {
+      "displayName": "Hands Interaction",
+      "description": "Fingertip circles, pinch UI and Unity XR Hands gesture events; Cardboard setup required.",
+      "path": "Samples~/HandsInteraction"
+    }
+  ]
+}

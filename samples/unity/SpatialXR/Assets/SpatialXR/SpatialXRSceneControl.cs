@@ -27,7 +27,7 @@ namespace SpatialAI.Samples
             using (var receiver = new AndroidJavaClass("com.spatialai.samples.SpatialXRSceneControl"))
                 receiver.CallStatic("register", activity);
 #endif
-            Debug.Log("Spatial XR scene control ready: imu / hands / optics");
+            Debug.Log("Spatial XR scene control ready: imu / hands / xrhands / xri / optics / calibration / capture");
         }
 
         // Invoked by Android UnitySendMessage; keep this method in IL2CPP builds.
@@ -42,7 +42,15 @@ namespace SpatialAI.Samples
             {
                 case "imu": case "imudiagnostics": target = "ImuDiagnostics"; break;
                 case "hands": case "hellospatialxr": target = "HelloSpatialXR"; break;
+                case "xrhands": case "uvcxrhands": target = "SpatialUvcXRHands"; break;
+                case "xri": case "interaction": target = "SpatialHandInteraction"; break;
                 case "optics": case "opticscomparison": target = "OpticsComparison"; break;
+                case "calibration": target = "SpatialUvcCalibration"; break;
+                case "capture":
+                    var recorder = FindObjectOfType<SpatialUvcCalibrationRecorder>();
+                    if (recorder != null) recorder.Capture();
+                    else Debug.LogWarning("SpatialCalibration: switch to calibration before capture.");
+                    return;
                 default:
                     Debug.LogWarning("Spatial XR scene switch rejected: " + scene);
                     return;
@@ -52,6 +60,10 @@ namespace SpatialAI.Samples
                 Debug.LogWarning("Spatial XR scene switch rejected: scene not included in APK: " + target);
                 return;
             }
+            var backend=SpatialHandTracking.InferenceBackend;
+            if(parts.Length>=5&&!string.IsNullOrWhiteSpace(parts[4])&&
+                (!System.Enum.TryParse(parts[4],true,out backend)||!System.Enum.IsDefined(typeof(SpatialHandInferenceBackend),backend)))
+            {Debug.LogWarning("Spatial XR inference request rejected: use CPU or GPU.");return;}
             if (parts.Length >= 4)
             {
                 int mode, timeUs;
@@ -68,6 +80,8 @@ namespace SpatialAI.Samples
             }
             requestedScene = target;
             SpatialHandTracking.GestureRecognitionEnabled = gestures;
+            SpatialHandTracking.InferenceBackend=backend;
+            Debug.Log("Spatial XR inference backend requested: "+backend);
             Debug.Log("Spatial XR gestures enabled: " + gestures);
             Debug.Log("Spatial XR scene switch requested: " + target);
         }

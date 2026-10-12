@@ -27,8 +27,14 @@ public final class SpatialXRSceneControl {
                 boolean gestures = intent.getBooleanExtra("gestures", true);
                 int exposureMode = intent.getIntExtra("exposureMode", -1);
                 int exposureTimeUs = intent.getIntExtra("exposureTimeUs", -1);
+                String inferenceDelegate=intent.getStringExtra("inferenceDelegate");
+                inferenceDelegate=inferenceDelegate==null?"":inferenceDelegate.trim().toUpperCase(java.util.Locale.ROOT);
+                if (!inferenceDelegate.isEmpty() && !"CPU".equals(inferenceDelegate) && !"GPU".equals(inferenceDelegate)) {
+                    Log.w("SpatialXRScene","Ignored broadcast: inferenceDelegate must be CPU or GPU");
+                    return;
+                }
                 UnityPlayer.UnitySendMessage("SpatialXRSceneControl", "SwitchScene", scene + "|" +
-                    (gestures ? "1" : "0") + "|" + exposureMode + "|" + exposureTimeUs);
+                    (gestures ? "1" : "0") + "|" + exposureMode + "|" + exposureTimeUs+"|"+inferenceDelegate);
             }
         };
         IntentFilter filter = new IntentFilter(action);

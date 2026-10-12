@@ -26,10 +26,12 @@ Unity Android 构建回调会在菜单、自动构建和 batchmode 打包前运�
 
 ## 通过 ADB 切换场景
 
-手势识别使用 MediaPipe `VIDEO` 模式，优先 GPU 推理、最多两只手；有效跟踪时可复用连续帧结果，
+手势识别使用 MediaPipe `VIDEO` 模式，默认 CPU 推理、最多两只手；有效跟踪时可复用连续帧结果，
 减少重复手掌检测。`SpatialHands` 日志包含 `runningMode=VIDEO` 和 `delegate=GPU/CPU`。
 GPU 模型在相机消费线程中创建、调用和释放。GPU 初始化失败时明确记录错误并回退 CPU；
 以日志中的实际 delegate 为准。
+广播新增 `--es inferenceDelegate GPU` 或 `CPU`，可在 `hands`、`xrhands`、`xri` 中切换；省略保留当前设置，新进程默认 CPU。
+三个场景显示 AI/UVC/Render FPS，旧场景和 XR Hands 场景已共用 SDK 补偿，详见 [SDK 补偿与推理配置](../../../docs/UVC_HAND_SDK_COMPENSATION.md)。
 输入使用帧时间戳并保证毫秒值严格递增；手势开关不会重置同一模型实例的时间戳。
 
 可在相同广播中设置曝光：`--ei exposureMode 1 --ei exposureTimeUs 16600` 表示手动曝光 16.6 ms，
@@ -192,3 +194,56 @@ imu 配置字段：
 两项同时开启时采用四元数变换 `qView=(-qHead.x, qHead.y, -qHead.z, qHead.w)`，对应垂直反射下旋转轴的转换。Yaw 保持，Pitch 和 Roll 反向；该变换保留旋转的乘法组合关系，不经欧拉角拆解。这里补偿的是视图姿态，原始 IMU 与固定安装映射不变，也不把 Roll 锁为零。单开俯仰时仍支持 v5 的行为。
 
 实机验收须正常佩戴后归零：抬头背景向下，右转背景向左，右倾时背景相对视野向左倾并与现实水平线保持一致；再测试右转后抬头、右转后侧倾和往返动作。数学检查覆盖非零 Yaw/Pitch/Roll、四种开关组合以及连续旋转组合关系。此配置仍标记 UNVERIFIED，等待镜片中的实测确认。
+
+## UVC 棋盘格采集（2026-10-10）
+
+手机 `hands` 场景现在启用三维手骨架：使用 `SpatialUvcHandsConverter` 将 UVC 归一化关键点
+转换成物理头部局部空间的米制估算点，显示为独立 3D 骨架；不叠加到相机图像。
+手势场景不显示 UVC 预览矩形，原始预览仍可在以下采集场景查看。
+采集为 640×480 @30，Android 模型输入和 Unity 预览均缩小为全视野 384×288。
+默认无标定也显示，HUD 明示 `3D ESTIMATED` 与默认/未确认参数状态。
+可给 `HelloSpatialXR.uvcCalibrationJson` 赋值 TextAsset，优先使用实测配置；不能复用 RhinoX 内参。
+绿色骨架表示 Left、青色表示 Right；默认使用原始标签，标定中的 `swapHandedness` 会同步修正骨架和手势文字。
+实际左右对应仍需人工确认。
+当前小米/HXQ 无标定预览已根据用户实测启用 Host 的 `uvcSwapHandedness=true`：
+原始 Right → 真实 Left（绿色），原始 Left → 真实 Right（青色），调试文字和捏合状态同步对应。
+这是相机输入的手别映射，与显示层 X 反射独立；不重新反转位置或镜像输入图像。
+赋值 `uvcCalibrationJson` 后以该 JSON 的 `swapHandedness` 为准（包括 false）；此安装的配置应填 true。
+直接使用 HandTrackingDemo 且不加载 JSON 时，可设置组件的 `defaultUvcSwapHandedness`。
+手离开/结果超过 0.35 秒后骨架隐藏，调试面板显示手势类别和捏合计数。
+这是随头部的预览，不是房间尺度追踪；标准 `XRHandSubsystem` 消费使用阶段 3 新增的 `xrhands` 场景，见
+[阶段 3 文档](../../../docs/UNITY_XR_HANDS_STAGE3.md)。旧 `hands` 场景保留独立预览和显示退化路径。
+
+食指圆圈/UI 交互使用 `--es scene xri`（或 `interaction`），通过可选 XR Interaction 包构建进 APK。
+保留手骨架与两个方块；圆圈参照 `456.mp4` 放在拇指/食指中点的投影位置，原有圆环样式不变。先张开手，将圆圈对准方块捏合选中、松开释放，或对准按钮捏合松开增加点击计数。方块和按钮跟随 XR 相机；调试面板位于视野中部偏下，带深色背景且比方块更近。无可见射线/白球，捏合不锁定圆圈位置。
+调试文字下移并显示 OPEN/FIST/PINCH/NONE，不绘制按钮式手势块。
+应用手势使用 Unity XR Hands 官方 Gestures 样例组件及 XRHandShape/XRHandPose。构建前先导入官方样例并等待编译，再生成交互场景；接入不新增 Spatial 手势事件接口。
+配置、动作资产、prefab 和失效行为见 [阶段 4 文档](../../../docs/UNITY_XR_HANDS_STAGE4.md)。
+日志 `SpatialHands3D:` 的 left/right 表示经过几何校验后的骨架是否有效；`SpatialHands` 的 hands 表示检测数量。
+用户通过镜片确认手部显示只有左右反向、上下正常；小米 Host 配置启用 `reflectHandDisplayX=true`。
+示例在最终显示骨架/捏合指针时执行 `(x,y,z) → (-x,y,z)`，只补偿当前镜片与输出方向的组合效果。
+这不修改 `inputMirrored`、`swapHandedness`、SDK 物理关节或 IMU；不能通过旋转四元数表示反射。
+其他 Host 默认关闭；更换镜片/安装/输出方向后重新确认，不能从单次反射数量推断该轴。
+直接使用 HandTrackingDemo 的工程可在组件上设置 `reflectUvcDisplayX`；XR Hands 的物理数据仍保持反射前坐标。
+编辑器集成验证：将 `tests/UnitySmoke/UvcHandDemoCheck.cs` 和 `tests/CoreChecks/UvcGeometryChecks.cs`
+复制到已有 Cardboard 示例的 `Assets/Editor`，使用 `-executeMethod UvcHandDemoCheck.Run` 执行。
+
+翻手诊断版增加手别连续关联、150 ms 的显示退化保留及问题关键点快照。
+UI 用 G/rawH 分开显示手势分数/原始左右手置信度，标签锁定时显示 LOCK；`fresh`/`held`/`hidden` 表示空间显示状态。
+抓取关键字 `SpatialHandsDiag`（logcat tag 为 Unity），操作与字段详见
+[UVC 翻手诊断](../../../docs/UVC_HAND_DIAGNOSTICS.md)。
+
+新构建包含 `SpatialUvcCalibration` 场景。运行 App 后用原广播接口的 `--es scene calibration`
+进入采集场景，保持 `--ez gestures true --ei exposureMode 1 --ei exposureTimeUs 16600`。
+点 Capture 或发 `--es scene capture` 保存预览图和同名相机元数据。
+采集图保存在应用 `persistentDataPath/uvc-calibration/`；保持摄像头安装位置固定，采集 25～30 张多角度棋盘图。
+当前保存的是 384×288 全视野 JPEG 预览解码图，不能当成原生 640×480 无损帧。
+打印板、导出、拟合和精度验证见 [阶段 2 文档](../../../docs/UNITY_XR_HANDS_STAGE2.md)。
+
+### 手势场景远距离显示（2026-10-10）
+
+为方便合相调整，HandTrackingDemo 的 presentationDistanceScale 默认 3，可在 Inspector 启动前设置 1～10。
+骨架、目标、指针、调试 UI 和背景统一放在相机下的展示根节点，以等比缩放放远，保持原有角大小和局部交互坐标。
+目标从 0.8 m 显示到 2.4 m；UI 从 1.8 m 显示到 5.4 m；骨架显示距离为转换输出的 3 倍。
+UI characterSize 从 0.006 改到 0.0075，额外放大 25%，背景同步扩大 25%。
+这是显示距离调整，SDK 关节、标定与日志中的物理估计距离保持不变；不能据此宣称完成双眼光学校准。

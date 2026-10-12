@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0-preview.10
+
+- 默认 CPU / VIDEO 推理，可配置 GPU；UVC 身份与显示补偿由 SDK 统一处理。
+- 提供独立显示/3DOF 示例、Android XR 配置和构建回调，发布消费者不依赖开发仓库路径。
+- 配套 XR Hands / XR Interaction 发布包、标准手势资源、三项 FPS 与安装升级文档。
+
 ## 0.2.0-preview.9
 
 - Switched gesture classification to image mode after the RhinoX device's video graph failed when hands appeared.
