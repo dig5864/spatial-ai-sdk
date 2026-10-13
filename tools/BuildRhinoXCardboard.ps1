@@ -95,6 +95,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Cardboard native build failed.' }
 $library = Join-Path $build 'libGfxPluginCardboard.so'
 $nm = Join-Path $NdkPath 'toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-nm.exe'
 $symbols = & $nm -D $library
+if (!($symbols -match 'CardboardUnity_configureSpatialPhoneDisplay') -or !($symbols -match 'CardboardUnity_getAppliedPhoneDisplayRevision')) {
+    throw 'Phone display configuration/revision API symbols are missing.'
+}
 if ($LASTEXITCODE -ne 0 -or !($symbols -match 'CardboardUnity_configureSpatialOptics') -or !($symbols -match 'CardboardUnity_clearSpatialOptics') -or !($symbols -match 'CardboardUnity_isSpatialOpticsApplied') -or !($symbols -match 'CardboardUnity_configureSpatialTracking') -or !($symbols -match 'CardboardUnity_getSpatialTracking') -or !($symbols -match 'CardboardUnity_clearSpatialTracking') -or !($symbols -match 'CardboardUnity_setHostViewCompensation')) {
     throw 'RhinoX native API symbols are missing.'
 }

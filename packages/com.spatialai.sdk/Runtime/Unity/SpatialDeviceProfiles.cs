@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SpatialAI.Core;
 using UnityEngine;
@@ -16,7 +17,26 @@ namespace SpatialAI.Unity
                 catch (System.Exception e)
                 { profile = null; return new Result(ErrorCode.InvalidArgument, "Invalid host profile " + asset.name + ": " + e.Message); }
             }
-            return HostDeviceProfileSelector.Select(identity, catalog, out profile);
+            var result = HostDeviceProfileSelector.Select(identity, catalog, out profile);
+            if (identity == null) return result;
+            // Unknown phone on an explicitly configured fixed rig. Preserve all
+            // exact-match/invalid-profile errors; do not borrow Xiaomi identity.
+            bool rhinoX = string.Equals(identity.Manufacturer, "QUALCOMM", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(identity.Model, "RhinoX", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(identity.DeviceCode, "kona", StringComparison.OrdinalIgnoreCase);
+            var rig = profile == null && result.Code == ErrorCode.Unsupported && !rhinoX && string.IsNullOrEmpty(identity.HeadsetId)
+                ? SpatialPhoneScreen.LoadRig() : null;
+            if (rig != null)
+            {
+                profile = new HostDeviceProfile { schemaVersion = 1, profileId = rig.rigId + "-phone-development",
+                    manufacturer = identity.Manufacturer, model = identity.Model, deviceCode = identity.DeviceCode,
+                    nativePortraitWidth = Math.Min(Screen.width, Screen.height), nativePortraitHeight = Math.Max(Screen.width, Screen.height),
+                    targetFrameRate = 60, displayMode = "phone-cardboard", trackingSource = "phone-cardboard", cameraSource = "external-uvc",
+                    imu = rig.phoneImu, invertViewPitch = rig.invertViewPitch, invertViewRoll = rig.invertViewRoll,
+                    reflectHandDisplayX = rig.reflectHandDisplayX, uvcSwapHandedness = rig.uvcSwapHandedness };
+                return profile.Validate();
+            }
+            return result;
         }
 
         public static DeviceIdentity ReadHostIdentity(string externalHeadsetId = null)

@@ -9,6 +9,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="HandContractChecks.cs" />
     <Compile Include="UvcGeometryChecks.cs" />
+    <Compile Include="ScreenLayoutChecks.cs" />
     <Content Include="../../packages/com.spatialai.sdk/Runtime/Unity/Resources/SpatialAI/HostProfiles/xiaomi-mayfly.json" Link="xiaomi-mayfly.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
