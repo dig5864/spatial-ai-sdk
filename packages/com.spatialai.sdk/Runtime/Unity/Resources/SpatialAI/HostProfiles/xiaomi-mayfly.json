@@ -11,7 +11,16 @@
   "trackingSource": "phone-cardboard",
   "cameraSource": "external-uvc",
   "validatedForHardware": false,
-  "referenceEyeRects": [268.220, 157.045, 865.054, 865.054, 1266.727, 157.045, 865.054, 865.054],
+  "referenceEyeRects": [
+    268.22,
+    157.045,
+    865.054,
+    865.054,
+    1266.727,
+    157.045,
+    865.054,
+    865.054
+  ],
   "referenceOutputRotate180": true,
   "invertViewPitch": true,
   "invertViewRoll": true,
@@ -21,10 +30,17 @@
     "calibrationVersion": "xiaomi-mayfly-reflected-view-pitch-roll-candidate-v6",
     "sourceFrame": "cardboard-unity",
     "screenOrientation": "landscape-left",
-    "basisX": 0, "basisY": 0, "basisZ": 0, "basisW": 1,
-    "mountX": 0.38268343, "mountY": 0, "mountZ": 0, "mountW": 0.92387953,
+    "basisX": 0,
+    "basisY": 0,
+    "basisZ": 0,
+    "basisW": 1,
+    "mountX": 0.38268343,
+    "mountY": 0,
+    "mountZ": 0,
+    "mountW": 0.92387953,
     "preserveNeckModel": false,
     "invertInputRotation": false,
     "validatedForHardware": false
-  }
+  },
+  "reverseStereoBaseline": true
 }

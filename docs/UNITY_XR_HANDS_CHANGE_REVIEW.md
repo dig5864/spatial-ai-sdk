@@ -121,8 +121,8 @@ Stage5Authoring 的复用方式：在安装全部 SDK 配套包的新隔离 Unit
 | M | [docs/VALIDATION.md](D:/visor-x/spatial-ai-sdk/docs/VALIDATION.md) |
 | M | [docs/XIAOMI_OPTICS_SCALE_VALIDATION.md](D:/visor-x/spatial-ai-sdk/docs/XIAOMI_OPTICS_SCALE_VALIDATION.md) |
 | A | [docs/calibration/hxq-board-9x6-20mm.svg](D:/visor-x/spatial-ai-sdk/docs/calibration/hxq-board-9x6-20mm.svg) |
-| A | [docs/calibration/hxq-calibration.template.json](D:/visor-x/spatial-ai-sdk/docs/calibration/hxq-calibration.template.json) |
-| A | [docs/calibration/hxq-extrinsics-points.template.json](D:/visor-x/spatial-ai-sdk/docs/calibration/hxq-extrinsics-points.template.json) |
+| A | [docs/calibration/hxq-calibration-active.json](D:/visor-x/spatial-ai-sdk/docs/calibration/hxq-calibration-active.json)（2026-10-15 合并为当前有效配置） |
+| — | 外参点对模板现内嵌于 [阶段 2 标定流程](D:/visor-x/spatial-ai-sdk/docs/UNITY_XR_HANDS_STAGE2.md)，不再另存 HXQ JSON 模板 |
 | A | [docs/calibration/hxq-hand-accuracy.template.csv](D:/visor-x/spatial-ai-sdk/docs/calibration/hxq-hand-accuracy.template.csv) |
 | M | [packages/com.spatialai.sdk/CHANGELOG.md](D:/visor-x/spatial-ai-sdk/packages/com.spatialai.sdk/CHANGELOG.md) |
 | A | [packages/com.spatialai.sdk/Documentation~.meta](D:/visor-x/spatial-ai-sdk/packages/com.spatialai.sdk/Documentation~.meta) |

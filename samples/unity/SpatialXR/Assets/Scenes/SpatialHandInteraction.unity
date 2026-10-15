@@ -154,7 +154,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   xrCamera: {fileID: 2046211539}
   useSimulation: 0
-  calibrationJson: {fileID: 0}
+  calibrationJson: {fileID: 4900000, guid: 9deb27e5a11b4d6294807cc3cad2e902, type: 3}
   interactionRigPrefab: {fileID: 1058339696426763800, guid: 6453c97e204019543b425315b4a2273a, type: 3}
 --- !u!4 &1277691921
 Transform:

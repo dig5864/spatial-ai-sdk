@@ -1,6 +1,6 @@
 # Unity XR Hands 阶段 2：UVC 空间转换与标定工具
 
-日期：2026-10-10。**软件与采集工具已实现；实机内参、安装外参和手部对位尚未验收。**
+日期：2026-10-10；最新进展：2026-10-15。**HXQ 实测内参已加载，手动对位在约 30/40/60 cm 获用户确认；独立外参测量与硬件精度尚未验收。**
 用户已确认 HXQ 摄像头固定在最终头戴位置，可以采集棋盘格。
 根据后续决定，精度验收暂缓，缺少标定只提示、不阻止开发；标定工具和参数加载保留。
 本文记录阶段 2 的交付；后续真实 UVC Provider、超时与恢复已在 [阶段 3](UNITY_XR_HANDS_STAGE3.md) 接入。
@@ -16,7 +16,7 @@
 | 手机预览图采集 | `Spatial AI > UVC > Create Calibration Capture Scene` |
 | 现有示例 APK 的采集场景与远程保存 | broadcast 的 `scene=calibration` / `scene=capture` |
 | 棋盘格、内参拟合、刚体外参拟合、误差分布 | `tools/CalibrateUvcCamera.py` |
-| 未测配置与数据表模板 | [calibration](calibration/) |
+| 最新 HXQ 配置、棋盘格与精度数据表 | [calibration](calibration/) |
 
 原 Android AAR 与相机/推理实现未修改。基础 SDK 添加 Unity IMGUI 模块，用于采集按钮；不依赖 XR Hands。
 标准关节映射与转换器复用同一份 21 点对应关系，避免两套索引漂移。
@@ -133,7 +133,18 @@ build/uvc-calibration-venv/Scripts/python.exe tools/CalibrateUvcCamera.py intrin
 如果来自 OpenCV 相机坐标，先用 `diag(1,-1,1)` 将相机点转成 Unity 坐标；不能直接复制 OpenCV 旋转矩阵。
 
 工具提供刚体点集拟合：用独立夹具/测量方法取得至少 6 对覆盖空间体积、非共面的相机/头部坐标点，
-填写 [外参模板](calibration/hxq-extrinsics-points.template.json) 的 `referenceSource` 和两组点。
+将以下结构保存到 `build/calibration/hxq-extrinsics-points.json`，填写独立参考来源和逐项对应的两组米制坐标：
+
+```json
+{
+  "referenceSource": "",
+  "cameraPointsMetres": [],
+  "physicalHeadPointsMetres": []
+}
+```
+
+`referenceSource` 是夹具/测量方法及记录的来源；`cameraPointsMetres` 是相机右/上/前坐标中的点；
+`physicalHeadPointsMetres` 是同一批点在物理头部右/上/前坐标中的位置。空数组不能用于拟合。
 不要用当前单目手部估算作为外参真值。图像内参采集本身不会提供相机到头部的关系。
 
 ```powershell
@@ -275,3 +286,80 @@ SHA-256：`fa9b4fd6d37f3bd908a8bedc3aa24b6cad81794e359622a9225cc04747e6f809`。
 Unity 集成检查 188 项通过：build/logs/uvc-side-palm-check-final.log，包含持续侧掌、关键点跟随、
 身份重建禁止复用旧距离、漏检到期无新帧也隐藏及全部快照分片重建 JSON。
 操作与限制见 [翻手诊断文档](UVC_HAND_DIAGNOSTICS.md)。
+
+## 2026-10-15：当前 Demo 标定与加载方式
+
+`docs/calibration` 仅保留一份 HXQ JSON：[当前活动标定](calibration/hxq-calibration-active.json)。
+旧候选、测量记录、验证报告及 JSON 模板已合并到本文说明；棋盘格 SVG 与精度 CSV 模板继续保留。
+
+### 当前参数与来源
+
+- 相机 `uvc:11cb:281b`，原生 640×480，无旋转/镜像，`swapHandedness=true`。
+- 版本 `hxq-20261015-manual-aligned-33deg-v3`；fx=288.2160340662、fy=287.9960920323、cx=332.0340781034、cy=238.5952801475。
+  Brown 五参数 [k1,k2,p1,p2,k3] 为 [-0.0913816847, 0.1220495003, -0.0010021865, 0.0018939931, -0.0670611803]。
+- 用户实测右掌宽/长 65/90 mm、左掌 63/90 mm；当前共用平均掌宽 64 mm、腕到中指 MCP 长 90 mm。
+  掌宽量点 5→17（食指 MCP 到小指 MCP），掌长量点 0→9（腕点到中指 MCP），不是掌缘宽或指尖总长。
+  自然摊平、手腕中立、四指自然伸直稍分开，量直线距离。
+- `headFromCameraTranslationMetres=(0, 0.08121320343559643, 0.08949747468305833)`。
+  `headFromCameraRotationXyzw=(0.28401534470392265, 0, 0, 0.958819734868193)`，相当于头部 X 轴向下 33°。
+- XRI Bridge 与骨架展示倍率均为 1；mayfly 的 `reverseStereoBaseline=true`。
+  默认 `PhoneStereoDiagnosticMode.Profile` 自动使用 -0.062 m 显示基线；物理 IPD 仍为正 62 mm。
+- `intrinsicsCalibrated=true`、`palmDimensionsMeasured=true`；`extrinsicsMeasured=false`、`handednessVerified=false`、
+  `validatedForHardware=false`。用户定性对位反馈不替代独立外参或硬件精度验收。
+
+内参来自用户采集会话 `20261015-061723-e90e1ac9`：24 张 PNG/JSON，识别 22 张，排除棋盘裁切的 board-014、board-021；
+17 张拟合、5 张留出。采集分辨率 384×288 下训练 RMS 0.210578 px、留出最大 RMS 0.365055 px；
+换算 640×480 分别约 0.350963/0.608425 px，低于 0.7 px 的采集分辨率门槛，板法线最大变化 87.32°。
+使用传统 findChessboardCorners 加 3×3 cornerSubPix，失败回退 SB；已人工查看角点拼图。
+打印格长按 20 mm 假设，尚未收到实测确认。预览降采样/JPEG 的精度限制仍适用。
+正式 `CalibrateUvcCamera.py` 尚未加入传统检测回退；本次可复现脚本为 `build/calibration/fit_trial_intrinsics.py`，
+依赖目录 `build/python-uvc-calibration`；原始照片在 `build/calibration/hxq-captures/20261015-061723-e90e1ac9/`，
+角点拼图为 `build/calibration/hxq-corners-contact-sheet.png`。这些生成文件在本地 build 下，未纳入 Git。
+
+安装平移来自最终支架的粗估：屏幕中心比双眼中点高约 60 mm、前约 40 mm；HXQ 相对屏幕中心沿屏幕向上约 50 mm、
+沿屏幕法线向外约 20 mm，屏幕倾斜约 45°。暂定 screen-up=(0,cos45,sin45)、screen-out=(0,-sin45,cos45)，
+得到上述平移。屏幕轴方向与高度未通过独立精密测量；该近似不是可复用的机械测量结论。
+
+用户实物检查确认 HXQ 与 RhinoX Pro RGB 安装不同，已撤销复用 RhinoX 外参的假设。
+独立粗估初值在约 40 cm 处偏上约 20 cm；实时向下 15°后剩余约 8～10 cm，27°重复保持时仍稳定偏上约 5 cm；
+33°后用户确认约 30/40/60 cm 均基本重合。33°属于当前相机/显示组合的手动映射修正，不能视作真实镜头光轴的直接测量。
+固定近标靶也曾出现水平重影，Reverse 模式改善且近远顺序正确，Zero 模式放松可合像；上述反馈用于确定当前支架的视差配置，
+未完成全部眼位、视锥、视野和动态对位验收。
+
+### Demo 加载与后续调整
+
+HXQ 文档配置与运行资产 `samples/unity/SpatialXR/Assets/SpatialAI/Calibrations/hxq-20261015-intrinsics-v1.json` 内容一致。
+`SpatialHandInteraction` 场景的 `calibrationJson` TextAsset 绑定该资产；修改文档 JSON 不会自动更新已安装的 APK，
+需要同步运行资产、保留其 .meta/GUID、重新构建安装。启动日志会输出实际加载版本、相机、内参、平移/旋转及测量状态。
+mayfly 自动选择 UVC/HXQ；RhinoX Pro 使用独立的原生 RGB Resources 配置，来源见
+[RhinoX Pro 标定说明](calibrations/rhinox-pro-03P11D14202L/README.md)。RhinoX 八参数有理畸变与 HXQ 五参数分别加载。
+
+进入 XRI：
+
+```powershell
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ez gestures true
+```
+
+无需再下发临时俯仰或反向视差命令。当前资产已包含 33°，`cameraPitchDegrees` 始终是**相对资产的额外角度**，
+填 0 即保留已固化的 33°；再发送 33 会叠加成 66°。实时入口接受 [-45,45]°，不重启相机，替换转换器后清除旧姿态；
+组件暂停恢复保留临时修正，组件重建或冷启动恢复资产。`phoneStereoMode=profile|normal|zero|reverse` 可临时对照，
+profile 恢复支架配置，冷启动默认 Profile。`scene=stereo --ez gestures false` 提供 0.5 m 绿色近方块和 2 m 青色远方块。
+
+如果调整支架、眼位、相机方向或显示布局，先固定姿势在多个距离与视野位置重新观察。
+有独立测量条件后，按上文点对拟合和 CSV 精度流程记录误差，之后再设置相应测量/验收标记。
+
+### 本轮实现与验证
+
+标定记录器进入时开启预览、退出恢复；采集 UI 暂停 XRDisplaySubsystem，LateUpdate 覆盖 Android 前后台恢复后 XR 自动重启。
+已验证连续三次 Home/恢复后预览和 Capture 正常，场景往返及 PNG/JSON 保存成功。
+本轮还加入 RhinoX 原生 RGB 相机/分辨率匹配、八参数畸变转换、实时俯仰控制及持久化支架视差选择。
+
+已通过 CoreChecks 1012 项、RhinoX 25 条有理射线及外参转换检查、实时标定替换/旧帧清除/尺度保持检查，
+以及 HXQ 33°资产、平移、反向默认与诊断覆盖检查；Unity 场景绑定、Android 构建、签名校验通过。
+构建日志：`build/logs/hxq-persisted-alignment-build.log`。
+
+最终 APK：`build/samples/android/spatialxr-hxq-aligned-v3.apk`，
+SHA256 `93cf4f97d6bdaedc829fd4c8f206efb09bcda3260182d2044a0ff73d408cbbd5`。
+已安装到 mayfly，并在 force-stop 后仅使用 scene/gestures 进入 XRI：实际加载 v3 的 33°旋转，
+无额外俯仰命令，Profile 自动使用 -0.062 m 基线，HXQ 640×480 约 30 FPS。
+运行记录：`build/logs/hxq-aligned-v3-cold-start-runtime.log`；截图：`build/hxq-aligned-v3-cold-start.png`。

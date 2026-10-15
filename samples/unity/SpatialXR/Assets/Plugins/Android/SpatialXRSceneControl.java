@@ -24,6 +24,21 @@ public final class SpatialXRSceneControl {
                     Log.w("SpatialXRScene", "Ignored broadcast: missing or invalid scene extra");
                     return;
                 }
+                String stereoMode=intent.getStringExtra("phoneStereoMode");
+                if(stereoMode!=null) {
+                    stereoMode=stereoMode.trim().toLowerCase(java.util.Locale.ROOT);
+                    if(!"profile".equals(stereoMode) && !"normal".equals(stereoMode) && !"zero".equals(stereoMode) && !"reverse".equals(stereoMode)) {
+                        Log.w("SpatialXRScene","Invalid phoneStereoMode; use profile/normal/zero/reverse");return;
+                    }
+                    UnityPlayer.UnitySendMessage("SpatialXRSceneControl","SetPhoneStereoMode",stereoMode);
+                }
+                if(intent.hasExtra("cameraPitchDegrees")) {
+                    float pitch=intent.getFloatExtra("cameraPitchDegrees",Float.NaN);
+                    if(Float.isNaN(pitch)||Float.isInfinite(pitch)||Math.abs(pitch)>45) {
+                        Log.w("SpatialXRScene","Invalid cameraPitchDegrees; use -45..45");return;
+                    }
+                    UnityPlayer.UnitySendMessage("Spatial XRI sample input","PreviewCameraPitch",Float.toString(pitch));
+                }
                 boolean gestures = intent.getBooleanExtra("gestures", true);
                 String cameraSource = intent.getStringExtra("cameraSource");
                 cameraSource = cameraSource == null ? "" : cameraSource.trim().toLowerCase(java.util.Locale.ROOT);

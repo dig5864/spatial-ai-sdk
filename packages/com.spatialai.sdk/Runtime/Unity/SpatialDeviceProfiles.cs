@@ -33,7 +33,7 @@ namespace SpatialAI.Unity
                     nativePortraitWidth = Math.Min(Screen.width, Screen.height), nativePortraitHeight = Math.Max(Screen.width, Screen.height),
                     targetFrameRate = 60, displayMode = "phone-cardboard", trackingSource = "phone-cardboard", cameraSource = "external-uvc",
                     imu = rig.phoneImu, invertViewPitch = rig.invertViewPitch, invertViewRoll = rig.invertViewRoll,
-                    reflectHandDisplayX = rig.reflectHandDisplayX, uvcSwapHandedness = rig.uvcSwapHandedness };
+                    reflectHandDisplayX = rig.reflectHandDisplayX, uvcSwapHandedness = rig.uvcSwapHandedness, reverseStereoBaseline = rig.reverseStereoBaseline };
                 return profile.Validate();
             }
             return result;

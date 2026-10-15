@@ -26,6 +26,7 @@ namespace SpatialAI.Core
         // active display centre. Axes: right/down. Requires the same screen plane.
         public float[] eyeRectsMm;
         public bool rotateOutput180;
+        public bool reverseStereoBaseline;
         public bool referenceScreenMeasured;
         public string referencePhoneKey;
         public bool opticsValidated;

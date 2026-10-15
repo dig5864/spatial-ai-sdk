@@ -47,6 +47,8 @@ namespace SpatialAI.Core
         // Left then right x,y,width,height in full-display Android pixels.
         public float[] referenceEyeRects;
         public bool referenceOutputRotate180;
+        // Render-eye baseline direction for the holder's reflected optical path; physical IPD remains positive.
+        public bool reverseStereoBaseline;
         // Candidate optical view response; separate from the physical IMU mount.
         public bool invertViewPitch;
         public bool invertViewRoll;

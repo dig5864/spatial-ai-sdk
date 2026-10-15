@@ -167,6 +167,7 @@ namespace SpatialAI.Cardboard
                     if (!result.Success) throw new InvalidOperationException(result.Message);
                     rig.phoneImu = host.imu; rig.invertViewPitch = host.invertViewPitch; rig.invertViewRoll = host.invertViewRoll;
                     rig.reflectHandDisplayX = host.reflectHandDisplayX; rig.uvcSwapHandedness = host.uvcSwapHandedness;
+                    rig.reverseStereoBaseline = host.reverseStereoBaseline;
                 }
                 else
                 {

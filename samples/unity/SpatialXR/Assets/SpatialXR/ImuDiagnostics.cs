@@ -13,6 +13,7 @@ namespace SpatialAI.Samples
     public sealed class ImuDiagnostics : MonoBehaviour
     {
         public Camera xrCamera;
+        public static bool StereoProbeOnly;
 
         private SpatialCardboardBridge bridge;
         private TextMesh readout;
@@ -70,6 +71,7 @@ namespace SpatialAI.Samples
             // Draw text after the panel, keeping both above the diagnostic scene.
             var textRenderer = panel.GetComponent<MeshRenderer>();
             textRenderer.material.renderQueue = 3101;
+            panel.SetActive(!StereoProbeOnly);
         }
 
         private void Update()
@@ -125,7 +127,7 @@ namespace SpatialAI.Samples
             previousTrigger = trigger;
 
             var xrReady = bridge != null && bridge.XrRunning;
-            if (xrReady && axes == null && xrCamera != null) CreateWorldAxes();
+            if (xrReady && !StereoProbeOnly && axes == null && xrCamera != null) CreateWorldAxes();
             if (xrReady && calibrationTargets == null && xrCamera != null) CreateCalibrationTargets();
             var gyro = Input.gyro.rotationRateUnbiased * Mathf.Rad2Deg;
             var acceleration = Input.acceleration;
@@ -307,6 +309,19 @@ namespace SpatialAI.Samples
             calibrationTargets = new GameObject("World fixed scale and distortion targets");
             PlaceCalibrationTargets();
 
+            if(StereoProbeOnly)
+            {
+                foreach(int index in new[]{0,1})
+                {
+                    var cube=new GameObject(index==0?"Near green stereo target 0.5m":"Far cyan stereo target 2m");
+                    cube.transform.SetParent(calibrationTargets.transform,false);
+                    cube.transform.localPosition=index==0?new Vector3(0,0,.5f):new Vector3(.4f,0,2f);
+                    cube.AddComponent<MeshFilter>().sharedMesh=CreateCubeMesh(index==0?.08f:.2f);
+                    cube.AddComponent<MeshRenderer>().sharedMaterial=new Material(shader){color=index==0?Color.green:Color.cyan};
+                }
+                Debug.Log("Spatial stereo probe ready: green 0.5m centre; cyan z=2m x=0.4m; R resets view; independent of hand tracking");
+                return;
+            }
             var cubeDistances = new[] { 0.6f, 1.0f, 1.3f, 1.6f };
             var cubeSizes = new[] { 0.2f, 0.4f, 0.4f, 0.4f };
             var cubeOffsets = new[]

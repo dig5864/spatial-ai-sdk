@@ -10,6 +10,8 @@ namespace SpatialAI.XRHands
     {
         private readonly Func<long> now;
         private readonly bool allowBuiltinPreview;
+        private UvcHandCalibration calibration;
+        private readonly float maximumPalmAxisRatio;
         internal SpatialUvcHandProcessor Processor { get; private set; }
         private SpatialHandsFrame latest;
         private string camera;
@@ -27,8 +29,24 @@ namespace SpatialAI.XRHands
         public UvcHandsFrameSource(UvcHandCalibration calibration=null,Func<long> clock=null,float maximumPalmAxisRatio=1.6f,bool allowBuiltinPreview=false)
         {
             this.allowBuiltinPreview=allowBuiltinPreview;
+            this.calibration=calibration;
+            this.maximumPalmAxisRatio=maximumPalmAxisRatio;
             now=clock??(()=> (long)(System.Diagnostics.Stopwatch.GetTimestamp()*(1_000_000_000.0/System.Diagnostics.Stopwatch.Frequency)));
             Processor=new SpatialUvcHandProcessor(calibration,maximumPalmAxisRatio,now,allowBuiltinPreview);
+        }
+        // Main-thread diagnostic replacement: clear old poses without reopening the camera.
+        public bool TryReconfigureForPreview(UvcHandCalibration candidate)
+        {
+            if(candidate==null || !candidate.Validate(true).Success)return false;
+            string expected=calibration!=null?calibration.cameraId:camera;
+            if(!string.IsNullOrEmpty(expected) && candidate.cameraId!=expected)return false;
+            if(width>0 && !candidate.MatchesDeliveredSize(width,height))return false;
+            var replacement=JsonUtility.FromJson<UvcHandCalibration>(JsonUtility.ToJson(candidate));
+            var processor=new SpatialUvcHandProcessor(replacement,maximumPalmAxisRatio,now,allowBuiltinPreview);
+            calibration=replacement;Processor=processor;latest=null;sequence=-1;ageAtReceiveMs=0;
+            Diagnostics="installation preview changed; waiting for a new image";
+            IdentityEvents="reset: installation preview changed";
+            return true;
         }
         public void Invalidate(string reason)
         {
@@ -38,7 +56,7 @@ namespace SpatialAI.XRHands
         public bool Publish(SpatialHandFrame image,Pose physicalHeadInOrigin,long originRevision)
         {
             bool builtin=image!=null && image.cameraId!=null && image.cameraId.StartsWith("builtin-");
-            if(image==null || image.cameraId==null || (!image.cameraId.StartsWith("uvc:") && !(allowBuiltinPreview && builtin)) || image.sequence<0)
+            if(image==null || image.cameraId==null || (!image.cameraId.StartsWith("uvc:") && !(allowBuiltinPreview && builtin) && !SpatialUvcHandProcessor.IsCalibratedRhinoXFrame(image,calibration)) || image.sequence<0)
             { Invalidate("not a valid UVC frame");return false; }
             if(camera!=image.cameraId || width!=image.imageWidth || height!=image.imageHeight ||
                 revision!=originRevision || image.sequence<sequence)

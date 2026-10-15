@@ -54,13 +54,13 @@ namespace SpatialAI.XRInteraction
             }
             bool reflection=false;
             if(!useSimulation && SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(),out var host).Success)reflection=host.reflectHandDisplayX;
-            Bridge.reflectDisplayX=reflection;Bridge.presentationDistanceScale=3;
+            Bridge.reflectDisplayX=reflection;Bridge.presentationDistanceScale=1;
             Bridge.uiCursorOnly=true;Bridge.rayOrigin=SpatialHandRayOrigin.IndexTip;Bridge.holdAimDuringPinch=false;
             Bridge.aimPitchOffsetDegrees=0;Bridge.maximumAimElevationDegrees=90;
             Bridge.leftRay.cursorOnly=Bridge.rightRay.cursorOnly=true;
             var handVisualObject=new GameObject("XR Hands skeleton");handVisualObject.SetActive(false);handVisualObject.transform.SetParent(displayRoot.transform,false);
             var handVisual=handVisualObject.AddComponent<SpatialXRHandsVisualizer>();handVisual.trackingOrigin=displayRoot.transform;
-            handVisual.reflectDisplayX=reflection;handVisual.presentationDistanceScale=3;handVisualObject.SetActive(true);
+            handVisual.reflectDisplayX=reflection;handVisual.presentationDistanceScale=1;handVisualObject.SetActive(true);
             if(standardGesturesPrefab!=null)
             {
                 gestureFeedback=Instantiate(standardGesturesPrefab,displayRoot.transform).transform;
@@ -76,6 +76,15 @@ namespace SpatialAI.XRInteraction
             else
             {
                 var input=inputRoot.AddComponent<SpatialUvcHands>();input.calibrationJson=calibrationJson;
+                var identity=SpatialDeviceProfiles.ReadHostIdentity();
+                if(string.Equals(identity.Model,"RhinoX",System.StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(identity.DeviceCode,"kona",System.StringComparison.OrdinalIgnoreCase) &&
+                    SpatialHandTracking.CameraSource==SpatialHandCameraSource.HostProfile)
+                {
+                    input.calibrationJson=Resources.Load<TextAsset>("SpatialAI/Calibrations/rhinox-pro-03P11D14202L-hands");
+                    if(input.calibrationJson==null){Debug.LogError("SpatialXRI: RhinoX calibration asset missing");enabled=false;return;}
+                    Debug.Log("SpatialXRI: using RhinoX Pro native RGB calibration");
+                }
                 input.builtinSkeletonPreview=true;
                 input.maximumPalmAxisRatio=4;
                 handsInput=input;
@@ -119,7 +128,7 @@ namespace SpatialAI.XRInteraction
             hud.rectTransform.anchorMin=hud.rectTransform.anchorMax=new Vector2(0,1);hud.rectTransform.pivot=new Vector2(0,1);
             hud.rectTransform.anchoredPosition=new Vector2(14,-10);hud.rectTransform.sizeDelta=new Vector2(972,230);
             renderWindowStart=Time.unscaledTime;
-            Debug.Log("SpatialXRI sample ready mode="+(useSimulation?"simulation":"uvc")+" interaction=thumbIndexCursor skeleton=true cubes=headLocked visibleRays=false cursorPinchHold=false gestures=UnityXRHands HUD=centralBackground UI=Button.onClick; open hand to arm");
+            Debug.Log("SpatialXRI sample ready presentationScale=1 mode="+(useSimulation?"simulation":"uvc")+" interaction=thumbIndexCursor skeleton=true cubes=headLocked visibleRays=false cursorPinchHold=false gestures=UnityXRHands HUD=centralBackground UI=Button.onClick; open hand to arm");
         }
         private static Mesh CreateCubeMesh()
         {

@@ -1,0 +1,13 @@
+{
+  "rgbXmlMatchesUserFile": true,
+  "distortion14to8MaxProjectionDifferencePixels": 0.0,
+  "hxqCalibrationSha256Before": "73c02ad5deb7a76b04cf07678a2cc4c747ab1c27f114509388703de434d4da20",
+  "hxqCalibrationSha256After": "73c02ad5deb7a76b04cf07678a2cc4c747ab1c27f114509388703de434d4da20",
+  "hxqUnchanged": true,
+  "serviceRotationDeterminant": 1.000000337629062,
+  "legacyServiceTranslationMetres": [
+    0.0262844134384485,
+    -0.0522111153022694,
+    -0.10597917473146254
+  ]
+}

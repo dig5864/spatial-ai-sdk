@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "cameraId": "2",
+  "calibrationVersion": "rhinox-pro-03P11D14202L-rgb-hands-initial-v1",
+  "source": "Device RGB intrinsics from matched rgb_vio_camera_params.xml; full 8-term rational distortion; initial head-from-camera from reproduced legacy service; shared measured palm 64x90 mm. Installation and handedness remain unverified.",
+  "imageWidth": 1440,
+  "imageHeight": 1080,
+  "fx": 708.136843422096,
+  "fy": 706.8877379361797,
+  "cx": 708.9547400111156,
+  "cy": 550.0180787227546,
+  "distortion": [
+    -1.4349401348310336,
+    1.525923530361978,
+    0.00018676108515484747,
+    2.0394229686187738e-05,
+    -0.21472159822064288,
+    -1.4124779758525532,
+    1.4240790946067878,
+    -0.10903182983503665
+  ],
+  "imageRotationClockwise": 0,
+  "inputMirrored": false,
+  "swapHandedness": true,
+  "intrinsicsCalibrated": true,
+  "extrinsicsMeasured": false,
+  "handednessVerified": false,
+  "palmDimensionsMeasured": true,
+  "headFromCameraTranslationMetres": [
+    0.0262844134384485,
+    -0.0522111153022694,
+    0.10597917473146254
+  ],
+  "headFromCameraRotationXyzw": [
+    -0.06948887936114972,
+    -0.010536959941042649,
+    0.0031554574756023717,
+    0.9975220855742755
+  ],
+  "palmWidthMetres": 0.064,
+  "wristToMiddleMetres": 0.09,
+  "minDepthMetres": 0.2,
+  "maxDepthMetres": 1.2,
+  "validatedForHardware": false
+}

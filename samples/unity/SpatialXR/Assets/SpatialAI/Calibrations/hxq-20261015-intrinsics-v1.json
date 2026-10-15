@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "cameraId": "uvc:11cb:281b",
+  "calibrationVersion": "hxq-20261015-manual-aligned-33deg-v3",
+  "source": "HXQ chessboard fit; see docs/UNITY_XR_HANDS_STAGE2.md; preview scaling is an approximation; classic corner detector with SB fallback; 20mm grid assumed; demo uses previously confirmed mayfly/HXQ handedness swap; user palm measurements Right 65x90 mm, Left 63x90 mm; shared mean 64x90 mm; Independent HXQ holder estimate from user: screen centre 40mm in front of eye midpoint, camera +50mm screen-up/+20mm screen-out, screen tilt approximately 45deg. Screen centre height approximately 60mm above eye midpoint; provisional screen-axis direction documented in docs/UNITY_XR_HANDS_STAGE2.md; camera approximately level/forward, roll assumed zero. Not RhinoX extrinsics; not hardware validated.; Empirical head-from-camera mapping includes 33deg downward head-frame pitch: user confirmed approximate visual alignment at 30/40/60cm on final mayfly/HXQ holder. This is combined manual alignment, not measured optical-axis pitch or full hardware validation.",
+  "imageWidth": 640,
+  "imageHeight": 480,
+  "fx": 288.21603406621335,
+  "fy": 287.9960920323051,
+  "cx": 332.0340781033635,
+  "cy": 238.5952801475021,
+  "distortion": [
+    -0.09138168474361624,
+    0.1220495003404938,
+    -0.0010021865314973543,
+    0.0018939930796509257,
+    -0.06706118028422473
+  ],
+  "imageRotationClockwise": 0,
+  "inputMirrored": false,
+  "swapHandedness": true,
+  "intrinsicsCalibrated": true,
+  "extrinsicsMeasured": false,
+  "handednessVerified": false,
+  "palmDimensionsMeasured": true,
+  "headFromCameraTranslationMetres": [
+    0,
+    0.08121320343559643,
+    0.08949747468305833
+  ],
+  "headFromCameraRotationXyzw": [
+    0.28401534470392265,
+    0,
+    0,
+    0.958819734868193
+  ],
+  "palmWidthMetres": 0.064,
+  "wristToMiddleMetres": 0.09,
+  "minDepthMetres": 0.2,
+  "maxDepthMetres": 1.2,
+  "validatedForHardware": false,
+  "installationStatus": "demo-manual-alignment-user-confirmed-30-40-60cm"
+}

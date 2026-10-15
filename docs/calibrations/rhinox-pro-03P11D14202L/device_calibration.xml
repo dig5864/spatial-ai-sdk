@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<DeviceConfiguration deviceUID="not_configured">
+    <Camera cam_name="trackingA" name="trackingA" id="0">
+        <Calibration size="640 400 " principal_point="322.03239 201.67688 " focal_length="283.63433 283.63433 " model="FISHEYE_4_PARAMETERS" radial_distortion="-0.006059378 0.007492551 0.0018602926 -0.0016615316 0 0 " distortion_limit="2.940000" undistortion_limit="1.250289" />
+        <Rig translation="0 0 0 " rowMajorRotationMat="1 0 0 0 1 0 0 0 1 " />
+        <TimeAlignment delta="0.006481" />
+        <VignettingCorrection model="RADIAL_POLYNOMIAL" center="322.32152 201.85199 " normalizer="377.359245" coeffs="-1.279219 0.41287778 0.35554631 " />
+    </Camera>
+    <Camera cam_name="trackingB" name="trackingB" id="1">
+        <Calibration size="640 400 " principal_point="318.912 199.35979 " focal_length="281.60148 281.60148 " model="FISHEYE_4_PARAMETERS" radial_distortion="-0.0081376591 0.012792758 -0.0013818174 -0.00077433129 0 0 " distortion_limit="3.000000" undistortion_limit="1.259796" />
+        <Rig translation="-0.080076777 0.0032372793 0.00016178205 " rowMajorRotationMat="0.99978741 0.020287975 0.0036777308 -0.020292128 0.99979349 0.0010953559 -0.0036547488 -0.001169752 0.99999264 " />
+        <TimeAlignment delta="0.006481" />
+        <VignettingCorrection model="RADIAL_POLYNOMIAL" center="319.34483 199.38648 " normalizer="377.359245" coeffs="-1.2177474 0.73148162 -0.071695628 " />
+    </Camera>
+    <Image format="interleaved" />
+    <SFConfig>
+        <Stateinit ombc="-2.1849567 2.2544099 0.011337325 " tbc="-0.0024662133 -0.00044123925 -0.023430077 " aBias="-0.047261898 0.0034772002 0.54949035 " wBias="-0.0092057513 0.012512421 0.010485041 " ka="-0.0069853993 -0.0058417701 -0.0023101915 " kg="-0.0036061655 -0.00050502247 0.00024104776 " na="-0.00036799151 0.0039324536 -0.0097330264 " ng="0.0042803709 -0.0069256219 0.0013419839 " ombg="0.00016318095 -0.0040778251 -0.0030195835 " accelDelta="0.000000" delta="0.006481" />
+        <IMUNoise movingAccelNoise="0.372912" movingGyroNoise="0.002370" stationaryAccelNoise="0.042618" stationaryGyroNoise="0.000789" />
+    </SFConfig>
+</DeviceConfiguration>
+<!--Device ID not_configured
+Calibration time Tue, 09 May 2023 11:26:52 GMT
+XRCalib build time OMNI-build-35614 Oct 20 2022 10:23:33
+
+***Pattern detection***
+Target detection results for camera trackingA target XRCalib:
+Success 657/677 (97.0%)
+FailForNoApexCandidates 8/677 (1.2%)
+FailForNoApexCandidatesWithNeighbors 12/677 (1.8%)
+Target detection results for camera trackingB target XRCalib:
+Success 657/675 (97.3%)
+FailForNoApexCandidates 6/675 (0.9%)
+FailForNoApexCandidatesWithNeighbors 11/675 (1.6%)
+FailForTooManyUnassignedNeighborsToCenterMarker 1/675 (0.1%)
+
+
+***Pattern selection***
+trackingA-trackingB Remove redundant detections: Selected 284/663 timestamps
+
+
+***Intrinsic calibration***
+0/559 target prior estimations failed; 476/300806 outlier dot detections removed (0.158242%)
+
+Subset1-trackingA-AllIntrinsics 14554 constraints, 14693 vbles, 138 free vbles, 0.219864 pixels RMS residual. 
+Subset1-trackingB-AllIntrinsics 14705 constraints, 14844 vbles, 138 free vbles, 0.225598 pixels RMS residual. 
+Subset0-trackingA-AllIntrinsics 14347 constraints, 14491 vbles, 143 free vbles, 0.257101 pixels RMS residual. 
+Subset0-trackingB-AllIntrinsics 14589 constraints, 14734 vbles, 144 free vbles, 0.257970 pixels RMS residual. 
+Full-trackingA-AllIntrinsics 28900 constraints, 29181 vbles, 280 free vbles, 0.240643 pixels RMS residual. 
+Full-trackingB-AllIntrinsics 29293 constraints, 29575 vbles, 281 free vbles, 0.244565 pixels RMS residual. 
+
+
+***Extrinsic/IMU calibration***
+Full-Extrinsics+Intrinsics-Extrinsics 58191 constraints, 58480 vbles, 287 free vbles, 0.247976 pixels RMS residual. 
+trackingB after extrinsic optimization: Baseline (distance from reference camera): 0.080213m; angle from reference: 1.183823 degrees between principal axes; angle between rays through image center: 5.006753 degrees. 4.911097 pixels/degree.
+Trajectory prior: 0/379 target prior estimations failed; 692/482896 outlier dot detections removed (0.143302%)
+512/482896 detections are invalid
+
+CalibrateIMU-robust-Trajectory-Extrinsics-Intrinsics-Full 138351 constraints, 139021 vbles, 1330 free vbles, 0.335073 pixels RMS residual. 
+trackingB after extrinsic optimization: Baseline (distance from reference camera): 0.080142m; angle from reference: 1.183225 degrees between principal axes; angle between rays through image center: 5.010070 degrees. 4.914873 pixels/degree.
+Ombc/Tbc as (R | t) matrix:
+(-0.031294, -0.999504, -0.003532, -0.002466)
+(-0.999489, 0.031270, 0.006635, -0.000441)
+(-0.006521, 0.003737, -0.999972, -0.023430)
+
+
+
+***Pattern detection time 11.900511s, calibration time 84.186424s, total 96.086935s
+No IMU position validation
+noFlip-->

@@ -82,7 +82,7 @@ index 5523c86..31de4ef 100644
  
  #endif  // CARDBOARD_SDK_UNITY_XR_PROVIDER_MATH_TOOLS_H_
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..93c1f36 100644
+index 6dd7d61..66d4b5a 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 @@ -19,7 +19,9 @@
@@ -462,7 +462,7 @@ index 6dd7d61..93c1f36 100644
  }
  
  void CardboardDisplayApi::RenderWidgets() {
-@@ -384,6 +673,266 @@ void CardboardUnity_setDeviceParametersChanged() {
+@@ -384,6 +673,267 @@ void CardboardUnity_setDeviceParametersChanged() {
    cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
  }
  
@@ -484,6 +484,7 @@ index 6dd7d61..93c1f36 100644
 +  return 1;
 +}
 +
++// Phone diagnostics may pass a negative or zero baseline (metres); physical IPD stays positive.
 +// Publish mesh/projection/output dimensions and both eye rectangles together.
 +// New phone layouts never expose a default/fullscreen mesh between two calls.
 +int CardboardUnity_configureSpatialPhoneDisplay(const char* mesh_id,
@@ -492,7 +493,7 @@ index 6dd7d61..93c1f36 100644
 +  if (!mesh_id || !mesh_hash || !rects || width <= 0 || height <= 0 || revision <= 0 ||
 +      std::strcmp(mesh_id, "rhinox-pro-sharp-2k-separate") != 0 ||
 +      std::strcmp(mesh_hash, cardboard::unity::kRhinoXMeshHash) != 0 ||
-+      !std::isfinite(ipd) || ipd <= 0 || !std::isfinite(near_plane) || near_plane <= 0 ||
++      !std::isfinite(ipd) || std::abs(ipd) > 0.1f || !std::isfinite(near_plane) || near_plane <= 0 ||
 +      !std::isfinite(left) || left >= 0 || !std::isfinite(right) || right <= 0 ||
 +      !std::isfinite(top) || top <= 0 || !std::isfinite(bottom) || bottom >= 0) return 0;
 +  for (int i = 0; i < 8; ++i) if (!std::isfinite(rects[i])) return 0;

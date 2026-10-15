@@ -5,6 +5,8 @@ using SpatialAI.Unity;
 using UnityEngine;
 using UnityEngine.XR;
 using UnityEngine.XR.Hands;
+using UnityEngine.Scripting;
+using System.Globalization;
 
 namespace SpatialAI.XRHands
 {
@@ -30,6 +32,37 @@ namespace SpatialAI.XRHands
         public string InferenceDelegate { get {return cameraTracking!=null&&cameraTracking.Latest!=null?cameraTracking.Latest.@delegate:SpatialHandTracking.InferenceBackend.ToString();} }
         internal string DisplayState(HandSide side){return Source==null?"hidden":Source.Processor.DisplayState(side);}
         private bool ownsCamera,paused;
+        private UvcHandCalibration baseCalibration;
+        private float previewPitchDownDegrees;
+        private UvcHandCalibration WithPreviewPitch(UvcHandCalibration original,float degrees)
+        {
+            var candidate=JsonUtility.FromJson<UvcHandCalibration>(JsonUtility.ToJson(original));
+            var r=candidate.headFromCameraRotationXyzw;
+            var q=Quaternion.AngleAxis(degrees,Vector3.right)*new Quaternion(r[0],r[1],r[2],r[3]);
+            candidate.headFromCameraRotationXyzw=new[]{q.x,q.y,q.z,q.w};
+            candidate.calibrationVersion+="-preview-pitch-down-"+degrees.ToString("F1",CultureInfo.InvariantCulture);
+            candidate.extrinsicsMeasured=false;candidate.validatedForHardware=false;
+            return candidate;
+        }
+        // Development A/B only. Positive values pitch camera rays down in physical-head coordinates.
+        // The adjustment survives pause/resume on this component, and resets when its scene is recreated.
+        [Preserve]
+        public void PreviewCameraPitch(string value)
+        {
+            if(!float.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out var degrees) ||
+                float.IsNaN(degrees)||float.IsInfinity(degrees)||Mathf.Abs(degrees)>45 ||
+                baseCalibration==null || baseCalibration.cameraId==null || !baseCalibration.cameraId.StartsWith("uvc:") ||
+                !baseCalibration.Validate(true).Success || Source==null)
+            {Debug.LogWarning("SpatialXRHands pitch preview rejected: valid explicit UVC calibration and -45..45 degrees required");return;}
+            var candidate=WithPreviewPitch(baseCalibration,degrees);
+            if(!Source.TryReconfigureForPreview(candidate)){Debug.LogWarning("SpatialXRHands pitch preview calibration mismatch");return;}
+            previewPitchDownDegrees=degrees;
+            if(Subsystem!=null&&Subsystem.running)Subsystem.TryUpdateHands(XRHandSubsystem.UpdateType.Dynamic);
+            Debug.Log("SpatialXRHands installation pitch preview applied degreesDown="+degrees.ToString(CultureInfo.InvariantCulture)+
+                " translationMetres="+string.Join(",",candidate.headFromCameraTranslationMetres)+
+                " rotationXyzw="+string.Join(",",candidate.headFromCameraRotationXyzw)+
+                " cameraUnchanged="+(cameraTracking!=null&&cameraTracking.isActiveAndEnabled)+" version="+candidate.calibrationVersion);
+        }
         private int dynamicFrame=-1,renderFrame=-1;
         private float nextLog,windowStart;
         private long windowCount;
@@ -57,6 +90,21 @@ namespace SpatialAI.XRHands
                     calibration=new UvcHandCalibration{swapHandedness=host.uvcSwapHandedness};
             }
             catch(Exception e){Status="invalid calibration JSON: "+e.Message;Debug.LogError("SpatialXRHands: "+Status);return false;}
+            if(calibrationJson!=null && calibration!=null)
+                Debug.Log("SpatialXRHands calibration loaded asset="+calibrationJson.name+" version="+calibration.calibrationVersion+
+                    " camera="+calibration.cameraId+" image="+calibration.imageWidth+"x"+calibration.imageHeight+
+                    " fx="+calibration.fx+" fy="+calibration.fy+" cx="+calibration.cx+" cy="+calibration.cy+
+                    " swapHandedness="+calibration.swapHandedness+" intrinsicsCalibrated="+calibration.intrinsicsCalibrated+
+                    " extrinsicsMeasured="+calibration.extrinsicsMeasured+" palmDimensionsMeasured="+calibration.palmDimensionsMeasured+
+                    " palmWidthMetres="+calibration.palmWidthMetres+" wristToMiddleMetres="+calibration.wristToMiddleMetres+
+                    " headFromCameraTranslationMetres="+(calibration.headFromCameraTranslationMetres==null?"null":string.Join(",",calibration.headFromCameraTranslationMetres))+
+                    " headFromCameraRotationXyzw="+(calibration.headFromCameraRotationXyzw==null?"null":string.Join(",",calibration.headFromCameraRotationXyzw)));
+            baseCalibration=calibration;
+            if(previewPitchDownDegrees!=0 && calibration!=null && calibration.Validate(true).Success)
+            {
+                calibration=WithPreviewPitch(calibration,previewPitchDownDegrees);
+                Debug.Log("SpatialXRHands restoring installation pitch preview degreesDown="+previewPitchDownDegrees.ToString(CultureInfo.InvariantCulture));
+            }
             Source=new UvcHandsFrameSource(calibration,maximumPalmAxisRatio:maximumPalmAxisRatio,allowBuiltinPreview:builtinSkeletonPreview);
             if(cameraTracking==null)foreach(var candidate in FindObjectsOfType<SpatialHandTracking>())
                 if(candidate.isActiveAndEnabled){cameraTracking=candidate;break;}

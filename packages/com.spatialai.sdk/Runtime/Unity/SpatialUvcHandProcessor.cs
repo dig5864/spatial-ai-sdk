@@ -40,6 +40,13 @@ namespace SpatialAI.Unity
         public string Reason(HandSide side){return side==HandSide.Left?converter.LeftDiagnostics:converter.RightDiagnostics;}
         public float CameraDepth(HandSide side){return presentation[(int)side].Depth;}
         public static long HostNowNs(){return (long)(System.Diagnostics.Stopwatch.GetTimestamp()*(1_000_000_000.0/System.Diagnostics.Stopwatch.Frequency));}
+        // Admit native RhinoX input only with an explicit matching calibrated profile.
+        public static bool IsCalibratedRhinoXFrame(SpatialHandFrame image,UvcHandCalibration calibration)
+        {
+            return image!=null && image.cameraSource=="rhinox-rgb" && calibration!=null &&
+                calibration.intrinsicsCalibrated && calibration.cameraId==image.cameraId &&
+                calibration.MatchesDeliveredSize(image.imageWidth,image.imageHeight) && calibration.Validate(true).Success;
+        }
         public SpatialUvcHandProcessor(UvcHandCalibration calibration=null,float maximumPalmAxisRatio=1.6f,Func<long> clock=null,bool allowBuiltinPreview=false)
         {
             this.allowBuiltinPreview=allowBuiltinPreview;
@@ -57,7 +64,7 @@ namespace SpatialAI.Unity
         public bool Publish(SpatialHandFrame image,Pose head,long originRevision)
         {
             bool builtin=image!=null && image.cameraId!=null && image.cameraId.StartsWith("builtin-");
-            if(image==null||image.cameraId==null||(!image.cameraId.StartsWith("uvc:") && !(allowBuiltinPreview && builtin))||image.sequence<0)
+            if(image==null||image.cameraId==null||(!image.cameraId.StartsWith("uvc:") && !(allowBuiltinPreview && builtin) && !IsCalibratedRhinoXFrame(image,calibration))||image.sequence<0)
             {Reset("not a valid UVC frame");return false;}
             long received=image.receivedHostStopwatchNs>0?image.receivedHostStopwatchNs:clock();
             if(camera!=image.cameraId||width!=image.imageWidth||height!=image.imageHeight||revision!=originRevision||image.sequence<sequence||received<lastReceivedNs)

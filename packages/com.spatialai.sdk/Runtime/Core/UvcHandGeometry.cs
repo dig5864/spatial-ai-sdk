@@ -48,7 +48,7 @@ namespace SpatialAI.Core
         public string cameraId, calibrationVersion, source;
         public int imageWidth, imageHeight;
         public float fx, fy, cx, cy;
-        // OpenCV Brown-Conrady k1,k2,p1,p2,k3 (not RhinoX's 8-term rational model).
+        // OpenCV k1,k2,p1,p2,k3, optionally k4,k5,k6 for the rational model.
         public float[] distortion = new float[5];
         // Undo mirror first, then the clockwise image rotation before unprojection.
         public int imageRotationClockwise;
@@ -128,7 +128,7 @@ namespace SpatialAI.Core
             if (schemaVersion != 1 || string.IsNullOrWhiteSpace(cameraId) || string.IsNullOrWhiteSpace(calibrationVersion) ||
                 imageWidth <= 0 || imageHeight <= 0 || !Positive(fx) || !Positive(fy) ||
                 !HandVector3.Finite(cx) || !HandVector3.Finite(cy) || cx < 0 || cy < 0 || cx > imageWidth || cy > imageHeight ||
-                distortion == null || distortion.Length != 5 || headFromCameraTranslationMetres == null ||
+                distortion == null || (distortion.Length != 5 && distortion.Length != 8) || headFromCameraTranslationMetres == null ||
                 headFromCameraTranslationMetres.Length != 3 || headFromCameraRotationXyzw == null ||
                 headFromCameraRotationXyzw.Length != 4 || !Positive(palmWidthMetres) || !Positive(wristToMiddleMetres) ||
                 !Positive(minDepthMetres) || !Positive(maxDepthMetres) || maxDepthMetres <= minDepthMetres ||
@@ -193,13 +193,19 @@ namespace SpatialAI.Core
         private void Distort(double x,double y,out double u,out double v)
         {
             double r=x*x+y*y,radial=1+distortion[0]*r+distortion[1]*r*r+distortion[4]*r*r*r;
+            if(distortion.Length==8)
+            {
+                double denominator=1+distortion[5]*r+distortion[6]*r*r+distortion[7]*r*r*r;
+                if(Math.Abs(denominator)<1e-8){u=v=double.NaN;return;}
+                radial/=denominator;
+            }
             u=x*radial+2*distortion[2]*x*y+distortion[3]*(r+2*x*x);
             v=y*radial+distortion[2]*(r+2*y*y)+2*distortion[3]*x*y;
         }
         private bool LensValid()
         {
             if(imageWidth<=0 || imageHeight<=0 || !Positive(fx) || !Positive(fy) || !HandVector3.Finite(cx) ||
-                !HandVector3.Finite(cy) || distortion==null || distortion.Length!=5 ||
+                !HandVector3.Finite(cy) || distortion==null || (distortion.Length!=5 && distortion.Length!=8) ||
                 (imageRotationClockwise!=0 && imageRotationClockwise!=90 && imageRotationClockwise!=180 && imageRotationClockwise!=270))return false;
             foreach(float value in distortion)if(!HandVector3.Finite(value))return false;
             return true;

@@ -1,0 +1,36 @@
+{
+  "deviceSerial": "03P11D14202L",
+  "apk": "D:\\visor-x\\spatial-ai-sdk\\build\\samples\\android\\spatialxr-rhinox-pro-initial-calibration.apk",
+  "sha256": "487ea93d4cbcc1b88db96af24afca9cf77160947cdf3d3b958dbe9abfb74b653",
+  "installed": true,
+  "activeScene": "SpatialHandInteraction",
+  "runtimeCalibrationVersion": "rhinox-pro-03P11D14202L-rgb-hands-initial-v1",
+  "cameraSource": "rhinox-rgb",
+  "cameraId": "2",
+  "captureSize": [
+    1440,
+    1080
+  ],
+  "inferenceInputSize": [
+    384,
+    288
+  ],
+  "presentationScale": 1,
+  "palmDimensionsMetres": [
+    0.064,
+    0.09
+  ],
+  "captureFpsApprox": 30,
+  "inferenceFpsApprox": 28,
+  "observedPipelineErrors": 0,
+  "observedHandsAtCheck": 0,
+  "runtimeMaximumHands": 1,
+  "runtimeScheduling": "FIXED",
+  "coreChecksPassed": 1012,
+  "rationalRayComparisonsPassed": 25,
+  "syntheticExtrinsicsApplied": true,
+  "mismatchedCameraAndSizeRejected": true,
+  "deviceVisualAlignmentValidated": false,
+  "runtimeLog": "build/logs/rhinox-initial-extrinsics-runtime.log",
+  "screenshot": "build/rhinox-initial-extrinsics-xri.png"
+}

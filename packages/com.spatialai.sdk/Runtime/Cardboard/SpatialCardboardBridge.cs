@@ -12,6 +12,7 @@ namespace SpatialAI.Cardboard
 {
     // Cardboard owns display submission. A matched Spatial AI optical profile
     // supplies its display mesh and projection through the native boundary.
+    public enum PhoneStereoDiagnosticMode { Profile, Normal, Zero, Reverse }
     public sealed class SpatialCardboardBridge : MonoBehaviour
     {
         [Tooltip("External headset ID from a future connection service. If empty, use the phone device code or model for diagnostics only.")]
@@ -23,6 +24,21 @@ namespace SpatialAI.Cardboard
         public bool useRhinoXReferenceMeshForDiagnostics;
         [Tooltip("Fixed rig physical screen regions. If empty, load SpatialAI/ScreenRig or the locally saved rig.json.")]
         public TextAsset phoneRigProfile;
+        // Session-only A/B diagnostic. Never changes the measured physical IPD or camera calibration.
+        public static PhoneStereoDiagnosticMode PhoneStereoMode { get; private set; }
+        public static void SetPhoneStereoDiagnosticMode(PhoneStereoDiagnosticMode mode)
+        {
+            if(!Enum.IsDefined(typeof(PhoneStereoDiagnosticMode),mode))throw new ArgumentOutOfRangeException(nameof(mode));
+            PhoneStereoMode=mode;
+            Debug.Log("Spatial phone stereo diagnostic requested: "+mode+"; resets on app restart");
+        }
+        public static float PhoneStereoDiagnosticBaseline(float ipdMetres,bool reverseInProfile=false)
+        {
+            if(float.IsNaN(ipdMetres)||float.IsInfinity(ipdMetres)||ipdMetres<=0||ipdMetres>.1f)throw new ArgumentOutOfRangeException(nameof(ipdMetres));
+            if(PhoneStereoMode==PhoneStereoDiagnosticMode.Zero)return 0;
+            bool reverse=PhoneStereoMode==PhoneStereoDiagnosticMode.Reverse || PhoneStereoMode==PhoneStereoDiagnosticMode.Profile && reverseInProfile;
+            return reverse?-ipdMetres:ipdMetres;
+        }
         public string PhoneDisplayStatus { get; private set; } = "Not configured";
         public float[] PhoneEyeRects { get; private set; }
         private SpatialScreenCalibration screenCalibration;
@@ -347,7 +363,7 @@ namespace SpatialAI.Cardboard
             var rig = SpatialPhoneScreen.LoadRig(phoneRigProfile);
             string key = phoneOutputSize + "/" + metrics.displayWidthPx + "x" + metrics.displayHeightPx + "/" +
                 metrics.rotation + "/" + metrics.modeId + "/" + metrics.displayId + "/" + metrics.fullDisplayMapping + "/" + Screen.safeArea + "/" + SpatialPhoneScreen.Revision +
-                "/" + (screen == null ? "missing" : JsonUtility.ToJson(screen)) + "/" + (rig == null ? "missing" : JsonUtility.ToJson(rig));
+                "/" + PhoneStereoMode + "/" + (screen == null ? "missing" : JsonUtility.ToJson(screen)) + "/" + (rig == null ? "missing" : JsonUtility.ToJson(rig));
             if (key == phoneConfigurationKey) return;
             phoneConfigurationKey = key;
             Debug.Log("Spatial screen metrics: display=" + metrics.displayWidthPx + "x" + metrics.displayHeightPx +
@@ -365,6 +381,7 @@ namespace SpatialAI.Cardboard
                     MatchedHostProfile.nativePortraitHeight, MatchedHostProfile.nativePortraitWidth,
                     screen, "unsaved-reference-rig", MatchedHostProfile.referenceOutputRotate180, out rig);
                 if (!reference.Success) { RejectPhoneDisplay(reference.Message); return; }
+                rig.reverseStereoBaseline = MatchedHostProfile.reverseStereoBaseline;
             }
             if (rig == null) { RejectPhoneDisplay("Needs reference rig. Import the rig.json measured on the reference phone."); return; }
             var result = ScreenLayout.Calculate(rig, screen, Screen.width, Screen.height, out var rects);
@@ -384,7 +401,7 @@ namespace SpatialAI.Cardboard
             {
                 phoneDisplayRevision = phoneDisplayRevision == int.MaxValue ? 1 : phoneDisplayRevision + 1;
                 spatialOpticsConfigured = ConfigureSpatialPhoneDisplay(MatchedProfile.meshId, MatchedProfile.meshAssetHash,
-                    Screen.width, Screen.height, MatchedProfile.ipdMetres, MatchedProfile.frustumNearMetres,
+                    Screen.width, Screen.height, PhoneStereoDiagnosticBaseline(MatchedProfile.ipdMetres,rig.reverseStereoBaseline), MatchedProfile.frustumNearMetres,
                     MatchedProfile.frustumLeftMetres, MatchedProfile.frustumRightMetres, MatchedProfile.frustumTopMetres,
                     MatchedProfile.frustumBottomMetres, rects, rig.rotateOutput180 ? 1 : 0, phoneDisplayRevision) != 0;
                 if (!spatialOpticsConfigured) { RejectPhoneDisplay("Native display configuration rejected."); return; }
@@ -392,6 +409,7 @@ namespace SpatialAI.Cardboard
                 PhoneDisplayStatus = (screen.measured && rig.referenceScreenMeasured ? "MEASURED layout" : "ESTIMATED layout") +
                     "; reference optics UNVERIFIED; " + phoneOutputSize;
                 Debug.Log("Spatial phone display: " + PhoneDisplayStatus + "; rects=" + string.Join(",", rects));
+                Debug.Log("Spatial phone stereo diagnostic applied: mode="+PhoneStereoMode+" signedBaselineMetres="+PhoneStereoDiagnosticBaseline(MatchedProfile.ipdMetres,rig.reverseStereoBaseline)+" revision="+phoneDisplayRevision);
             }
             catch (Exception e) { RejectPhoneDisplay("Phone display API unavailable: " + e.Message); }
         }

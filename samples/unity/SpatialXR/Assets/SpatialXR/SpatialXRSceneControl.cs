@@ -10,11 +10,15 @@ namespace SpatialAI.Samples
     {
         private string requestedScene;
         private AsyncOperation loading;
+        private bool forceSceneReload;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
-            SpatialHandTracking.CameraSource = SpatialHandCameraSource.Uvc;
+            var identity=SpatialDeviceProfiles.ReadHostIdentity();
+            bool rhinoX=string.Equals(identity.Model,"RhinoX",System.StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(identity.DeviceCode,"kona",System.StringComparison.OrdinalIgnoreCase);
+            SpatialHandTracking.CameraSource = rhinoX ? SpatialHandCameraSource.HostProfile : SpatialHandCameraSource.Uvc;
             var control = new GameObject("SpatialXRSceneControl");
             DontDestroyOnLoad(control);
             control.AddComponent<SpatialXRSceneControl>();
@@ -31,6 +35,14 @@ namespace SpatialAI.Samples
             Debug.Log("Spatial XR scene control ready: imu / hands / xrhands / xri / optics / calibration / capture");
         }
 
+        [Preserve]
+        public void SetPhoneStereoMode(string mode)
+        {
+            if(System.Enum.TryParse(mode,true,out SpatialAI.Cardboard.PhoneStereoDiagnosticMode parsed) &&
+                System.Enum.IsDefined(typeof(SpatialAI.Cardboard.PhoneStereoDiagnosticMode),parsed))
+                SpatialAI.Cardboard.SpatialCardboardBridge.SetPhoneStereoDiagnosticMode(parsed);
+            else Debug.LogWarning("Spatial phone stereo mode rejected: use Profile/Normal/Zero/Reverse");
+        }
         // Invoked by Android UnitySendMessage; keep this method in IL2CPP builds.
         [Preserve]
         public void SwitchScene(string scene)
@@ -41,7 +53,8 @@ namespace SpatialAI.Samples
             string target;
             switch ((scene ?? "").Trim().ToLowerInvariant())
             {
-                case "imu": case "imudiagnostics": target = "ImuDiagnostics"; break;
+                case "imu": case "imudiagnostics": ImuDiagnostics.StereoProbeOnly=false; target = "ImuDiagnostics"; break;
+                case "stereo": ImuDiagnostics.StereoProbeOnly=true; forceSceneReload=true; target="ImuDiagnostics"; break;
                 case "hands": case "hellospatialxr": target = "HelloSpatialXR"; break;
                 case "xrhands": case "uvcxrhands": target = "SpatialUvcXRHands"; break;
                 case "xri": case "interaction": target = "SpatialHandInteraction"; break;
@@ -130,11 +143,12 @@ namespace SpatialAI.Samples
             if (requestedScene == null) return;
             var target = requestedScene;
             requestedScene = null;
-            if (SceneManager.GetActiveScene().name == target)
+            if (SceneManager.GetActiveScene().name == target && !forceSceneReload)
             {
                 Debug.Log("Spatial XR scene already active: " + target);
                 return;
             }
+            forceSceneReload=false;
             loading = SceneManager.LoadSceneAsync(target, LoadSceneMode.Single);
         }
 

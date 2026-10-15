@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;
 
 namespace SpatialAI.Unity
 {
@@ -27,6 +29,9 @@ namespace SpatialAI.Unity
         private long savedSequence = -1;
         private float lastResultTime = float.NegativeInfinity;
         private string session;
+        private bool previousPreviewEnabled;
+        private readonly List<XRDisplaySubsystem> pausedDisplays = new List<XRDisplaySubsystem>();
+        private readonly List<XRDisplaySubsystem> displays = new List<XRDisplaySubsystem>();
 
         private void Awake()
         {
@@ -34,8 +39,34 @@ namespace SpatialAI.Unity
             session = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             OutputDirectory = Path.Combine(Application.persistentDataPath, "uvc-calibration", session);
         }
-        private void OnEnable() { tracking.FrameUpdated += OnFrame; }
-        private void OnDisable() { tracking.FrameUpdated -= OnFrame; }
+        private void OnEnable()
+        {
+            previousPreviewEnabled = tracking.PreviewEnabled;
+            tracking.PreviewEnabled = true;
+            tracking.FrameUpdated += OnFrame;
+            PauseXrDisplays();
+        }
+        // Android/Unity can restart XR after focus or pause callbacks, without re-enabling this component.
+        private void LateUpdate() { PauseXrDisplays(); }
+        private void PauseXrDisplays()
+        {
+            displays.Clear();
+            SubsystemManager.GetSubsystems(displays);
+            foreach (var display in displays)
+            {
+                if (!display.running) continue;
+                if (!pausedDisplays.Contains(display)) pausedDisplays.Add(display);
+                display.Stop();
+                Debug.Log("SpatialCalibration: paused XR display for screen capture preview.");
+            }
+        }
+        private void OnDisable()
+        {
+            tracking.FrameUpdated -= OnFrame;
+            tracking.PreviewEnabled = previousPreviewEnabled;
+            foreach (var display in pausedDisplays) display.Start();
+            pausedDisplays.Clear();
+        }
         private void OnFrame(SpatialHandFrame frame) { lastResultTime = Time.unscaledTime; }
         public bool Capture()
         {
