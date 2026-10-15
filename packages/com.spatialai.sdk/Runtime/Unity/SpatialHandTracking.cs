@@ -7,6 +7,9 @@ using UnityEngine.Android;
 namespace SpatialAI.Unity
 {
     public enum SpatialHandInferenceBackend { CPU, GPU }
+    public enum SpatialHandMode { Single, Dual, Auto }
+    public enum SpatialHandSchedulingMode { Auto, Fixed }
+    public enum SpatialHandCameraSource { HostProfile, Uvc, Rear, Front }
     public enum SpatialGestureKind
     {
         None,
@@ -85,6 +88,9 @@ namespace SpatialAI.Unity
     public sealed class SpatialHandFrame
     {
         public string cameraId;
+        public string cameraSource;
+        public int inputWidth;
+        public int inputHeight;
         public int imageWidth;
         public int imageHeight;
         public long sequence;
@@ -97,6 +103,9 @@ namespace SpatialAI.Unity
         public string gestureSource;
         public string runningMode;
         public string @delegate;
+        public int activeMaxHands;
+        public string schedulingMode;
+        public string schedulingState;
         public long receivedHostStopwatchNs;
         public float resultAgeAtReceiveMs=-1;
         public SpatialHand[] hands;
@@ -107,6 +116,66 @@ namespace SpatialAI.Unity
     public sealed class SpatialHandTracking : MonoBehaviour
     {
         public static bool GestureRecognitionEnabled { get; set; } = true;
+        private static SpatialHandCameraSource cameraSource = SpatialHandCameraSource.HostProfile;
+        /// <summary>Camera override. HostProfile preserves existing SDK selection; the Android Demo defaults to UVC.</summary>
+        public static SpatialHandCameraSource CameraSource
+        {
+            get { return cameraSource; }
+            set
+            {
+                if (!Enum.IsDefined(typeof(SpatialHandCameraSource), value)) throw new ArgumentOutOfRangeException(nameof(value));
+                cameraSource = value;
+            }
+        }
+        private static int maxHands = 1;
+        private static SpatialHandSchedulingMode schedulingMode = SpatialHandSchedulingMode.Fixed;
+        private static bool handModeConfigured, inferenceBackendConfigured;
+        /// <summary>Global hand mode. Dual detects up to two hands; Auto probes and switches dynamically.</summary>
+        public static SpatialHandMode HandMode
+        {
+            get { return schedulingMode == SpatialHandSchedulingMode.Auto ? SpatialHandMode.Auto :
+                maxHands == 1 ? SpatialHandMode.Single : SpatialHandMode.Dual; }
+            set
+            {
+                if (!Enum.IsDefined(typeof(SpatialHandMode), value)) throw new ArgumentOutOfRangeException(nameof(value));
+                maxHands = value == SpatialHandMode.Single ? 1 : 2;
+                schedulingMode = value == SpatialHandMode.Auto ? SpatialHandSchedulingMode.Auto : SpatialHandSchedulingMode.Fixed;
+                handModeConfigured = true;
+            }
+        }
+        /// <summary>Auto probes for a second hand; Fixed uses MaxHands on every frame.</summary>
+        public static SpatialHandSchedulingMode SchedulingMode
+        {
+            get { return schedulingMode; }
+            set
+            {
+                if (!Enum.IsDefined(typeof(SpatialHandSchedulingMode), value)) throw new ArgumentOutOfRangeException(nameof(value));
+                schedulingMode = value;
+                handModeConfigured = true;
+            }
+        }
+        private static int cameraSizeTier = 2;
+        /// <summary>Capture tier 1/2/3. UVC: 640x360/640x480/1280x720; built-in: device-supported tiers. Changes reopen capture.</summary>
+        public static int CameraSizeTier
+        {
+            get { return cameraSizeTier; }
+            set
+            {
+                if (value < 1 || value > 3) throw new ArgumentOutOfRangeException(nameof(value));
+                cameraSizeTier = value;
+            }
+        }
+        /// <summary>Maximum simultaneous hands (1 or 2). Changes apply to the active inference task.</summary>
+        public static int MaxHands
+        {
+            get { return maxHands; }
+            set
+            {
+                if (value != 1 && value != 2) throw new ArgumentOutOfRangeException(nameof(value));
+                maxHands = value;
+                handModeConfigured = true;
+            }
+        }
         private static SpatialHandInferenceBackend inferenceBackend=SpatialHandInferenceBackend.CPU;
         /// <summary>Provider configuration; application hand data still uses standard XR Hands APIs.</summary>
         public static SpatialHandInferenceBackend InferenceBackend
@@ -117,7 +186,29 @@ namespace SpatialAI.Unity
                 if(value!=SpatialHandInferenceBackend.CPU&&value!=SpatialHandInferenceBackend.GPU)
                     throw new ArgumentOutOfRangeException(nameof(value));
                 inferenceBackend=value;
+                inferenceBackendConfigured = true;
             }
+        }
+        [SerializeField, Tooltip("Startup inference backend. An explicit C# API setting takes priority. Runtime changes recreate inference tasks.")]
+        private SpatialHandInferenceBackend initialInferenceBackend = SpatialHandInferenceBackend.CPU;
+        [SerializeField, Tooltip("Startup hand mode. Single: at most one hand; Dual: at most two; Auto: periodically probe for a second hand. An explicit C# API setting takes priority.")]
+        private SpatialHandMode initialHandMode = SpatialHandMode.Single;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetInferenceConfiguration()
+        {
+            inferenceBackend = SpatialHandInferenceBackend.CPU;
+            maxHands = 1;
+            schedulingMode = SpatialHandSchedulingMode.Fixed;
+            handModeConfigured = inferenceBackendConfigured = false;
+        }
+
+        private void Awake()
+        {
+            // The first component supplies startup defaults; later scenes must not
+            // overwrite explicit API settings or the active owner's configuration.
+            if (!inferenceBackendConfigured) InferenceBackend = initialInferenceBackend;
+            if (!handModeConfigured) HandMode = initialHandMode;
         }
         private static int exposureMode = -1, exposureTimeUs = -1, exposureRevision;
         public static void ConfigureUvcExposure(int mode, int timeUs)
@@ -130,6 +221,8 @@ namespace SpatialAI.Unity
         public event Action<string> Invalidated;
         private static SpatialHandTracking cameraOwner;
         public Texture2D PreviewTexture { get; private set; }
+        [Tooltip("Generate and decode UVC preview frames. Leave disabled for inference-only use.")]
+        public bool PreviewEnabled = false;
         public float CaptureFps { get; private set; }
         public float PreviewFps { get; private set; }
         public long PreviewSequence { get { return previewSequence; } }
@@ -142,7 +235,12 @@ namespace SpatialAI.Unity
         private bool paused;
         private bool externalCamera;
         private bool appliedGestureEnabled;
+        private bool appliedPreviewEnabled;
         private SpatialHandInferenceBackend appliedInferenceBackend;
+        private int appliedMaxHands;
+        private SpatialHandSchedulingMode appliedSchedulingMode;
+        private int appliedCameraSizeTier;
+        private SpatialHandCameraSource appliedCameraSource;
         private int appliedExposureRevision;
         private float previewWindowStart;
         private int previewCount;
@@ -169,16 +267,44 @@ namespace SpatialAI.Unity
                     bridge = new AndroidJavaObject("com.spatialai.hands.SpatialHandBridge",
                         player.GetStatic<AndroidJavaObject>("currentActivity"));
                 var hostResult = SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(), out var host);
-                externalCamera = hostResult.Success && host.cameraSource == "external-uvc";
-                if (hostResult.Success) bridge.Call("setCameraSource", host.cameraSource);
+                appliedCameraSource = CameraSource;
+                var source = appliedCameraSource == SpatialHandCameraSource.Uvc ? "external-uvc" :
+                    appliedCameraSource == SpatialHandCameraSource.Rear ? "builtin-rear" :
+                    appliedCameraSource == SpatialHandCameraSource.Front ? "builtin-front" :
+                    hostResult.Success ? host.cameraSource : "rhinox-rgb";
+                externalCamera = source == "external-uvc";
+                bridge.Call("setCameraSource", source);
+                appliedCameraSizeTier = CameraSizeTier;
+                bridge.Call("setCameraSizeTier", appliedCameraSizeTier);
                 appliedGestureEnabled = GestureRecognitionEnabled;
                 bridge.Call("setGestureEnabled", appliedGestureEnabled);
+                appliedPreviewEnabled = PreviewEnabled;
+                bridge.Call("setPreviewEnabled", appliedPreviewEnabled);
                 appliedInferenceBackend=InferenceBackend;
                 bridge.Call("setInferenceDelegate",appliedInferenceBackend.ToString());
+                appliedMaxHands = MaxHands;
+                bridge.Call("setMaxHands", appliedMaxHands);
+                appliedSchedulingMode = SchedulingMode;
+                bridge.Call("setSchedulingMode", appliedSchedulingMode.ToString().ToUpperInvariant());
                 appliedExposureRevision = exposureRevision;
                 if (externalCamera && exposureRevision > 0)
                     bridge.Call("setExposureConfig", exposureMode, exposureTimeUs);
                 bridge.Call("start");
+            }
+            if (appliedCameraSource != CameraSource || appliedCameraSizeTier != CameraSizeTier)
+            {
+                bridge.Call("stop");
+                bridge.Dispose();
+                bridge = null;
+                Latest = null;
+                lastSequence = -1;
+                previewSequence = -1;
+                CaptureFps = PreviewFps = 0;
+                previewCount = 0;
+                if (PreviewTexture != null) { Destroy(PreviewTexture); PreviewTexture = null; }
+                Invalidated?.Invoke("camera source or capture size changed");
+                State = "reopening camera capture";
+                return;
             }
             if (externalCamera && appliedExposureRevision != exposureRevision)
             {
@@ -200,30 +326,58 @@ namespace SpatialAI.Unity
                 Latest=null;lastSequence=-1;
                 Invalidated?.Invoke("inference backend changed");
             }
+            if (appliedSchedulingMode != SchedulingMode)
+            {
+                appliedSchedulingMode = SchedulingMode;
+                bridge.Call("setSchedulingMode", appliedSchedulingMode.ToString().ToUpperInvariant());
+                Latest = null; lastSequence = -1;
+                Invalidated?.Invoke("hand scheduling changed");
+            }
+            if (appliedMaxHands != MaxHands)
+            {
+                appliedMaxHands = MaxHands;
+                bridge.Call("setMaxHands", appliedMaxHands);
+                Latest = null;
+                lastSequence = -1;
+                Invalidated?.Invoke("maximum hand count changed");
+            }
+            if (appliedPreviewEnabled != PreviewEnabled)
+            {
+                appliedPreviewEnabled = PreviewEnabled;
+                bridge.Call("setPreviewEnabled", appliedPreviewEnabled);
+                previewSequence = -1;
+                PreviewFps = 0;
+                previewCount = 0;
+                previewWindowStart = Time.unscaledTime;
+                if (!PreviewEnabled && PreviewTexture != null)
+                { Destroy(PreviewTexture); PreviewTexture = null; }
+            }
             if (Time.unscaledTime < nextPoll) return;
             nextPoll = Time.unscaledTime + 0.016f;
             State = bridge.Call<string>("getState");
-            if (externalCamera)
             {
                 CaptureFps = bridge.Call<float>("getCaptureFps");
-                var sequence = bridge.Call<long>("getPreviewSequence");
-                if (sequence > 0 && sequence != previewSequence)
+                if (PreviewEnabled)
                 {
-                    var signedBytes = bridge.Call<sbyte[]>("getPreviewJpeg");
-                    if (signedBytes != null && signedBytes.Length > 0)
+                    var sequence = bridge.Call<long>("getPreviewSequence");
+                    if (sequence > 0 && sequence != previewSequence)
                     {
-                        var bytes = new byte[signedBytes.Length];
-                        Buffer.BlockCopy(signedBytes, 0, bytes, 0, bytes.Length);
-                        if (PreviewTexture == null) PreviewTexture = new Texture2D(2, 2, TextureFormat.RGB24, false);
-                        PreviewTexture.LoadImage(bytes);
-                        previewSequence = sequence;
-                        previewCount++;
+                        var signedBytes = bridge.Call<sbyte[]>("getPreviewJpeg");
+                        if (signedBytes != null && signedBytes.Length > 0)
+                        {
+                            var bytes = new byte[signedBytes.Length];
+                            Buffer.BlockCopy(signedBytes, 0, bytes, 0, bytes.Length);
+                            if (PreviewTexture == null) PreviewTexture = new Texture2D(2, 2, TextureFormat.RGB24, false);
+                            PreviewTexture.LoadImage(bytes);
+                            previewSequence = sequence;
+                            previewCount++;
+                        }
                     }
-                }
-                if (Time.unscaledTime - previewWindowStart >= 1f)
-                {
-                    PreviewFps = previewCount / (Time.unscaledTime - previewWindowStart);
-                    previewCount = 0; previewWindowStart = Time.unscaledTime;
+                    if (Time.unscaledTime - previewWindowStart >= 1f)
+                    {
+                        PreviewFps = previewCount / (Time.unscaledTime - previewWindowStart);
+                        previewCount = 0; previewWindowStart = Time.unscaledTime;
+                    }
                 }
             }
             var json = bridge.Call<string>("getLatestJson");

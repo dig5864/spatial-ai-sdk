@@ -7,6 +7,12 @@
 
 ## 场景与用途
 
+当前 Demo 在 `Assets/Resources/SpatialAI/ScreenRig.json` 内置了已在 mayfly / dada 上核对的固定支架毫米配置，各台手机按 Android 各轴 DPI 或本机保存的裸屏测量尺寸计算双目区域。APK 包名沿用 `com.spatialai.samples.xr`，默认启动 IMU 场景。另一种支架应替换该资源；完整说明见 [多手机屏幕适配](../../../docs/PHONE_SCREEN_ADAPTATION.md)。
+
+安装 Demo 后，原独立测试应用 `com.spatialai.validation.screen` 的测量文件不会跨包名自动共享。首次在每台手机运行时可点顶部 **Screen size / 50 mm ruler**，核对两条标尺后 **Save measured screen**，再关闭恢复显示；只更新本机尺寸，不重新建立支架。未保存时使用 API 估算，两台已测试手机的估算标尺均已由用户核对。
+
+IMU 场景显示 Yaw / Pitch / Roll、原始 Cardboard 与映射姿态、手机陀螺仪和加速度。安装姿势固定后轻触屏幕归零，分别左右转、抬头低头、左右倾斜，检查视野跟随方向与轴向。新机型使用支架内的候选 IMU 映射，仍标记 MODEL UNVERIFIED；验证结果不由屏幕适配测试自动推定。
+
 | 场景 | 用途 | 构建入口与输出 |
 | --- | --- | --- |
 | `Assets/Scenes/HelloSpatialXR.unity` | Cardboard 双目、3DoF 头姿、注视方块、RGB/MediaPipe 手骨架与捏合计数 | 双击 `BuildAndroid.bat` 或菜单 `Spatial AI > Build Android XR Sample`；`build/samples/android/spatialxr.apk` |
@@ -26,11 +32,82 @@ Unity Android 构建回调会在菜单、自动构建和 batchmode 打包前运�
 
 ## 通过 ADB 切换场景
 
-手势识别使用 MediaPipe `VIDEO` 模式，默认 CPU 推理、最多两只手；有效跟踪时可复用连续帧结果，
+摄像头来源参数为 `--es cameraSource uvc/rear/front`：外接 UVC / 手机后置 / 手机前置，Demo 新进程默认 `uvc`；省略保留当前设置。
+SDK 可使用 `SpatialHandTracking.CameraSource = SpatialHandCameraSource.Rear`（或 `Front` / `Uvc`）。SDK 默认 `HostProfile` 保留原有设备档案行为，Demo 显式设置 `Uvc`。
+运行中切换来源或尺寸档位会重开采集并清除旧结果。CPU/GPU、最大手数、VIDEO 模式、输入宽度及限频保持原设置；UVC 曝光配置保留，但不应用到内置 Camera2。
+内置摄像头由独立 `BuiltinCapture` 选择对应朝向的彩色 YUV Camera2 设备，复用 `CameraService` 采集；不存在对应摄像头时明确报错，不替换成另一朝向。
+内置的三档从实际 `YUV_420_888` 尺寸中选择并按像素数排列，尽量接近 640×360、640×480、1280×720；档位 2 优先 VGA，同时保留低、高档。
+可用模式少于三种时只提供实际模式数量，越界档位报错，不虚构或重复分辨率。每次打开都会打印实际档位尺寸及 FPS 范围，优先请求设备支持的最窄包含 30 FPS 的范围；不支持时保留设备默认 FPS。
+内置图像按传感器和屏幕方向旋转为正向输入，不进行前置镜像；帧的 `imageWidth/imageHeight` 是原始采集尺寸，`inputWidth/inputHeight` 是实际 MediaPipe 输入尺寸。
+
+```sh
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --es cameraSource rear --ei cameraSizeTier 2
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --es cameraSource front --ei cameraSizeTier 1
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --es cameraSource uvc --ei cameraSizeTier 2
+adb logcat -s SpatialBuiltin:I SpatialUVC:I SpatialHands:I
+```
+
+内置摄像头支持图像关键点与原始手势结果；XRI HUD 以 `RAW` 显示原始手势，以 `PREVIEW` 标明默认骨架投影。
+XRI Demo 自动启用 `SpatialUvcHands.builtinSkeletonPreview`，使用 30° 水平视角、中心主点、零畸变、相机与头坐标重合和固定 0.5 m 深度绘制 26 个关节点。
+这些是临时显示假设，全部标定验证标记保持未验证；关键点按 MediaPipe 实际旋转后的输入尺寸投影，不套用 UVC 的反转左右手或安装参数。
+骨架仅绘制，不产生已跟踪的 XR 手或 UI/方块点击；手消失或图像超过 350 ms 未更新后隐藏。切回 UVC 时恢复原有转换和标定。
+SDK 的该预览开关默认关闭；需要临时显示时可在启用组件前设为 true。需要对齐或空间交互时仍须增加对应摄像头标定。
+日志 `pipeline source` 区分来源；Camera2 的 `capturedTotal/captureFps` 统计实际取出的图像（`acquireLatestImage` 可能跳过未取出的旧图像），其他送入、完成、跳过计数和耗时与 UVC 一致。
+
+原始 UVC 采集尺寸参数为 `--ei cameraSizeTier N`：`1=640×360`、`2=640×480`（默认）、`3=1280×720`，按像素数量从小到大排列。
+这三个档位是固定的原始采集尺寸，不是对 640×480 图像做软件缩放；仅在摄像头确实报告支持时启用，优先选择支持 30 FPS 的模式，再优先 MJPEG。
+其他摄像头不支持所选尺寸时会明确报告 `Unsupported cameraSizeTier`，不会静默选择其他尺寸。省略参数保留当前设置，新进程恢复默认档位 2。
+SDK 对应配置为 `SpatialHandTracking.CameraSizeTier`，运行中切换会重新打开 UVC、清除旧的手部数据；USB 授权仍需由设备允许。
+MediaPipe 输入宽度保持 384，高度按采集宽高比计算：档位 1/3 为 384×216，档位 2 为 384×288。
+XRI HUD 第一行的 `Capture` 是实际采集尺寸，`Input` 是送入 MediaPipe 的图像尺寸；`Input 384×216` 不表示摄像头只采集了 384×216。
+RhinoX 向前拍摄的 RGB Camera2 摄像头（本次设备 ID 2）在 Android 中标记为 Front，可通过 `cameraSource front` 验证三档；支持上述尺寸时选择 640×360、640×480、1280×720。通用 Camera2 路径根据设备支持的模式选择三个递增档位，不保证其他设备也具有这三个尺寸。
+`HostProfile` 的 `rhinox-rgb` 专用路径仍使用固定的标定采集尺寸（优先 1440×1080），不应用 `cameraSizeTier`，以免未经标定的尺寸变更影响图像到空间射线的转换。
+改变采集宽高比后需核对该模式的视野及相机标定，不能把帧率测试视为交互精度验证。
+
+```sh
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ei cameraSizeTier 1
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ei cameraSizeTier 2
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ei cameraSizeTier 3
+adb logcat -s SpatialUVC:I SpatialHands:I
+```
+
+`SpatialUVC` 启动日志逐项列出摄像头支持的原始尺寸、格式与 FPS，`Selected` 显示实际选择的档位及尺寸。
+`SpatialHands pipeline` 每约两秒输出真实计数窗口（含没有检测到手的推理帧）：
+
+| 字段 | 含义 |
+| --- | --- |
+| `capture` / `input` | 原始采集尺寸 / 实际构造的 MediaPipe 输入尺寸 |
+| `capturedTotal` / `callbackTotal` | 本次采集会话累计 UVC 回调数量 / 推理消费线程收到的帧数 |
+| `submittedTotal` / `completedTotal` | 累计调用模型的次数 / 模型成功返回的次数 |
+| `captureFps` / `callbackFps` / `submittedFps` / `completedFps` | 按窗口数量除以实际秒数计算的帧率，不使用平滑估算 |
+| `disabledSkipped` / `throttleSkipped` | 本窗口因识别关闭或停止 / 33 ms 限频跳过的数量 |
+| `queueReplaced` / `poolDropped` | 本窗口推理待处理帧被新帧替换 / 帧缓冲池不足丢帧的数量 |
+| `errors` | 本窗口模型初始化、推理或结果处理错误数量 |
+| `convertMeanMs` / `convertMaxMs` | 成功返回帧的缩放与 Bitmap 转换平均 / 最大耗时，不含模型初始化 |
+| `inferMeanMs` / `inferMaxMs` | 成功返回帧的 MPImage 构造、模型调用及输入关闭平均 / 最大耗时 |
+| `receiptToResultMeanMs` | UVC 主机收到帧到模型返回的平均延迟，包含排队；不是摄像头曝光到显示延迟 |
+
+重开采集后累计计数归零；窗口按消费线程回调结束统计，首次窗口可能包含模型初始化时间。
+
+手势识别使用 MediaPipe `VIDEO` 模式，默认 CPU 推理、固定单手；有效跟踪时可复用连续帧结果，
 减少重复手掌检测。`SpatialHands` 日志包含 `runningMode=VIDEO` 和 `delegate=GPU/CPU`。
 GPU 模型在相机消费线程中创建、调用和释放。GPU 初始化失败时明确记录错误并回退 CPU；
 以日志中的实际 delegate 为准。
 广播新增 `--es inferenceDelegate GPU` 或 `CPU`，可在 `hands`、`xrhands`、`xri` 中切换；省略保留当前设置，新进程默认 CPU。
+通过 `--ei maxHands 1` 设置单手，`--ei maxHands 2` 设置双手，新进程默认固定单手。
+省略参数保留本进程当前设置；已在 XRI 场景时重复发送广播也会立即应用，无需重新加载场景。
+单手表示最多同时识别一只手，可以是左手或右手；双手表示最多两只手。
+该参数直接配置 MediaPipe 推理数量，手势识别器及手关键点回退模型都使用此数量。
+非法值会拒绝整条请求。SDK 代码也可使用 `SpatialHandTracking.MaxHands = 1` 或 `2`。
+
+```sh
+# 单手 XRI
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ei maxHands 1
+# 双手 XRI（运行中切换）
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ei maxHands 2
+```
+
+`SpatialHands` 的 `Recognizer ready` 和推理日志包含实际 `maxHands`；切换时旧手部数据会失效，等待新模型结果。
 三个场景显示 AI/UVC/Render FPS，旧场景和 XR Hands 场景已共用 SDK 补偿，详见 [SDK 补偿与推理配置](../../../docs/UVC_HAND_SDK_COMPENSATION.md)。
 输入使用帧时间戳并保证毫秒值严格递增；手势开关不会重置同一模型实例的时间戳。
 

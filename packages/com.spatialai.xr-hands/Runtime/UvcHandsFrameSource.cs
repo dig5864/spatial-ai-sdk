@@ -9,6 +9,7 @@ namespace SpatialAI.XRHands
     public sealed class UvcHandsFrameSource : ISpatialHandsFrameSource
     {
         private readonly Func<long> now;
+        private readonly bool allowBuiltinPreview;
         internal SpatialUvcHandProcessor Processor { get; private set; }
         private SpatialHandsFrame latest;
         private string camera;
@@ -23,10 +24,11 @@ namespace SpatialAI.XRHands
         public long PublishedFrames { get; private set; }
         public long SkippedCaptureSequences { get; private set; }
         public double ResultAgeMs { get { return latest==null?-1:Math.Max(0,now()-latest.ReceivedTimestampNs)/1e6+ageAtReceiveMs; } }
-        public UvcHandsFrameSource(UvcHandCalibration calibration=null,Func<long> clock=null,float maximumPalmAxisRatio=1.6f)
+        public UvcHandsFrameSource(UvcHandCalibration calibration=null,Func<long> clock=null,float maximumPalmAxisRatio=1.6f,bool allowBuiltinPreview=false)
         {
+            this.allowBuiltinPreview=allowBuiltinPreview;
             now=clock??(()=> (long)(System.Diagnostics.Stopwatch.GetTimestamp()*(1_000_000_000.0/System.Diagnostics.Stopwatch.Frequency)));
-            Processor=new SpatialUvcHandProcessor(calibration,maximumPalmAxisRatio,now);
+            Processor=new SpatialUvcHandProcessor(calibration,maximumPalmAxisRatio,now,allowBuiltinPreview);
         }
         public void Invalidate(string reason)
         {
@@ -35,7 +37,8 @@ namespace SpatialAI.XRHands
         }
         public bool Publish(SpatialHandFrame image,Pose physicalHeadInOrigin,long originRevision)
         {
-            if(image==null || image.cameraId==null || !image.cameraId.StartsWith("uvc:") || image.sequence<0)
+            bool builtin=image!=null && image.cameraId!=null && image.cameraId.StartsWith("builtin-");
+            if(image==null || image.cameraId==null || (!image.cameraId.StartsWith("uvc:") && !(allowBuiltinPreview && builtin)) || image.sequence<0)
             { Invalidate("not a valid UVC frame");return false; }
             if(camera!=image.cameraId || width!=image.imageWidth || height!=image.imageHeight ||
                 revision!=originRevision || image.sequence<sequence)

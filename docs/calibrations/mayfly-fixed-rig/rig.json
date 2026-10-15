@@ -1,0 +1,38 @@
+{
+    "schemaVersion": 1,
+    "rigId": "fixed-reflected-rig-v1",
+    "eyeRectsMm": [
+        -56.424713134765628,
+        -23.20069122314453,
+        52.38406753540039,
+        52.40785598754883,
+        4.040713310241699,
+        -23.20069122314453,
+        52.38406753540039,
+        52.40785598754883
+    ],
+    "rotateOutput180": true,
+    "referenceScreenMeasured": true,
+    "referencePhoneKey": "Xiaomi/2206123SC/mayfly",
+    "opticsValidated": false,
+    "phoneImu": {
+        "calibrationVersion": "xiaomi-mayfly-reflected-view-pitch-roll-candidate-v6",
+        "sourceFrame": "cardboard-unity",
+        "screenOrientation": "landscape-left",
+        "basisX": 0.0,
+        "basisY": 0.0,
+        "basisZ": 0.0,
+        "basisW": 1.0,
+        "mountX": 0.3826834261417389,
+        "mountY": 0.0,
+        "mountZ": 0.0,
+        "mountW": 0.9238795042037964,
+        "preserveNeckModel": false,
+        "invertInputRotation": false,
+        "validatedForHardware": false
+    },
+    "invertViewPitch": true,
+    "invertViewRoll": true,
+    "reflectHandDisplayX": true,
+    "uvcSwapHandedness": true
+}

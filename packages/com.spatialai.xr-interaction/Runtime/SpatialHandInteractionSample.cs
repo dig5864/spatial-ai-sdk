@@ -76,6 +76,7 @@ namespace SpatialAI.XRInteraction
             else
             {
                 var input=inputRoot.AddComponent<SpatialUvcHands>();input.calibrationJson=calibrationJson;
+                input.builtinSkeletonPreview=true;
                 input.maximumPalmAxisRatio=4;
                 handsInput=input;
             }
@@ -112,11 +113,11 @@ namespace SpatialAI.XRInteraction
             hudObject.transform.localPosition=new Vector3(0,-.12f,2.8f);hudObject.transform.localScale=Vector3.one*.002f;
             var hudCanvas=hudObject.AddComponent<Canvas>();hudCanvas.renderMode=RenderMode.WorldSpace;hudCanvas.worldCamera=xrCamera;
             var panel=new GameObject("Debug background",typeof(RectTransform));panel.transform.SetParent(hudObject.transform,false);
-            var panelRect=panel.GetComponent<RectTransform>();panelRect.pivot=new Vector2(.5f,1);panelRect.anchoredPosition=Vector2.zero;panelRect.sizeDelta=new Vector2(1000,210);
+            var panelRect=panel.GetComponent<RectTransform>();panelRect.pivot=new Vector2(.5f,1);panelRect.anchoredPosition=Vector2.zero;panelRect.sizeDelta=new Vector2(1000,250);
             var panelImage=panel.AddComponent<Image>();panelImage.color=new Color(.015f,.025f,.045f,.88f);panelImage.raycastTarget=false;
             hud=TextChild(panel.transform,"",30);hud.alignment=TextAnchor.UpperLeft;
             hud.rectTransform.anchorMin=hud.rectTransform.anchorMax=new Vector2(0,1);hud.rectTransform.pivot=new Vector2(0,1);
-            hud.rectTransform.anchoredPosition=new Vector2(14,-10);hud.rectTransform.sizeDelta=new Vector2(972,190);
+            hud.rectTransform.anchoredPosition=new Vector2(14,-10);hud.rectTransform.sizeDelta=new Vector2(972,230);
             renderWindowStart=Time.unscaledTime;
             Debug.Log("SpatialXRI sample ready mode="+(useSimulation?"simulation":"uvc")+" interaction=thumbIndexCursor skeleton=true cubes=headLocked visibleRays=false cursorPinchHold=false gestures=UnityXRHands HUD=centralBackground UI=Button.onClick; open hand to arm");
         }
@@ -137,13 +138,27 @@ namespace SpatialAI.XRInteraction
             if(hud==null||Bridge==null)return;
             renderFrames++;float elapsed=Time.unscaledTime-renderWindowStart;
             if(elapsed>=1){renderFps=renderFrames/elapsed;renderFrames=0;renderWindowStart=Time.unscaledTime;}
-            hud.text="XR HANDS | gesture state\nL: "+Bridge.LeftStatus+" | "+GestureText("Left")+"\nR: "+Bridge.RightStatus+" | "+GestureText("Right")+
+            bool preview=SpatialHandTracking.CameraSource==SpatialHandCameraSource.Rear || SpatialHandTracking.CameraSource==SpatialHandCameraSource.Front;
+            var frame=handsInput!=null && handsInput.cameraTracking!=null?handsInput.cameraTracking.Latest:null;
+            string inputSize=frame!=null?frame.inputWidth+"x"+frame.inputHeight:"--";
+            string captureSize=frame!=null?frame.imageWidth+"x"+frame.imageHeight:"--";
+            hud.text="XR HANDS | "+SpatialHandTracking.CameraSource+" Capture "+captureSize+" Input "+inputSize+(preview?" PREVIEW":"")+" | Max "+SpatialHandTracking.MaxHands+"\nL: "+Bridge.LeftStatus+" | "+GestureText("Left")+"\nR: "+Bridge.RightStatus+" | "+GestureText("Right")+
                 "\nUI L="+LeftClicks+" R="+RightClicks+" | Cube L="+(cubeTargets[0]==null?0:cubeTargets[0].SelectCount)+" R="+(cubeTargets[1]==null?0:cubeTargets[1].SelectCount)+
                 "\n"+(handsInput==null?"SIM":handsInput.InferenceDelegate)+" | AI "+(handsInput==null?0:handsInput.InferenceFps).ToString("F1")+
-                " UVC "+(handsInput==null?0:handsInput.CaptureFps).ToString("F1")+" Render "+renderFps.ToString("F1")+" FPS";
+                " Capture "+(handsInput==null?0:handsInput.CaptureFps).ToString("F1")+" Render "+renderFps.ToString("F1")+" FPS"+
+                "\nConvert "+(frame==null?"--":frame.conversionMs.ToString("F1"))+" ms | Inference "+(frame==null?"--":frame.inferenceMs.ToString("F1"))+" ms";
         }
         private string GestureText(string side)
         {
+            var frame=handsInput!=null && handsInput.cameraTracking!=null?handsInput.cameraTracking.Latest:null;
+            if(frame!=null && frame.cameraSource!=null && frame.cameraSource.StartsWith("builtin-"))
+            {
+                long now=(long)(System.Diagnostics.Stopwatch.GetTimestamp()*(1_000_000_000.0/System.Diagnostics.Stopwatch.Frequency));
+                if(now-frame.receivedHostStopwatchNs>350_000_000L) return "RAW stale";
+                if(frame.hands!=null) foreach(var hand in frame.hands)
+                    if(hand!=null && hand.rawHandedness==side) return "RAW "+hand.Gesture;
+                return "RAW none";
+            }
             if(gestureFeedback==null)return "unavailable";
             string text="";foreach(var name in new[]{"OPEN","FIST","PINCH"})
             {var flag=gestureFeedback.Find(side+" "+name+"/Detected");if(flag!=null&&flag.gameObject.activeInHierarchy)text+=(text.Length==0?"":"/")+name;}

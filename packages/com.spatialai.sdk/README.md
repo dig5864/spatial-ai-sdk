@@ -48,3 +48,27 @@ Unity 6 与团结引擎是支持目标，准确版本仍待实测；当前消费
 这几个数值用于判断是否还需要 GPU 推理或更低分辨率，不能把取帧间隔当成实际帧率。
 Android 构建时包内的 Gradle 后处理器会加入固定版本
 `com.google.mediapipe:tasks-vision:1.0.0`；手势预览最低需要 Android API 28。
+
+## 手追踪推理配置
+
+SDK 默认 CPU、固定单手。在场景的 `SpatialHandTracking` 组件 Inspector 中设置：
+
+- `Inference Backend`：CPU / GPU。
+- `Hand Mode`：Single / Dual / Auto。
+
+编辑模式保存启动配置，运行模式显示并修改当前全局配置，不保存运行时的修改。
+首次组件初始化时应用 Inspector 配置；该选项若已由 C# API 显式设置，则 API 优先。
+后续场景中的组件不会覆盖已有的全局配置。
+
+```csharp
+using SpatialAI.Unity;
+
+SpatialHandTracking.InferenceBackend = SpatialHandInferenceBackend.CPU;
+SpatialHandTracking.HandMode = SpatialHandMode.Single;
+// 可切换为 SpatialHandInferenceBackend.GPU，以及 SpatialHandMode.Dual / Auto。
+```
+
+在 Unity 主线程中设置，可在追踪启动前配置或运行时切换。切换可能短暂中断识别。
+Dual 表示最多两只手，Auto 会周期探测第二只手并动态切换；Single 不执行双手探测。
+原有 `MaxHands` 和 `SchedulingMode` 接口保持兼容，与 `HandMode` 操作同一配置。
+配置是当前进程的全局设置；应用如需记住最终用户的选择，应自行保存并在下次启动时应用。

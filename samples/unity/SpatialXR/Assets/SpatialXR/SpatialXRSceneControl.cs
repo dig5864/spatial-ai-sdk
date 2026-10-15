@@ -14,6 +14,7 @@ namespace SpatialAI.Samples
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
+            SpatialHandTracking.CameraSource = SpatialHandCameraSource.Uvc;
             var control = new GameObject("SpatialXRSceneControl");
             DontDestroyOnLoad(control);
             control.AddComponent<SpatialXRSceneControl>();
@@ -61,6 +62,31 @@ namespace SpatialAI.Samples
                 return;
             }
             var backend=SpatialHandTracking.InferenceBackend;
+            var maxHands = SpatialHandTracking.MaxHands;
+            var scheduling = SpatialHandTracking.SchedulingMode;
+            // Existing explicit maxHands requests retain fixed-mode comparison behavior.
+            if (parts.Length >= 6 && !string.IsNullOrWhiteSpace(parts[5])) scheduling = SpatialHandSchedulingMode.Fixed;
+            if (parts.Length >= 9 && !string.IsNullOrWhiteSpace(parts[8]) &&
+                (!System.Enum.TryParse(parts[8], true, out scheduling) || !System.Enum.IsDefined(typeof(SpatialHandSchedulingMode), scheduling)))
+            { Debug.LogWarning("Spatial XR scheduling request rejected: use Auto or Fixed."); return; }
+            var cameraSizeTier = SpatialHandTracking.CameraSizeTier;
+            var cameraSource = SpatialHandTracking.CameraSource;
+            if (parts.Length >= 8 && !string.IsNullOrWhiteSpace(parts[7]))
+            {
+                switch (parts[7].Trim().ToLowerInvariant())
+                {
+                    case "uvc": cameraSource = SpatialHandCameraSource.Uvc; break;
+                    case "rear": cameraSource = SpatialHandCameraSource.Rear; break;
+                    case "front": cameraSource = SpatialHandCameraSource.Front; break;
+                    default: Debug.LogWarning("Spatial XR camera source rejected: use uvc/rear/front."); return;
+                }
+            }
+            if (parts.Length >= 7 && !string.IsNullOrWhiteSpace(parts[6]) &&
+                (!int.TryParse(parts[6], out cameraSizeTier) || cameraSizeTier < 1 || cameraSizeTier > 3))
+            { Debug.LogWarning("Spatial XR camera size request rejected: use cameraSizeTier 1/2/3."); return; }
+            if (parts.Length >= 6 && !string.IsNullOrWhiteSpace(parts[5]) &&
+                (!int.TryParse(parts[5], out maxHands) || (maxHands != 1 && maxHands != 2)))
+            { Debug.LogWarning("Spatial XR hand count request rejected: use maxHands 1 or 2."); return; }
             if(parts.Length>=5&&!string.IsNullOrWhiteSpace(parts[4])&&
                 (!System.Enum.TryParse(parts[4],true,out backend)||!System.Enum.IsDefined(typeof(SpatialHandInferenceBackend),backend)))
             {Debug.LogWarning("Spatial XR inference request rejected: use CPU or GPU.");return;}
@@ -81,6 +107,13 @@ namespace SpatialAI.Samples
             requestedScene = target;
             SpatialHandTracking.GestureRecognitionEnabled = gestures;
             SpatialHandTracking.InferenceBackend=backend;
+            SpatialHandTracking.MaxHands = maxHands;
+            SpatialHandTracking.SchedulingMode = scheduling;
+            SpatialHandTracking.CameraSizeTier = cameraSizeTier;
+            SpatialHandTracking.CameraSource = cameraSource;
+            Debug.Log("Spatial XR camera source requested: " + cameraSource);
+            Debug.Log("Spatial XR camera size tier requested: " + cameraSizeTier);
+            Debug.Log("Spatial XR maximum hands requested: " + maxHands);
             Debug.Log("Spatial XR inference backend requested: "+backend);
             Debug.Log("Spatial XR gestures enabled: " + gestures);
             Debug.Log("Spatial XR scene switch requested: " + target);

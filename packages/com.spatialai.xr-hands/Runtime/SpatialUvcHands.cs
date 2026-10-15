@@ -17,6 +17,8 @@ namespace SpatialAI.XRHands
         [Tooltip("Physical head transform; never assign the reflected render camera. Empty means explicit head-local preview.")]
         public Transform physicalHead;
         public TextAsset calibrationJson;
+        [Tooltip("Draw built-in camera landmarks using uncalibrated defaults. Does not create tracked XR input.")]
+        public bool builtinSkeletonPreview;
         [Tooltip("Live estimated geometry only. 1.6 is strict; the far interaction sample uses 4 to tolerate palm compression.")]
         [Range(1.6f,4)] public float maximumPalmAxisRatio=1.6f;
         public long originRevision;
@@ -55,7 +57,7 @@ namespace SpatialAI.XRHands
                     calibration=new UvcHandCalibration{swapHandedness=host.uvcSwapHandedness};
             }
             catch(Exception e){Status="invalid calibration JSON: "+e.Message;Debug.LogError("SpatialXRHands: "+Status);return false;}
-            Source=new UvcHandsFrameSource(calibration,maximumPalmAxisRatio:maximumPalmAxisRatio);
+            Source=new UvcHandsFrameSource(calibration,maximumPalmAxisRatio:maximumPalmAxisRatio,allowBuiltinPreview:builtinSkeletonPreview);
             if(cameraTracking==null)foreach(var candidate in FindObjectsOfType<SpatialHandTracking>())
                 if(candidate.isActiveAndEnabled){cameraTracking=candidate;break;}
             if(cameraTracking==null){cameraTracking=gameObject.AddComponent<SpatialHandTracking>();ownsCamera=true;}

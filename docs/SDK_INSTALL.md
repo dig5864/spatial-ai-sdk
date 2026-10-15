@@ -13,7 +13,7 @@
 | 跟踪 | 头部旋转 3DOF，手部位置/旋转为单目估算，最多双手 |
 | 尚未认证 | Unity 6、团结、URP/HDRP、iOS、其他手机/眼镜、精确手部尺度与光学合相 |
 
-小米光学配置为当前装配的开发参考，不代表所有手机或镜片通用。没有手部标定参数时仅提示并使用预览默认值；标定工具和参数加载保留。USB 首次授权及拔插后的再次确认仍需要人工操作。近距离精确抓取与 6DOF 不在交付范围。
+小米光学配置为当前装配的开发参考，不代表所有手机或镜片通用。没有手部标定参数时仅提示并使用预览默认值；标定工具和参数加载保留。默认不关联 USB 插入事件，首次使用及拔插后可能需要 USB 授权；可按第 3.1 节启用设备关联，但不能保证免提示且不自动启动。近距离精确抓取与 6DOF 不在交付范围。
 
 ## 1. 准备交付目录和工具
 
@@ -54,6 +54,22 @@ Unity Hub 安装 Unity 2022.3 的 Android Build Support、OpenJDK、NDK。Androi
 
 SDK 构建回调自动加入固定版本 Android 依赖、AndroidX/Jetifier 和 Unity 2022 所需 R8 修复；不会调用仓库 tools 脚本，也不会使用开发者固定磁盘路径。
 
+## 3.1 配置 UVC USB 设备声明
+
+打开 **Edit > Project Settings > Spatial AI > UVC**：
+
+- SDK 构建 Android 时自动声明可选的 USB Host 功能（`android.hardware.usb.host`、`required=false`），不要求设备必须具备 USB Host，也不会因此自动启动应用。
+- **Associate On Attach** 默认关闭。关闭时 SDK 不注册 USB 插入启动入口；应用仍可在使用摄像头时请求授权。
+- 开启后，在 **Devices (decimal VID / PID)** 中填写要匹配的设备。默认预填 HXQ：Vendor Id **4555**（0x11cb）、Product Id **10267**（0x281b）。字段使用十进制，可添加多个设备；重复条目在构建时合并。
+
+启用关联时，SDK 自动为 Unity 主 Activity 添加 `USB_DEVICE_ATTACHED` intent-filter 和设备过滤 `meta-data`，生成 `res/xml/spatialai_uvc_devices.xml`。不需要手改 AndroidManifest.xml。开启时设备列表不能为空，VID/PID 范围为 0～65535；无效配置会中止构建并给出提示。已有其他插件管理同名 USB metadata 时会报告冲突，请先统一设备声明。
+
+配置保存在用户项目的 `ProjectSettings/SpatialAIUvcSettings.asset`，建议纳入版本管理。配置属于构建设置，修改后须重新构建、安装 APK，运行时 C# API 不能改变已安装应用的 Manifest。关闭后再次构建时，也会清除复用 Gradle 导出目录中 SDK 自己生成的关联；用户自定义的 USB 声明会保留。
+
+**设备关联不是永久静默授权开关。** 启用后 Android 可能显示应用选择提示；用户将应用设为默认处理应用后，插入匹配设备可能自动启动该应用。普通应用不能仅靠声明保证“拔插免授权且不自动启动”；定制设备如需此行为，需要系统 USB 授权策略支持。取消旧 Demo 的自动启动时，还应在设备系统应用设置中清除其默认打开关联，或安装移除该声明的新 Demo。
+
+Demo 已移除强制关联 HXQ 的独立构建逻辑，统一使用此 SDK 设置；RhinoX 启动器分类仍由 Demo 自身保留。
+
 ## 4. 最简单的显示与 3DOF
 
 先完成第 3 节的 Android XR 配置，再执行 **Spatial AI > Display > Create Display and 3DOF Scene**，将 `Assets/Scenes/SpatialDisplay.unity` 加入 Build Settings。
@@ -82,7 +98,7 @@ SDK 可视化统一采用身份稳定、侧掌最近距离投影和短暂漏检�
 4. 方块消费 XRSimpleInteractable 事件，普通按钮消费 Button.onClick。手势使用 XRHandShape/XRHandPose 与官方 StaticHandGesture.gesturePerformed/gestureEnded；跟踪使用 XRHandTrackingEvents。
 5. 将场景放在 Build Settings 第一位，张开手使输入武装，用圆圈瞄准并捏合/松开；保持捏合不重复点击。丢失时取消，返回后先张开。
 
-调试面板 AI/UVC/Render 分别为推理完成、采集回调、Unity 场景帧率。默认 CPU/VIDEO；GPU 配置为 `SpatialHandTracking.InferenceBackend = SpatialHandInferenceBackend.GPU`，实际以日志 delegate 为准。XR Hands 标准接口没有 CPU/GPU 设置项。
+调试面板 AI/UVC/Render 分别为推理完成、采集回调、Unity 场景帧率。默认 CPU/VIDEO、固定 Single 单手模式；在 `SpatialHandTracking` 组件 Inspector 中设置 Inference Backend（CPU/GPU）和 Hand Mode（Single/Dual/Auto）。也可使用 `SpatialHandTracking.HandMode = SpatialHandMode.Single`（或 Dual / Auto）；启动前显式设置的 API 优先于 Inspector，配置为进程内全局设置。GPU 配置为 `SpatialHandTracking.InferenceBackend = SpatialHandInferenceBackend.GPU`，实际以日志 delegate 为准。XR Hands 标准接口没有 CPU/GPU 设置项。
 原 Demo 的 am broadcast 是 Demo 专属调试入口，不会自动装入用户应用。
 
 ## 7. 构建、安装与排查

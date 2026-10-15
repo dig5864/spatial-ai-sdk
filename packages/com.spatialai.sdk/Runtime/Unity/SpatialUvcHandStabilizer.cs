@@ -98,6 +98,7 @@ namespace SpatialAI.Unity
                     trackingId = track == null ? 0 : track.Id };
             }
             return new SpatialHandFrame { cameraId = input.cameraId, imageWidth = input.imageWidth, imageHeight = input.imageHeight,
+                cameraSource=input.cameraSource,inputWidth=input.inputWidth,inputHeight=input.inputHeight,
                 sequence = input.sequence, timestampNs = input.timestampNs, receivedAtNs = input.receivedAtNs,
                 resultFps = input.resultFps, conversionMs = input.conversionMs, inferenceMs = input.inferenceMs,
                 captureToResultMs = input.captureToResultMs, gestureSource = input.gestureSource,

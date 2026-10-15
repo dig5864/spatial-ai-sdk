@@ -1,7 +1,9 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Xml;
 using UnityEditor.Android;
+using UnityEngine;
 
 // Unity 2022 generates Gradle files before calling this interface.
 public sealed class SpatialXRAndroidGradle : IPostGenerateGradleAndroidProject
@@ -19,6 +21,7 @@ public sealed class SpatialXRAndroidGradle : IPostGenerateGradleAndroidProject
 
         UpdateModule(Path.Combine(unityLibraryPath, "build.gradle"), true);
         UpdateModule(Path.Combine(gradleRoot, "launcher", "build.gradle"), false);
+        ConfigureRhinoXLauncher(unityLibraryPath);
 
         var gradleProperties = Path.Combine(gradleRoot, "gradle.properties");
         var properties = File.ReadAllText(gradleProperties);
@@ -37,6 +40,41 @@ public sealed class SpatialXRAndroidGradle : IPostGenerateGradleAndroidProject
         else
             properties += "org.gradle.workers.max=1\n";
         File.WriteAllText(gradleProperties, properties);
+    }
+
+    private static void ConfigureRhinoXLauncher(string unityLibraryPath)
+    {
+        const string androidNamespace = "http://schemas.android.com/apk/res/android";
+        var manifestPath = Path.Combine(unityLibraryPath, "src", "main", "AndroidManifest.xml");
+        var manifest = new XmlDocument();
+        manifest.Load(manifestPath);
+        var namespaces = new XmlNamespaceManager(manifest.NameTable);
+        namespaces.AddNamespace("android", androidNamespace);
+        var activity = manifest.SelectSingleNode(
+            "/manifest/application/activity[meta-data[@android:name='unityplayer.UnityActivity' and @android:value='true']]",
+            namespaces);
+        if (activity == null) throw new InvalidOperationException("Unity main Activity missing from generated Android Manifest.");
+
+        var launcherFilter = activity.SelectSingleNode(
+            "intent-filter[action[@android:name='android.intent.action.MAIN'] and category[@android:name='android.intent.category.LAUNCHER']]",
+            namespaces);
+        if (launcherFilter == null) throw new InvalidOperationException("Unity launcher intent-filter missing from generated Android Manifest.");
+        foreach (var name in new[] { "com.qti.intent.category.SNAPDRAGON_VR", "com.ximmerse.category.WONDERLAND_AR" })
+        {
+            if (launcherFilter.SelectSingleNode("category[@android:name='" + name + "']", namespaces) != null) continue;
+            var category = manifest.CreateElement("category");
+            SetAndroidAttribute(category, "name", name);
+            launcherFilter.AppendChild(category);
+        }
+
+        manifest.Save(manifestPath);
+    }
+
+    private static void SetAndroidAttribute(XmlElement element, string name, string value)
+    {
+        var attribute = element.OwnerDocument.CreateAttribute("android", name, "http://schemas.android.com/apk/res/android");
+        attribute.Value = value;
+        element.SetAttributeNode(attribute);
     }
 
     private static string FindSdk34()

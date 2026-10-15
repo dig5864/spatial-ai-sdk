@@ -38,6 +38,8 @@ UPM 基础包版本为 `0.2.0-preview.10`。Unity 2022.3.14f1c1 示例已在 Rhi
 
 ## 目录
 
+多手机屏幕参数读取、物理分屏与 50 mm 校正/支架配置复用见 [屏幕适配使用说明](docs/PHONE_SCREEN_ADAPTATION.md)。
+
 Unity XR Hands 可选配套包已提供契约、模拟和真实 UVC Provider、标准关节场景与时序恢复。
 模拟验证见 [阶段 1 文档](docs/UNITY_XR_HANDS_STAGE1.md)，真实输入与手机验收步骤见
 [阶段 3 文档](docs/UNITY_XR_HANDS_STAGE3.md)。完整实机与空间精度验收仍待完成。

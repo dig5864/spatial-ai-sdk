@@ -21,6 +21,9 @@ namespace SpatialAI.Unity
         private readonly Func<long> clock;
         private readonly UvcHandCalibration calibration;
         private readonly float maximumPalmAxisRatio;
+        private readonly bool allowBuiltinPreview;
+        public bool BuiltinPreviewActive { get; private set; }
+        private const string BuiltinPreviewWarning="BUILTIN SKELETON PREVIEW: uncalibrated 30-degree FOV, fixed 0.5m depth, identity installation; display only";
         private readonly SpatialUvcHandStabilizer stabilizer=new SpatialUvcHandStabilizer();
         private readonly Presentation[] presentation={new Presentation(),new Presentation()};
         private SpatialUvcHandsConverter converter;
@@ -32,18 +35,20 @@ namespace SpatialAI.Unity
         public SpatialHandFrame Associated { get; private set; }
         public string Diagnostics { get; private set; }="waiting for UVC";
         public string IdentityEvents { get; private set; }="";
-        public string CalibrationWarning { get {return converter.CalibrationWarning;} }
+        public string CalibrationWarning { get {return BuiltinPreviewActive?BuiltinPreviewWarning:converter.CalibrationWarning;} }
         public SpatialHandCapabilities Capabilities { get {return converter.Capabilities;} }
         public string Reason(HandSide side){return side==HandSide.Left?converter.LeftDiagnostics:converter.RightDiagnostics;}
         public float CameraDepth(HandSide side){return presentation[(int)side].Depth;}
         public static long HostNowNs(){return (long)(System.Diagnostics.Stopwatch.GetTimestamp()*(1_000_000_000.0/System.Diagnostics.Stopwatch.Frequency));}
-        public SpatialUvcHandProcessor(UvcHandCalibration calibration=null,float maximumPalmAxisRatio=1.6f,Func<long> clock=null)
+        public SpatialUvcHandProcessor(UvcHandCalibration calibration=null,float maximumPalmAxisRatio=1.6f,Func<long> clock=null,bool allowBuiltinPreview=false)
         {
+            this.allowBuiltinPreview=allowBuiltinPreview;
             this.calibration=calibration;this.maximumPalmAxisRatio=maximumPalmAxisRatio;this.clock=clock??HostNowNs;
             converter=new SpatialUvcHandsConverter(calibration,maximumPalmAxisRatio);
         }
         public void Reset(string reason="reset")
         {
+            BuiltinPreviewActive=false;
             Latest=null;Associated=null;sequence=-1;lastReceivedNs=-1;stabilizer.Reset();
             converter=new SpatialUvcHandsConverter(calibration,maximumPalmAxisRatio);
             foreach(var p in presentation){p.Points=null;p.Valid=null;p.Track=0;p.Depth=0;p.GeometryNs=p.DisplayNs=-1;p.State="hidden";}
@@ -51,7 +56,8 @@ namespace SpatialAI.Unity
         }
         public bool Publish(SpatialHandFrame image,Pose head,long originRevision)
         {
-            if(image==null||image.cameraId==null||!image.cameraId.StartsWith("uvc:")||image.sequence<0)
+            bool builtin=image!=null && image.cameraId!=null && image.cameraId.StartsWith("builtin-");
+            if(image==null||image.cameraId==null||(!image.cameraId.StartsWith("uvc:") && !(allowBuiltinPreview && builtin))||image.sequence<0)
             {Reset("not a valid UVC frame");return false;}
             long received=image.receivedHostStopwatchNs>0?image.receivedHostStopwatchNs:clock();
             if(camera!=image.cameraId||width!=image.imageWidth||height!=image.imageHeight||revision!=originRevision||image.sequence<sequence||received<lastReceivedNs)
@@ -60,6 +66,7 @@ namespace SpatialAI.Unity
             camera=image.cameraId;width=image.imageWidth;height=image.imageHeight;revision=originRevision;sequence=image.sequence;lastReceivedNs=received;
             receivedAgeMs=Mathf.Max(0,image.resultAgeAtReceiveMs);
             Associated=stabilizer.Process(image,received,out var events);IdentityEvents=events;
+            if(builtin) return PublishBuiltinPreview(image,head,received,originRevision);
             var result=converter.Convert(Associated,head,received,originRevision,out var frame,out var detail);
             Diagnostics=result.Success?detail:result.Message;Latest=result.Success?frame:null;
             if(!result.Success||receivedAgeMs>350){ClearPresentation();return result.Success;}
@@ -69,6 +76,54 @@ namespace SpatialAI.Unity
                 if(previous!=presentation[side].State)Debug.Log("SpatialHandsComp side="+(HandSide)side+" state="+presentation[side].State+
                     " seq="+sequence+" track="+presentation[side].Track+" depth="+presentation[side].Depth.ToString("F3")+" reason="+Reason((HandSide)side));
             }
+            return true;
+        }
+        private bool PublishBuiltinPreview(SpatialHandFrame image,Pose head,long received,long originRevision)
+        {
+            if(!BuiltinPreviewActive)Debug.LogWarning("SpatialHands: "+BuiltinPreviewWarning);
+            BuiltinPreviewActive=true;ClearPresentation();
+            // Model landmarks describe the rotated input, not the raw Camera2 buffer.
+            int iw=image.inputWidth>0?image.inputWidth:image.imageWidth;
+            int ih=image.inputHeight>0?image.inputHeight:image.imageHeight;
+            Latest=null;
+            var pose=new HandRigidPose(new HandVector3(head.position.x,head.position.y,head.position.z),
+                new Rotation(head.rotation.x,head.rotation.y,head.rotation.z,head.rotation.w));
+            if(iw<=0 || ih<=0 || !pose.IsValid)
+            {Diagnostics="invalid built-in preview image size/head pose";return false;}
+            var preview=new UvcHandCalibration {
+                cameraId=image.cameraId,calibrationVersion="builtin-display-preview-v1",source=BuiltinPreviewWarning,
+                imageWidth=iw,imageHeight=ih,fx=iw*1.8660254f,fy=iw*1.8660254f,cx=iw*.5f,cy=ih*.5f,
+                palmWidthMetres=.07f,wristToMiddleMetres=.08f
+            };
+            int visible=0;var seen=new int[2];
+            foreach(var hand in Associated.hands??new SpatialHand[0])
+            {
+                if(hand==null || hand.joints==null || hand.joints.Length!=21 ||
+                    (hand.EffectiveHandedness!="Left" && hand.EffectiveHandedness!="Right"))continue;
+                int side=hand.EffectiveHandedness=="Left"?0:1;
+                if(++seen[side]>1){presentation[side].State="hidden";continue;}
+                var points=new Vector3[26];var valid=new bool[26];
+                for(int j=0;j<26;j++)
+                {
+                    int landmark=MonocularHandConverter.LandmarkIndex((HandJointId)j);
+                    if(landmark<0)continue;
+                    var point=hand.joints[landmark];HandVector3 ray;
+                    if(point==null || !preview.TryCameraRay(point.x,point.y,out ray))continue;
+                    // Deliberately fixed depth: this drawing does not estimate camera-to-hand distance.
+                    points[j]=new Vector3(ray.X,ray.Y,ray.Z)*.5f;valid[j]=true;
+                }
+                if(!valid[0])continue;
+                foreach(int joint in new[]{6,11,16,21})if(valid[joint+1])
+                {points[joint]=(points[0]+points[joint+1])*.5f;valid[joint]=true;}
+                if(valid[7]&&valid[12]&&valid[17]&&valid[22])
+                {points[1]=(points[7]+points[12]+points[17]+points[22])*.25f;valid[1]=true;}
+                var p=presentation[side];p.Points=points;p.Valid=valid;p.Head=head;p.Track=hand.trackingId;
+                p.Depth=.5f;p.GeometryNs=p.DisplayNs=received;p.State="builtin-preview";visible++;
+            }
+            Latest=new SpatialHandsFrame(image.cameraId+":builtin-display-preview-v1",HandFrameSource.MonocularEstimate,
+                image.sequence,originRevision,-1,HandClockDomain.Unknown,received,HandClockDomain.HostStopwatch,
+                SpatialHandSample.Untracked(HandSide.Left),SpatialHandSample.Untracked(HandSide.Right));
+            Diagnostics=BuiltinPreviewWarning+"; visibleHands="+visible;
             return true;
         }
         private void ClearPresentation()

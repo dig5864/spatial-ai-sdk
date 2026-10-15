@@ -25,6 +25,30 @@ public final class SpatialXRSceneControl {
                     return;
                 }
                 boolean gestures = intent.getBooleanExtra("gestures", true);
+                String cameraSource = intent.getStringExtra("cameraSource");
+                cameraSource = cameraSource == null ? "" : cameraSource.trim().toLowerCase(java.util.Locale.ROOT);
+                if (!cameraSource.isEmpty() && !"uvc".equals(cameraSource) && !"rear".equals(cameraSource) && !"front".equals(cameraSource)) {
+                    Log.w("SpatialXRScene", "Ignored broadcast: cameraSource must be uvc/rear/front");
+                    return;
+                }
+                String cameraSizeTier = "";
+                if (intent.hasExtra("cameraSizeTier")) {
+                    int tier = intent.getIntExtra("cameraSizeTier", -1);
+                    if (tier < 1 || tier > 3) {
+                        Log.w("SpatialXRScene", "Ignored broadcast: cameraSizeTier must be 1/2/3");
+                        return;
+                    }
+                    cameraSizeTier = Integer.toString(tier);
+                }
+                String maxHands = "";
+                if (intent.hasExtra("maxHands")) {
+                    int count = intent.getIntExtra("maxHands", -1);
+                    if (count != 1 && count != 2) {
+                        Log.w("SpatialXRScene", "Ignored broadcast: maxHands must be 1 or 2");
+                        return;
+                    }
+                    maxHands = Integer.toString(count);
+                }
                 int exposureMode = intent.getIntExtra("exposureMode", -1);
                 int exposureTimeUs = intent.getIntExtra("exposureTimeUs", -1);
                 String inferenceDelegate=intent.getStringExtra("inferenceDelegate");
@@ -34,7 +58,8 @@ public final class SpatialXRSceneControl {
                     return;
                 }
                 UnityPlayer.UnitySendMessage("SpatialXRSceneControl", "SwitchScene", scene + "|" +
-                    (gestures ? "1" : "0") + "|" + exposureMode + "|" + exposureTimeUs+"|"+inferenceDelegate);
+                    (gestures ? "1" : "0") + "|" + exposureMode + "|" + exposureTimeUs+"|"+inferenceDelegate+"|"+maxHands+"|"+cameraSizeTier+"|"+cameraSource+"|"+
+                    (intent.hasExtra("schedulingMode")?intent.getStringExtra("schedulingMode"):""));
             }
         };
         IntentFilter filter = new IntentFilter(action);

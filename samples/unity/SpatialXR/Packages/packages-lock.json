@@ -15,9 +15,38 @@
       "depth": 0,
       "source": "local",
       "dependencies": {
+        "com.unity.modules.imgui": "1.0.0",
         "com.unity.modules.imageconversion": "1.0.0",
         "com.unity.modules.jsonserialize": "1.0.0",
-        "com.unity.modules.androidjni": "1.0.0"
+        "com.unity.modules.androidjni": "1.0.0",
+        "com.unity.xr.management": "4.4.0",
+        "com.unity.inputsystem": "1.7.0",
+        "com.unity.modules.xr": "1.0.0",
+        "com.unity.modules.physics": "1.0.0"
+      }
+    },
+    "com.spatialai.xr-hands": {
+      "version": "file:../../../../packages/com.spatialai.xr-hands",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.spatialai.sdk": "0.2.0-preview.10",
+        "com.unity.xr.hands": "1.4.3",
+        "com.unity.inputsystem": "1.7.0",
+        "com.unity.xr.management": "4.4.0",
+        "com.unity.modules.physics": "1.0.0"
+      }
+    },
+    "com.spatialai.xr-interaction": {
+      "version": "file:../../../../packages/com.spatialai.xr-interaction",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.spatialai.xr-hands": "0.1.0-preview.2",
+        "com.unity.xr.interaction.toolkit": "2.5.4",
+        "com.unity.inputsystem": "1.7.0",
+        "com.unity.ugui": "1.0.0",
+        "com.unity.textmeshpro": "3.0.6"
       }
     },
     "com.unity.inputsystem": {
@@ -27,14 +56,21 @@
       "dependencies": {
         "com.unity.modules.uielements": "1.0.0"
       },
-      "url": "https://packages.unity.cn"
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.mathematics": {
+      "version": "1.2.6",
+      "depth": 2,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://packages.unity.com"
     },
     "com.unity.sysroot": {
       "version": "2.0.10",
       "depth": 1,
       "source": "registry",
       "dependencies": {},
-      "url": "https://packages.unity.cn"
+      "url": "https://packages.unity.com"
     },
     "com.unity.sysroot.linux-x86_64": {
       "version": "2.0.9",
@@ -43,7 +79,16 @@
       "dependencies": {
         "com.unity.sysroot": "2.0.10"
       },
-      "url": "https://packages.unity.cn"
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.textmeshpro": {
+      "version": "3.0.6",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.ugui": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
     },
     "com.unity.toolchain.win-x86_64-linux-x86_64": {
       "version": "2.0.11",
@@ -53,7 +98,7 @@
         "com.unity.sysroot": "2.0.10",
         "com.unity.sysroot.linux-x86_64": "2.0.9"
       },
-      "url": "https://packages.unity.cn"
+      "url": "https://packages.unity.com"
     },
     "com.unity.ugui": {
       "version": "1.0.0",
@@ -64,6 +109,44 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
+    "com.unity.xr.core-utils": {
+      "version": "2.2.3",
+      "depth": 2,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.modules.xr": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.xr.hands": {
+      "version": "1.4.3",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.modules.xr": "1.0.0",
+        "com.unity.inputsystem": "1.3.0",
+        "com.unity.mathematics": "1.2.6",
+        "com.unity.xr.core-utils": "2.2.0",
+        "com.unity.xr.management": "4.0.1"
+      },
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.xr.interaction.toolkit": {
+      "version": "2.5.4",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.ugui": "1.0.0",
+        "com.unity.inputsystem": "1.7.0",
+        "com.unity.mathematics": "1.2.6",
+        "com.unity.modules.audio": "1.0.0",
+        "com.unity.modules.imgui": "1.0.0",
+        "com.unity.xr.core-utils": "2.2.3",
+        "com.unity.modules.physics": "1.0.0",
+        "com.unity.xr.legacyinputhelpers": "2.1.10"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.xr.legacyinputhelpers": {
       "version": "2.1.10",
       "depth": 1,
@@ -72,19 +155,19 @@
         "com.unity.modules.vr": "1.0.0",
         "com.unity.modules.xr": "1.0.0"
       },
-      "url": "https://packages.unity.cn"
+      "url": "https://packages.unity.com"
     },
     "com.unity.xr.management": {
       "version": "4.4.0",
       "depth": 1,
       "source": "registry",
       "dependencies": {
-        "com.unity.modules.subsystems": "1.0.0",
         "com.unity.modules.vr": "1.0.0",
         "com.unity.modules.xr": "1.0.0",
+        "com.unity.modules.subsystems": "1.0.0",
         "com.unity.xr.legacyinputhelpers": "2.1.7"
       },
-      "url": "https://packages.unity.cn"
+      "url": "https://packages.unity.com"
     },
     "com.unity.modules.androidjni": {
       "version": "1.0.0",
@@ -118,7 +201,7 @@
     },
     "com.unity.modules.physics": {
       "version": "1.0.0",
-      "depth": 3,
+      "depth": 1,
       "source": "builtin",
       "dependencies": {}
     },
@@ -158,7 +241,7 @@
     },
     "com.unity.modules.xr": {
       "version": "1.0.0",
-      "depth": 2,
+      "depth": 1,
       "source": "builtin",
       "dependencies": {
         "com.unity.modules.physics": "1.0.0",
