@@ -11,6 +11,7 @@ namespace SpatialAI.Samples
         private string requestedScene;
         private AsyncOperation loading;
         private bool forceSceneReload;
+        private bool? smoothingOverride;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
@@ -26,6 +27,7 @@ namespace SpatialAI.Samples
 
         private void Awake()
         {
+            SceneManager.sceneLoaded+=OnSceneLoaded;
 #if UNITY_ANDROID && !UNITY_EDITOR
             using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
             using (var activity = player.GetStatic<AndroidJavaObject>("currentActivity"))
@@ -43,6 +45,25 @@ namespace SpatialAI.Samples
                 SpatialAI.Cardboard.SpatialCardboardBridge.SetPhoneStereoDiagnosticMode(parsed);
             else Debug.LogWarning("Spatial phone stereo mode rejected: use Profile/Normal/Zero/Reverse");
         }
+        [Preserve]
+        public void SetHandSmoothing(string value)
+        {
+            if(!bool.TryParse(value,out var enabled))return;
+            smoothingOverride=enabled;ApplySmoothing();
+            Debug.Log("Spatial XR One Euro requested: "+enabled);
+        }
+        private void ApplySmoothing()
+        {
+            if(!smoothingOverride.HasValue)return;
+            foreach(var driver in FindObjectsOfType<SpatialAI.XRHands.SpatialUvcHands>())
+            {
+                if(driver.smoothing==null)driver.smoothing=new SpatialHandSmoothing();
+                driver.smoothing.enabled=smoothingOverride.Value;
+                Debug.Log("Spatial XR One Euro applied: "+driver.smoothing.enabled+" minCutoffHz="+driver.smoothing.minCutoffHz+" beta="+driver.smoothing.beta);
+            }
+        }
+        private void OnSceneLoaded(Scene scene,LoadSceneMode mode){StartCoroutine(ApplySmoothingAfterStart());}
+        private System.Collections.IEnumerator ApplySmoothingAfterStart(){yield return null;ApplySmoothing();}
         // Invoked by Android UnitySendMessage; keep this method in IL2CPP builds.
         [Preserve]
         public void SwitchScene(string scene)
@@ -160,6 +181,7 @@ namespace SpatialAI.Samples
 
         private void OnDestroy()
         {
+            SceneManager.sceneLoaded-=OnSceneLoaded;
 #if UNITY_ANDROID && !UNITY_EDITOR
             using (var receiver = new AndroidJavaClass("com.spatialai.samples.SpatialXRSceneControl"))
                 receiver.CallStatic("unregister");

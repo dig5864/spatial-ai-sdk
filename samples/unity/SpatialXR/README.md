@@ -341,3 +341,16 @@ INT8 初始化/推理失败不会回退官方模型；GPU 初始化失败仍可�
 对比时保持相机、分辨率、手数、后端和动作一致，切换后等待首帧和跟踪稳定，再观察耗时、丢手、误识别和温升。
 
 Android AAR 构建可使用 `BuildHandDiagnostic.ps1 -Int8GestureModelPath <gesture_recognizer_int8.task>` 加入校验后的实验文件；官方 FP16 文件名和下载校验保持不变。模型与 AAR 的 SHA-256 记录在 `third_party/spatial-ai-android.lock.json`。
+
+### One Euro 骨架平滑对照
+
+`SpatialUvcHands.smoothing` 在 Inspector 和 C# 中配置，默认启用，初始参数为 `minCutoffHz=3`、`beta=8`、`derivativeCutoffHz=1`（位置单位为米）。新推理结果在转换到 tracking-origin 三维坐标后滤波，骨架与 XR Hands 使用同一结果；原始 MediaPipe 分类和二维关键点保持原样。关节旋转使用同一自适应权重做 Slerp。当前使用结果接收的单调时钟间隔，不假定其等于曝光时间。
+
+```powershell
+# 当前或下一次进入的 XR Hands / XRI 场景关闭平滑
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ez oneEuro false
+# 开启平滑（进程重启后回到组件默认设置）
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --ez oneEuro true
+```
+
+慢速/静止时抑制抖动，快速移动时提高截止频率以减少拖尾。它不会提高推理 FPS，也不添加预测帧或手势防抖。身份变化、未跟踪、超过 350 ms 的结果间隔以及相机/标定/坐标原点变化会清除历史。已有的 `depth-held` 显示补偿分支保持原逻辑，不将显示专用坐标升级为 XR 跟踪结果。

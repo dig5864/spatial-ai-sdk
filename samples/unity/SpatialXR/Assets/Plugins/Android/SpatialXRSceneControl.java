@@ -24,6 +24,8 @@ public final class SpatialXRSceneControl {
                     Log.w("SpatialXRScene", "Ignored broadcast: missing or invalid scene extra");
                     return;
                 }
+                if(intent.hasExtra("oneEuro"))
+                    UnityPlayer.UnitySendMessage("SpatialXRSceneControl","SetHandSmoothing",intent.getBooleanExtra("oneEuro",true)?"true":"false");
                 String stereoMode=intent.getStringExtra("phoneStereoMode");
                 if(stereoMode!=null) {
                     stereoMode=stereoMode.trim().toLowerCase(java.util.Locale.ROOT);

@@ -24,6 +24,8 @@ namespace SpatialAI.Unity
         private readonly bool allowBuiltinPreview;
         public bool BuiltinPreviewActive { get; private set; }
         private const string BuiltinPreviewWarning="BUILTIN SKELETON PREVIEW: uncalibrated 30-degree FOV, fixed 0.5m depth, identity installation; display only";
+        public SpatialHandSmoothing Smoothing { get; set; }=new SpatialHandSmoothing();
+        private readonly SpatialHandOneEuroFilter smoothing=new SpatialHandOneEuroFilter();
         private readonly SpatialUvcHandStabilizer stabilizer=new SpatialUvcHandStabilizer();
         private readonly Presentation[] presentation={new Presentation(),new Presentation()};
         private SpatialUvcHandsConverter converter;
@@ -55,7 +57,7 @@ namespace SpatialAI.Unity
         }
         public void Reset(string reason="reset")
         {
-            BuiltinPreviewActive=false;
+            BuiltinPreviewActive=false;smoothing.Reset();
             Latest=null;Associated=null;sequence=-1;lastReceivedNs=-1;stabilizer.Reset();
             converter=new SpatialUvcHandsConverter(calibration,maximumPalmAxisRatio);
             foreach(var p in presentation){p.Points=null;p.Valid=null;p.Track=0;p.Depth=0;p.GeometryNs=p.DisplayNs=-1;p.State="hidden";}
@@ -75,6 +77,11 @@ namespace SpatialAI.Unity
             Associated=stabilizer.Process(image,received,out var events);IdentityEvents=events;
             if(builtin) return PublishBuiltinPreview(image,head,received,originRevision);
             var result=converter.Convert(Associated,head,received,originRevision,out var frame,out var detail);
+            if(result.Success && receivedAgeMs<=350)
+            {
+                frame=smoothing.Filter(frame,FindHand(HandSide.Left)?.trackingId??0,FindHand(HandSide.Right)?.trackingId??0,Smoothing);
+            }
+            else smoothing.Reset();
             Diagnostics=result.Success?detail:result.Message;Latest=result.Success?frame:null;
             if(!result.Success||receivedAgeMs>350){ClearPresentation();return result.Success;}
             for(int side=0;side<2;side++)

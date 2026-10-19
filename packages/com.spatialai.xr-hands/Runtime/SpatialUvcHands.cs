@@ -23,6 +23,8 @@ namespace SpatialAI.XRHands
         public bool builtinSkeletonPreview;
         [Tooltip("Live estimated geometry only. 1.6 is strict; the far interaction sample uses 4 to tolerate palm compression.")]
         [Range(1.6f,4)] public float maximumPalmAxisRatio=1.6f;
+        [Tooltip("Adaptive joint smoothing before XR Hands and skeleton output; no extra inference frames.")]
+        public SpatialHandSmoothing smoothing=new SpatialHandSmoothing();
         public long originRevision;
         public SpatialHandSubsystem Subsystem { get; private set; }
         public UvcHandsFrameSource Source { get; private set; }
@@ -146,6 +148,7 @@ namespace SpatialAI.XRHands
         private void OnFrame(SpatialHandFrame image)
         {
             if(paused || Source==null || !SpatialHandTracking.GestureRecognitionEnabled)return;
+            Source.Processor.Smoothing=smoothing;
             if(Source.Publish(image,PhysicalPose(),originRevision))
             {
                 windowCount++;Add(inference,image.inferenceMs);Add(conversion,image.conversionMs);
