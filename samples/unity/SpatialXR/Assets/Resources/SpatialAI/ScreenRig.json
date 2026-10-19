@@ -12,6 +12,7 @@
         52.40785598754883
     ],
     "rotateOutput180": true,
+    "reverseStereoBaseline": true,
     "referenceScreenMeasured": true,
     "referencePhoneKey": "Xiaomi/2206123SC/mayfly",
     "opticsValidated": false,
