@@ -324,3 +324,20 @@ UI 用 G/rawH 分开显示手势分数/原始左右手置信度，标签锁定�
 目标从 0.8 m 显示到 2.4 m；UI 从 1.8 m 显示到 5.4 m；骨架显示距离为转换输出的 3 倍。
 UI characterSize 从 0.006 改到 0.0075，额外放大 25%，背景同步扩大 25%。
 这是显示距离调整，SDK 关节、标定与日志中的物理估计距离保持不变；不能据此宣称完成双眼光学校准。
+## FP16 / INT8 模型广播对照
+
+新进程默认使用官方 FP16。应用运行后可在 `hands`、`xrhands`、`xri` 场景通过 `modelVariant` 切换；省略参数保留当前选择，退出进程后恢复 FP16。
+
+```sh
+# 保持 CPU 固定单手，只切换模型进行对照
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --es inferenceDelegate CPU --ei maxHands 1 --es modelVariant INT8
+adb shell am broadcast -a com.spatialai.samples.xr.SWITCH_SCENE -p com.spatialai.samples.xr --es scene xri --es inferenceDelegate CPU --ei maxHands 1 --es modelVariant FP16
+```
+
+切换会重新打开采集并重建识别器，清除旧结果、跟踪状态和统计窗口。HUD 显示 `Model FP16` / `Model INT8`，`SpatialHands` 的 `Recognizer ready` 日志包含 `modelVariant` 和 `modelAsset`，每帧结果也携带这两个字段。
+SDK C# 配置为 `SpatialHandTracking.ModelVariant = SpatialHandModelVariant.FP16` / `INT8`。
+INT8 是 dynamic_wi8_afp32 实验版，四个子模型来自独立 Android Demo 同一组量化文件，输入输出仍为 FP32，非全整数静态 INT8。
+INT8 初始化/推理失败不会回退官方模型；GPU 初始化失败仍可用同一 INT8 模型回退 CPU，实际 delegate 以日志为准。
+对比时保持相机、分辨率、手数、后端和动作一致，切换后等待首帧和跟踪稳定，再观察耗时、丢手、误识别和温升。
+
+Android AAR 构建可使用 `BuildHandDiagnostic.ps1 -Int8GestureModelPath <gesture_recognizer_int8.task>` 加入校验后的实验文件；官方 FP16 文件名和下载校验保持不变。模型与 AAR 的 SHA-256 记录在 `third_party/spatial-ai-android.lock.json`。

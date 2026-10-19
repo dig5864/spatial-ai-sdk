@@ -7,6 +7,7 @@ using UnityEngine.Android;
 namespace SpatialAI.Unity
 {
     public enum SpatialHandInferenceBackend { CPU, GPU }
+    public enum SpatialHandModelVariant { FP16, INT8 }
     public enum SpatialHandMode { Single, Dual, Auto }
     public enum SpatialHandSchedulingMode { Auto, Fixed }
     public enum SpatialHandCameraSource { HostProfile, Uvc, Rear, Front }
@@ -101,6 +102,8 @@ namespace SpatialAI.Unity
         public float inferenceMs;
         public float captureToResultMs;
         public string gestureSource;
+        public string modelVariant;
+        public string modelAsset;
         public string runningMode;
         public string @delegate;
         public int activeMaxHands;
@@ -125,6 +128,17 @@ namespace SpatialAI.Unity
             {
                 if (!Enum.IsDefined(typeof(SpatialHandCameraSource), value)) throw new ArgumentOutOfRangeException(nameof(value));
                 cameraSource = value;
+            }
+        }
+        private static SpatialHandModelVariant modelVariant = SpatialHandModelVariant.FP16;
+        /// <summary>FP16 is the official default; INT8 is the bundled dynamic-quantization experiment. Changes reopen capture.</summary>
+        public static SpatialHandModelVariant ModelVariant
+        {
+            get { return modelVariant; }
+            set
+            {
+                if (!Enum.IsDefined(typeof(SpatialHandModelVariant), value)) throw new ArgumentOutOfRangeException(nameof(value));
+                modelVariant = value;
             }
         }
         private static int maxHands = 1;
@@ -198,6 +212,7 @@ namespace SpatialAI.Unity
         private static void ResetInferenceConfiguration()
         {
             inferenceBackend = SpatialHandInferenceBackend.CPU;
+            modelVariant = SpatialHandModelVariant.FP16;
             maxHands = 1;
             schedulingMode = SpatialHandSchedulingMode.Fixed;
             handModeConfigured = inferenceBackendConfigured = false;
@@ -241,6 +256,7 @@ namespace SpatialAI.Unity
         private SpatialHandSchedulingMode appliedSchedulingMode;
         private int appliedCameraSizeTier;
         private SpatialHandCameraSource appliedCameraSource;
+        private SpatialHandModelVariant appliedModelVariant;
         private int appliedExposureRevision;
         private float previewWindowStart;
         private int previewCount;
@@ -274,6 +290,8 @@ namespace SpatialAI.Unity
                     hostResult.Success ? host.cameraSource : "rhinox-rgb";
                 externalCamera = source == "external-uvc";
                 bridge.Call("setCameraSource", source);
+                appliedModelVariant = ModelVariant;
+                bridge.Call("setModelVariant", appliedModelVariant.ToString());
                 appliedCameraSizeTier = CameraSizeTier;
                 bridge.Call("setCameraSizeTier", appliedCameraSizeTier);
                 appliedGestureEnabled = GestureRecognitionEnabled;
@@ -291,7 +309,7 @@ namespace SpatialAI.Unity
                     bridge.Call("setExposureConfig", exposureMode, exposureTimeUs);
                 bridge.Call("start");
             }
-            if (appliedCameraSource != CameraSource || appliedCameraSizeTier != CameraSizeTier)
+            if (appliedCameraSource != CameraSource || appliedCameraSizeTier != CameraSizeTier || appliedModelVariant != ModelVariant)
             {
                 bridge.Call("stop");
                 bridge.Dispose();
@@ -302,7 +320,7 @@ namespace SpatialAI.Unity
                 CaptureFps = PreviewFps = 0;
                 previewCount = 0;
                 if (PreviewTexture != null) { Destroy(PreviewTexture); PreviewTexture = null; }
-                Invalidated?.Invoke("camera source or capture size changed");
+                Invalidated?.Invoke("camera source, capture size or inference model changed");
                 State = "reopening camera capture";
                 return;
             }

@@ -85,6 +85,9 @@ def main():
     with zipfile.ZipFile(hand) as z:
         for filename,key in [('hand_landmarker.task','modelSha256'),('gesture_recognizer.task','gestureModelSha256')]:
             if hashlib.sha256(z.read('assets/'+filename)).hexdigest() != hand_lock[key]: raise ValueError('Model checksum mismatch: '+filename)
+        if hand_lock.get('int8GestureModelSha256'):
+            if hashlib.sha256(z.read('assets/gesture_recognizer_int8.task')).hexdigest() != hand_lock['int8GestureModelSha256']:
+                raise ValueError('Dynamic INT8 model checksum mismatch')
     android=ROOT.parent/'spatial-ai-android'
     if git(android,'rev-parse','HEAD') != hand_lock['revision']: raise ValueError('Android base revision differs from lock')
     for entry in hand_lock.get('sourceFiles',[]):

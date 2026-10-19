@@ -82,6 +82,10 @@ namespace SpatialAI.Samples
             if (parts.Length >= 9 && !string.IsNullOrWhiteSpace(parts[8]) &&
                 (!System.Enum.TryParse(parts[8], true, out scheduling) || !System.Enum.IsDefined(typeof(SpatialHandSchedulingMode), scheduling)))
             { Debug.LogWarning("Spatial XR scheduling request rejected: use Auto or Fixed."); return; }
+            var modelVariant = SpatialHandTracking.ModelVariant;
+            if (parts.Length >= 10 && !string.IsNullOrWhiteSpace(parts[9]) &&
+                (!System.Enum.TryParse(parts[9], true, out modelVariant) || !System.Enum.IsDefined(typeof(SpatialHandModelVariant), modelVariant)))
+            { Debug.LogWarning("Spatial XR model request rejected: use FP16 or INT8."); return; }
             var cameraSizeTier = SpatialHandTracking.CameraSizeTier;
             var cameraSource = SpatialHandTracking.CameraSource;
             if (parts.Length >= 8 && !string.IsNullOrWhiteSpace(parts[7]))
@@ -120,6 +124,8 @@ namespace SpatialAI.Samples
             requestedScene = target;
             SpatialHandTracking.GestureRecognitionEnabled = gestures;
             SpatialHandTracking.InferenceBackend=backend;
+            SpatialHandTracking.ModelVariant = modelVariant;
+            Debug.Log("Spatial XR model requested: " + modelVariant);
             SpatialHandTracking.MaxHands = maxHands;
             SpatialHandTracking.SchedulingMode = scheduling;
             SpatialHandTracking.CameraSizeTier = cameraSizeTier;

@@ -153,7 +153,7 @@ namespace SpatialAI.XRInteraction
             string captureSize=frame!=null?frame.imageWidth+"x"+frame.imageHeight:"--";
             hud.text="XR HANDS | "+SpatialHandTracking.CameraSource+" Capture "+captureSize+" Input "+inputSize+(preview?" PREVIEW":"")+" | Max "+SpatialHandTracking.MaxHands+"\nL: "+Bridge.LeftStatus+" | "+GestureText("Left")+"\nR: "+Bridge.RightStatus+" | "+GestureText("Right")+
                 "\nUI L="+LeftClicks+" R="+RightClicks+" | Cube L="+(cubeTargets[0]==null?0:cubeTargets[0].SelectCount)+" R="+(cubeTargets[1]==null?0:cubeTargets[1].SelectCount)+
-                "\n"+(handsInput==null?"SIM":handsInput.InferenceDelegate)+" | AI "+(handsInput==null?0:handsInput.InferenceFps).ToString("F1")+
+                "\nModel "+(frame!=null && !string.IsNullOrEmpty(frame.modelVariant)?frame.modelVariant:SpatialHandTracking.ModelVariant.ToString())+" | "+(handsInput==null?"SIM":handsInput.InferenceDelegate)+" | AI "+(handsInput==null?0:handsInput.InferenceFps).ToString("F1")+
                 " Capture "+(handsInput==null?0:handsInput.CaptureFps).ToString("F1")+" Render "+renderFps.ToString("F1")+" FPS"+
                 "\nConvert "+(frame==null?"--":frame.conversionMs.ToString("F1"))+" ms | Inference "+(frame==null?"--":frame.inferenceMs.ToString("F1"))+" ms";
         }

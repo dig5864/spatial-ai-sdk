@@ -32,6 +32,15 @@ public static class HandConfigurationCheck
         try
         {
             Reset();
+            Check(SpatialHandTracking.ModelVariant == SpatialHandModelVariant.FP16, "official FP16 model default");
+            SpatialHandTracking.ModelVariant = SpatialHandModelVariant.INT8;
+            Check(SpatialHandTracking.ModelVariant == SpatialHandModelVariant.INT8, "INT8 model selectable independently");
+            bool invalidModel = false;
+            try { SpatialHandTracking.ModelVariant = (SpatialHandModelVariant)99; }
+            catch (ArgumentOutOfRangeException) { invalidModel = true; }
+            Check(invalidModel && SpatialHandTracking.ModelVariant == SpatialHandModelVariant.INT8, "invalid model rejected without mutation");
+            Reset();
+            Check(SpatialHandTracking.ModelVariant == SpatialHandModelVariant.FP16, "new session resets model to official FP16");
             Check(SpatialHandTracking.InferenceBackend == SpatialHandInferenceBackend.CPU &&
                 SpatialHandTracking.HandMode == SpatialHandMode.Single && SpatialHandTracking.MaxHands == 1 &&
                 SpatialHandTracking.SchedulingMode == SpatialHandSchedulingMode.Fixed, "CPU fixed single defaults");

@@ -1,18 +1,18 @@
 {
   "repository": "http://gitlab.ximmerse.com/visor-x/spatial-ai-android.git",
-  "revision": "2bb636778e07904842981f0ca23780ba12d91cae",
+  "revision": "497bbc557efee81f47245a742b3910e4b67dab0c",
   "artifact": "packages/com.spatialai.sdk/Plugins/Android/spatial-hand-unity.aar",
-  "sha256": "783d28e4ab47bbae04c7e88da567bbd83ae989b1d77356d94892cc7a8d7b5b32",
+  "sha256": "c6ca77fa2bc541ca98bb6a92c19813f15b915cd51bfb40e6d29b48ed382523b8",
   "modelSha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1",
   "gestureModelSha256": "97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482",
   "minAndroidApi": 28,
   "mediaPipeTasksVision": "1.0.0",
   "uvcAndroidVersion": "1.0.13",
-  "sourceState": "local-working-tree-hand-probe-2seconds",
+  "sourceState": "committed-optional-dynamic-int8-model",
   "sourceFiles": [
     {
       "path": "runtime/platform/android/hands/SpatialHandBridge.java",
-      "sha256": "4fd23ce6a645cecd4dfb659ba74c49410b163a6b34a6d3df2886f3bdbc4deb0a"
+      "sha256": "947e037c23352582e2667d5a387db32d80829a7910a0ff62fe80a94f5861357b"
     },
     {
       "path": "runtime/platform/android/hands/UvcCapture.java",
@@ -33,6 +33,12 @@
     {
       "path": "runtime/platform/android/hands/HandInferenceScheduler.java",
       "sha256": "cd8001f8edeafaedfaf5b317b259712024946066e2f0064064c0f31b730a0d3d"
+    },
+    {
+      "path": "tools/BuildHandDiagnostic.ps1",
+      "sha256": "244f7d4712b179ececbbf58e932648e78c175dc250c43f7cc934ad2b0b72e6ca"
     }
-  ]
+  ],
+  "int8GestureModelSha256": "96e5490c69b65f2fb59b3fcfdb5fd9fbb23c3435ebcbf622e3610839642b580e",
+  "defaultGestureModel": "FP16"
 }

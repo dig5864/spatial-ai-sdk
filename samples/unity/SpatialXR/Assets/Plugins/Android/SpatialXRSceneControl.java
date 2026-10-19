@@ -72,9 +72,15 @@ public final class SpatialXRSceneControl {
                     Log.w("SpatialXRScene","Ignored broadcast: inferenceDelegate must be CPU or GPU");
                     return;
                 }
+                String modelVariant=intent.getStringExtra("modelVariant");
+                modelVariant=modelVariant==null?"":modelVariant.trim().toUpperCase(java.util.Locale.ROOT);
+                if (!modelVariant.isEmpty() && !"FP16".equals(modelVariant) && !"INT8".equals(modelVariant)) {
+                    Log.w("SpatialXRScene","Ignored broadcast: modelVariant must be FP16 or INT8");
+                    return;
+                }
                 UnityPlayer.UnitySendMessage("SpatialXRSceneControl", "SwitchScene", scene + "|" +
                     (gestures ? "1" : "0") + "|" + exposureMode + "|" + exposureTimeUs+"|"+inferenceDelegate+"|"+maxHands+"|"+cameraSizeTier+"|"+cameraSource+"|"+
-                    (intent.hasExtra("schedulingMode")?intent.getStringExtra("schedulingMode"):""));
+                    (intent.hasExtra("schedulingMode")?intent.getStringExtra("schedulingMode"):"")+"|"+modelVariant);
             }
         };
         IntentFilter filter = new IntentFilter(action);
