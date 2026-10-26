@@ -1,0 +1,5 @@
+{
+  "name": "SpatialAI.Unity6ImuDemo.Editor",
+  "references": ["SpatialAI.Unity6ImuDemo", "SpatialAI.Editor", "SpatialAI.Unity", "SpatialAI.Cardboard", "Unity.InputSystem"],
+  "includePlatforms": ["Editor"]
+}

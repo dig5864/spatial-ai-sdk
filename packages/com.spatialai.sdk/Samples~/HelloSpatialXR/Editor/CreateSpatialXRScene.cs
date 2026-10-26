@@ -36,8 +36,7 @@ namespace SpatialAI.Samples.Editor
             var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
             target.name = "Gaze target";
             target.transform.position = new Vector3(0, 1.6f, 3);
-            var shader = Shader.Find("Unlit/Color");
-            if (shader != null) target.GetComponent<Renderer>().sharedMaterial = new Material(shader) { color = Color.cyan };
+            target.GetComponent<Renderer>().sharedMaterial = SpatialAI.Unity.SpatialSampleMaterial.Create(Color.cyan);
             sample.target = target.GetComponent<Renderer>();
 
             var rayObject = new GameObject("Gaze ray");
@@ -45,7 +44,7 @@ namespace SpatialAI.Samples.Editor
             var ray = rayObject.AddComponent<LineRenderer>();
             ray.positionCount = 2;
             ray.startWidth = ray.endWidth = 0.008f;
-            if (shader != null) ray.sharedMaterial = new Material(shader) { color = Color.green };
+            ray.sharedMaterial = SpatialAI.Unity.SpatialSampleMaterial.Create(Color.green);
             sample.gazeRay = ray;
             Selection.activeGameObject = root;
             Debug.Log("Save the scene, enable Cardboard XR Plugin for Android in XR Plug-in Management, then build. RhinoX optics remain unverified.");

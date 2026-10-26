@@ -40,7 +40,7 @@ namespace SpatialAI.XRHands
             panelMesh.triangles=new[] { 0,1,2,0,2,3 };panelMesh.RecalculateNormals();
             backdrop.AddComponent<MeshFilter>().sharedMesh=panelMesh;
             backdrop.transform.localPosition=new Vector3(.24f,.345f,5.46f);backdrop.transform.localScale=new Vector3(2.7f,1.5f,1);
-            panelMaterial=new Material(Shader.Find("Unlit/Color")){color=new Color(.015f,.02f,.04f)};
+            panelMaterial=SpatialSampleMaterial.Create(new Color(.015f,.02f,.04f));
             backdrop.AddComponent<MeshRenderer>().sharedMaterial=panelMaterial;
             Debug.Log("SpatialXRHands sample ready: standard XRHandSubsystem, head-local preview, display scale=3");
         }

@@ -1,5 +1,8 @@
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
+#if SPATIALAI_XRI_3_OR_NEWER
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
+#endif
 
 namespace SpatialAI.XRInteraction
 {

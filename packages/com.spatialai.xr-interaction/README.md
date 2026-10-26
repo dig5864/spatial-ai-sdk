@@ -40,7 +40,7 @@ UVC 单目位置与旋转仍是估算；无标定参数只提示，保留加载�
 默认 CPU 推理。广播 `--es scene xri --es inferenceDelegate GPU` 可调试切换到 GPU，CPU 同理；不带后端参数保留当前配置。调试面板显示 AI/UVC/Render FPS。SDK 已统一侧掌和短暂漏检显示补偿，失效时继续取消交互，应用无需自行实现；详见 [SDK 补偿文档](../../docs/UVC_HAND_SDK_COMPENSATION.md)。
 日志关键字 `SpatialXRI`。验证与限制见 [阶段 4 文档](../../docs/UNITY_XR_HANDS_STAGE4.md)。
 
-## 0.1.0-preview.2 交付接入
+## 0.1.0-preview.3 交付接入
 
-从同一交付目录安装基础 SDK 0.2.0-preview.10 和本包；Android 显示需配套 Spatial Cardboard。安装流程见基础 SDK Documentation~/INSTALL.md 或交付目录 INSTALL.md。
+从同一交付目录安装基础 SDK 0.2.0-preview.11 和本包；Android 显示需配套 Spatial Cardboard。安装流程见基础 SDK Documentation~/INSTALL.md 或交付目录 INSTALL.md。
 导入 Hands Interaction 之前先通过菜单导入 Unity XR Hands 官方 Gestures 并等待编译；发布样例包含手势 prefab、形状和 inputactions，保持标准事件接口。

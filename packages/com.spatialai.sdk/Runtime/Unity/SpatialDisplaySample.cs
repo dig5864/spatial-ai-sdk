@@ -12,7 +12,7 @@ namespace SpatialAI.Unity
         private void Start()
         {
             Application.targetFrameRate = 60;
-            var material = new Material(Shader.Find("Unlit/Color")) { color = Color.cyan };
+            var material = SpatialSampleMaterial.Create(Color.cyan);
             foreach (float x in new[] { -.6f, 0f, .6f })
             {
                 var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);

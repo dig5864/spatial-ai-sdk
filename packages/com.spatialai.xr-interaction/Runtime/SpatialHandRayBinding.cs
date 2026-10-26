@@ -2,6 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit;
+#if SPATIALAI_XRI_3_OR_NEWER
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
+using UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals;
+using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
+#endif
 
 namespace SpatialAI.XRInteraction
 {
@@ -48,15 +53,33 @@ namespace SpatialAI.XRInteraction
             // Select and UI press use the debounced button; strength is a diagnostic analog control.
             Ray=gameObject.AddComponent<XRRayInteractor>();Ray.interactionManager=manager;
             Ray.lineType=XRRayInteractor.LineType.StraightLine;Ray.maxRaycastDistance=12;Ray.enableUIInteraction=true;
+#if SPATIALAI_XRI_3_OR_NEWER
+            Ray.selectActionTrigger=XRBaseInputInteractor.InputTriggerType.StateChange;
+            Ray.inputCompatibilityMode=XRBaseInputInteractor.InputCompatibilityMode.ForceInputReaders;
+            // XRI 3 reads interactor inputs directly instead of reading the controller.
+            Ray.selectInput=new XRInputButtonReader
+            {
+                inputSourceMode=XRInputButtonReader.InputSourceMode.InputAction,
+                inputActionPerformed=Controller.selectAction.action,
+                inputActionValue=Controller.selectAction.action
+            };
+            Ray.uiPressInput=new XRInputButtonReader
+            {
+                inputSourceMode=XRInputButtonReader.InputSourceMode.InputAction,
+                inputActionPerformed=Controller.uiPressAction.action,
+                inputActionValue=Controller.uiPressAction.action
+            };
+#else
             Ray.selectActionTrigger=XRBaseControllerInteractor.InputTriggerType.StateChange;
+#endif
             Ray.allowAnchorControl=false;Ray.enabled=false;
             Ray.rayOriginTransform=transform;
             var line=gameObject.AddComponent<LineRenderer>();line.positionCount=2;line.startWidth=line.endWidth=.007f;
             line.useWorldSpace=true;
-            line.material=new Material(Shader.Find("Unlit/Color")){color=rightHand?new Color(1,.65f,.2f):new Color(.2f,.8f,1)};
+            line.material=SpatialAI.Unity.SpatialSampleMaterial.Create(rightHand?new Color(1,.65f,.2f):new Color(.2f,.8f,1));
             lineRenderer=line;Visual=gameObject.AddComponent<XRInteractorLineVisual>();
             Visual.overrideInteractorLineOrigin=false;Visual.enabled=false;line.enabled=false;
-            arrowMesh=CreateArrowMesh();arrowMaterial=new Material(Shader.Find("Unlit/Color")){color=Color.white};
+            arrowMesh=CreateArrowMesh();arrowMaterial=SpatialAI.Unity.SpatialSampleMaterial.Create(Color.white);
             directionTip=CreateArrow("Ray destination arrow");movingArrow=CreateArrow("Ray forward motion arrow");
             // The stationary destination must not look like an enlarged copy of the moving white marker.
             directionTip.GetComponent<MeshRenderer>().sharedMaterial=line.sharedMaterial;
@@ -72,7 +95,7 @@ namespace SpatialAI.XRInteraction
                 triangles[offset+3]=i*2+1;triangles[offset+4]=next*2+1;triangles[offset+5]=next*2;
             }
             cursorMesh.vertices=vertices;cursorMesh.triangles=triangles;cursorMesh.RecalculateNormals();
-            cursorMaterial=new Material(Shader.Find("Unlit/Color"));cursor.AddComponent<MeshFilter>().sharedMesh=cursorMesh;
+            cursorMaterial=SpatialAI.Unity.SpatialSampleMaterial.Create(Color.white);cursor.AddComponent<MeshFilter>().sharedMesh=cursorMesh;
             cursor.AddComponent<MeshRenderer>().sharedMaterial=cursorMaterial;cursor.SetActive(false);
         }
         private void OnEnable(){foreach(var action in actions)action.Enable();if(Controller!=null)Controller.enabled=true;}

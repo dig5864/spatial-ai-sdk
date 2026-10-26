@@ -1,17 +1,17 @@
-# Spatial AI SDK 安装与升级（Unity 2022.3）
+# Spatial AI SDK 安装与升级（Unity 2022.3 / Unity 6）
 
-本交付为 Android 开发预览版。基础 SDK `0.2.0-preview.10`、XR Hands 和 XR Interaction `0.1.0-preview.2`，配套 Spatial 修改版 Cardboard `1.30.0`。应用使用 Unity XR、XR Hands、XRI 标准关节、跟踪和手势事件；CPU/GPU 属于 SDK 后端配置。
+本交付为 Android 开发预览版。基础 SDK `0.2.0-preview.11`、XR Hands 和 XR Interaction `0.1.0-preview.3`，配套 Spatial 修改版 Cardboard `1.30.0`。应用使用 Unity XR、XR Hands、XRI 标准关节、跟踪和手势事件；CPU/GPU 属于 SDK 后端配置。
 
 ## 支持与限制
 
 | 项目 | 当前验证范围 |
 | --- | --- |
-| Unity | 2022.3.14f1（现有设备使用 2022.3.14f1c1 安装），Built-in Render Pipeline |
-| Android | 最低 API 28、ARM64、IL2CPP、OpenGLES3、横屏；编译/目标 API 34 |
-| XR 依赖 | XR Hands 1.4.3、XRI 2.5.4、Input System 1.7.0、XR Management 4.4.0 |
+| Unity | 2022.3.14f1、6000.0.84f1、6000.6.2f1；Built-in，另验证 Unity 6.6 的 URP 17.6；详细结果见 [兼容性验证](UNITY_COMPATIBILITY.md) |
+| Android | 最低 API 28、ARM64、IL2CPP、OpenGLES3、横屏；2022 使用 API 34，Unity 6 使用编辑器配套工具链与自动目标 API |
+| XR 依赖 | 最低 XR Hands 1.4.3、XRI 2.5.4、Input System 1.7.0、XR Management 4.4.0；同时适配 Unity 6 解析的 XRI 3 |
 | 设备 | Xiaomi 2206123SC / mayfly + HXQ UVC 11cb:281b，固定曝光 16.6ms |
 | 跟踪 | 头部旋转 3DOF，手部位置/旋转为单目估算，最多双手 |
-| 尚未认证 | Unity 6、团结、URP/HDRP、iOS、其他手机/眼镜、精确手部尺度与光学合相 |
+| 尚未认证 | Unity 6 真机双目/UVC/IMU、团结、HDRP、iOS、其他手机/眼镜、精确手部尺度与光学合相 |
 
 小米光学配置为当前装配的开发参考，不代表所有手机或镜片通用。没有手部标定参数时仅提示并使用预览默认值；标定工具和参数加载保留。默认不关联 USB 插入事件，首次使用及拔插后可能需要 USB 授权；可按第 3.1 节启用设备关联，但不能保证免提示且不自动启动。近距离精确抓取与 6DOF 不在交付范围。
 
@@ -22,19 +22,20 @@
 
 Unity Hub 安装 Unity 2022.3 的 Android Build Support、OpenJDK、NDK。Android SDK 还需要安装 `platforms;android-34` 和 `build-tools;30.0.3`。
 在 **Edit > Preferences > External Tools** 配置该 SDK；也可设置 `SPATIALAI_ANDROID_SDK_ROOT`。NDK/Java 按 Unity 的工具链配置。
+Unity 6 则使用对应编辑器通过 Hub 安装的 Android SDK、NDK、OpenJDK、Gradle；不要复用 Unity 2022 的旧 SDK 路径。SDK 不再将 Unity 6 的 Build Tools/AGP/R8 降级到 2022 版本。Unity 6 的 Android 配置使用 Input System 单后端。
 首次导入依赖与 APK 构建需要访问 Unity Package Registry、Google Maven 和 Maven Central；交付包含两个 AAR 与模型，但不是离线 Maven 仓库。
 用户不需要检出 SDK/Android/Cardboard 源码，也不需要运行原生编译脚本。
 
 ## 2. 新建工程与安装包
 
-新建空的 **3D（Built-in）Unity 2022.3 工程**，只需导入基础 SDK：
+新建 **Unity 2022.3 或 Unity 6 的 3D 工程**，只需导入基础 SDK。显示、手骨架与交互示例材质兼容 Built-in/URP，URP 工程可保留原渲染管线配置：
 
 1. 打开 **Window > Package Manager > + > Add package from tarball**。
-2. 选择 `com.spatialai.sdk-0.2.0-preview.10.tgz`。无需解压、复制目录或执行外部安装脚本。
+2. 选择 `com.spatialai.sdk-0.2.0-preview.11.tgz`。无需解压、复制目录或执行外部安装脚本。
 3. 等待基础 SDK 编译。包内 Editor 安装器自动校验并安装以下三个内置 tgz，再由 UPM 解析 Unity 官方依赖：
    - `com.google.xr.cardboard-1.30.0-spatial.tgz`
-   - `com.spatialai.xr-hands-0.1.0-preview.2.tgz`
-   - `com.spatialai.xr-interaction-0.1.0-preview.2.tgz`
+   - `com.spatialai.xr-hands-0.1.0-preview.3.tgz`
+   - `com.spatialai.xr-interaction-0.1.0-preview.3.tgz`
 4. Console 出现 `SpatialAIInstaller: completed` 后，**必须继续第 3 节配置 Android XR**，再按第 4～6 节创建所需场景。仅安装包不会启用双目显示。
 
 基础 SDK 的 package.json 只预先声明可从 Unity Registry 解析的官方依赖；三个本地配套包在 Editor 安装器编译后通过 UPM API 一起注册。内置归档与单独交付的 tgz 完全相同，包含 AAR、模型和样例；首次依赖解析及 APK 构建仍需网络。安装代码仅在 Editor 中编译，不加入 Android APK。

@@ -3,6 +3,9 @@ using SpatialAI.Cardboard;
 using SpatialAI.Unity;
 using UnityEngine;
 using UnityEngine.XR;
+#if ENABLE_INPUT_SYSTEM
+using Pointer = UnityEngine.InputSystem.Pointer;
+#endif
 
 namespace SpatialAI.Samples
 {
@@ -73,8 +76,15 @@ namespace SpatialAI.Samples
         private void Update()
         {
             if (!phoneHost) return;
+#if ENABLE_INPUT_SYSTEM
+            var pointer = Pointer.current;
+            var point = pointer != null ? pointer.position.ReadValue() : Vector2.zero;
+            bool pressed = pointer != null && pointer.press.isPressed;
+#else
             var point = Input.mousePosition;
-            if (!Input.GetMouseButton(0) || point.x > Screen.width * 0.2f || point.y > Screen.height * 0.2f) { opticsHoldStarted = -1f; return; }
+            bool pressed = Input.GetMouseButton(0);
+#endif
+            if (!pressed || point.x > Screen.width * 0.2f || point.y > Screen.height * 0.2f) { opticsHoldStarted = -1f; return; }
             if (opticsHoldStarted < 0f) opticsHoldStarted = Time.unscaledTime;
             if (Time.unscaledTime - opticsHoldStarted > 1f && Application.CanStreamedLevelBeLoaded("OpticsComparison"))
                 UnityEngine.SceneManagement.SceneManager.LoadScene("OpticsComparison");

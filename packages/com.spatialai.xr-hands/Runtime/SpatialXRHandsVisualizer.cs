@@ -22,9 +22,8 @@ namespace SpatialAI.XRHands
         private Mesh markerMesh;
         private void Awake()
         {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Sprites/Default");
-            leftMaterial = new Material(shader) { color = new Color(0.2f, 0.8f, 1) };
-            rightMaterial = new Material(shader) { color = new Color(1, 0.65f, 0.2f) };
+            leftMaterial = SpatialAI.Unity.SpatialSampleMaterial.Create(new Color(0.2f, 0.8f, 1));
+            rightMaterial = SpatialAI.Unity.SpatialSampleMaterial.Create(new Color(1, 0.65f, 0.2f));
             markerMesh = new Mesh { name = "Spatial XR joint marker" };
             markerMesh.vertices = new[] { Vector3.up * .5f, Vector3.down * .5f, Vector3.left * .5f,
                 Vector3.right * .5f, Vector3.forward * .5f, Vector3.back * .5f };

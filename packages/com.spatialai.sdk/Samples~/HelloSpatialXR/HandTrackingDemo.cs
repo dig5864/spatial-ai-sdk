@@ -136,7 +136,7 @@ namespace SpatialAI.Samples
             tracking.Invalidated += OnInvalidated;
             var shader = Shader.Find("Sprites/Default");
             if (shader == null) shader = Shader.Find("Unlit/Color");
-            var targetShader = Shader.Find("Unlit/Color");
+            var targetShader = Resources.Load<Shader>("SpatialAI/SpatialUnlit");
             if (targetShader == null) targetShader = shader;
             if (shader == null || targetShader == null)
             {

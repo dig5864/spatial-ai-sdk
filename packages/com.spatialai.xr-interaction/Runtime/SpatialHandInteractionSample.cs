@@ -4,6 +4,9 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit;
+#if SPATIALAI_XRI_3_OR_NEWER
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
+#endif
 using UnityEngine.XR.Interaction.Toolkit.UI;
 
 namespace SpatialAI.XRInteraction
@@ -96,7 +99,7 @@ namespace SpatialAI.XRInteraction
                 var target=new GameObject(side==0?"Left cube":"Right cube");target.transform.SetParent(WorldTargetsRoot,false);
                 target.transform.localPosition=new Vector3(side==0?-.65f:.65f,.1f,4.2f);target.transform.localScale=Vector3.one*.45f;
                 target.AddComponent<MeshFilter>().sharedMesh=cubeMesh;
-                cubeMaterials[side]=new Material(Shader.Find("Unlit/Color")){color=side==0?new Color(.2f,.8f,1):new Color(1,.65f,.2f)};
+                cubeMaterials[side]=SpatialSampleMaterial.Create(side==0?new Color(.2f,.8f,1):new Color(1,.65f,.2f));
                 target.AddComponent<MeshRenderer>().sharedMaterial=cubeMaterials[side];target.AddComponent<BoxCollider>();
                 var interactable=target.AddComponent<XRSimpleInteractable>();interactable.interactionManager=manager;
                 interactable.selectMode=InteractableSelectMode.Multiple;cubeTargets[side]=target.AddComponent<SpatialInteractionTarget>();

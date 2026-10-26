@@ -53,6 +53,6 @@ XRI 留到阶段 4。依赖图与编译验证见
 默认 CPU / VIDEO。可通过 `SpatialHandTracking.InferenceBackend` 配置 GPU；Demo 广播增加 `--es inferenceDelegate GPU/CPU`，省略参数保持本进程设置，新进程默认 CPU。
 调试文字显示 AI、UVC、Render FPS；配置、补偿和验证步骤见 [SDK 补偿文档](../../docs/UVC_HAND_SDK_COMPENSATION.md)。
 
-## 0.1.0-preview.2 交付接入
+## 0.1.0-preview.3 交付接入
 
-从同一交付目录安装基础 SDK 0.2.0-preview.10 和本包；Android 显示需配套 Spatial Cardboard。安装流程见基础 SDK Documentation~/INSTALL.md 或交付目录 INSTALL.md。
+从同一交付目录安装基础 SDK 0.2.0-preview.11 和本包；Android 显示需配套 Spatial Cardboard。安装流程见基础 SDK Documentation~/INSTALL.md 或交付目录 INSTALL.md。

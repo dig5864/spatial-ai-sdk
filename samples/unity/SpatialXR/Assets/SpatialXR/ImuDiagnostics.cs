@@ -13,6 +13,8 @@ namespace SpatialAI.Samples
     public sealed class ImuDiagnostics : MonoBehaviour
     {
         public Camera xrCamera;
+        [Tooltip("Show the reference targets in Editor Play without an Android HMD. Pose status still reports unavailable.")]
+        public bool previewInEditor;
         public static bool StereoProbeOnly;
 
         private SpatialCardboardBridge bridge;
@@ -61,7 +63,14 @@ namespace SpatialAI.Samples
             QualitySettings.vSyncCount = 0;
             frameWindowStart = Time.unscaledTime;
             bridge = GetComponent<SpatialCardboardBridge>();
+#if UNITY_6000_0_OR_NEWER
+            var gyroDevice = UnityEngine.InputSystem.Gyroscope.current;
+            if (gyroDevice != null && !gyroDevice.enabled) InputSystem.EnableDevice(gyroDevice);
+            var accelerometer = Accelerometer.current;
+            if (accelerometer != null && !accelerometer.enabled) InputSystem.EnableDevice(accelerometer);
+#else
             Input.gyro.enabled = true;
+#endif
             pacingProbe.Reset("start");
             if (xrCamera == null) return;
 
@@ -150,10 +159,18 @@ namespace SpatialAI.Samples
             previousTrigger = trigger;
 
             var xrReady = bridge != null && bridge.XrRunning;
-            if (xrReady && !StereoProbeOnly && axes == null && xrCamera != null) CreateWorldAxes();
-            if (xrReady && calibrationTargets == null && xrCamera != null) CreateCalibrationTargets();
+            var showTargets = xrReady || (Application.isEditor && previewInEditor);
+            if (showTargets && !StereoProbeOnly && axes == null && xrCamera != null) CreateWorldAxes();
+            if (showTargets && calibrationTargets == null && xrCamera != null) CreateCalibrationTargets();
+#if UNITY_6000_0_OR_NEWER
+            var gyroDevice = UnityEngine.InputSystem.Gyroscope.current;
+            var gyro = gyroDevice != null ? gyroDevice.angularVelocity.ReadValue() * Mathf.Rad2Deg : Vector3.zero;
+            var accelerometer = Accelerometer.current;
+            var acceleration = accelerometer != null ? accelerometer.acceleration.ReadValue() : Vector3.zero;
+#else
             var gyro = Input.gyro.rotationRateUnbiased * Mathf.Rad2Deg;
             var acceleration = Input.acceleration;
+#endif
             var euler = Vector3.zero;
             var position = Vector3.zero;
             if (xrReady && poseAvailable)
@@ -254,13 +271,15 @@ namespace SpatialAI.Samples
             var touchscreen = Touchscreen.current;
             if (touchscreen != null && touchscreen.primaryTouch.press.wasPressedThisFrame)
                 return "touch (Input System)";
+#if ENABLE_LEGACY_INPUT_MANAGER
             for (var i = 0; i < Input.touchCount; i++)
                 if (Input.GetTouch(i).phase == UnityEngine.TouchPhase.Began) return "touch (Unity)";
-            if (Input.GetMouseButtonDown(0) ||
-                (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
+            if (Input.GetMouseButtonDown(0)) return "mouse";
+            if (Input.GetKeyDown(KeyCode.R)) return "R key";
+#endif
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
                 return "mouse";
-            if (Input.GetKeyDown(KeyCode.R) ||
-                (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame))
+            if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
                 return "R key";
             return triggerPressed ? "Cardboard trigger" : null;
         }

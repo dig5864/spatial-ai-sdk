@@ -1,11 +1,11 @@
 {
   "name": "com.spatialai.xr-hands",
-  "version": "0.1.0-preview.2",
+  "version": "0.1.0-preview.3",
   "displayName": "Spatial AI XR Hands",
   "description": "Optional XR Hands provider for simulated hands and estimated UVC hands, with frame ageing and recovery.",
   "unity": "2022.3",
   "dependencies": {
-    "com.spatialai.sdk": "0.2.0-preview.10",
+    "com.spatialai.sdk": "0.2.0-preview.11",
     "com.unity.xr.hands": "1.4.3",
     "com.unity.inputsystem": "1.7.0",
     "com.unity.xr.management": "4.4.0",

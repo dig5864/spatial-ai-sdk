@@ -28,16 +28,33 @@ namespace SpatialAI.XRInteraction.Editor
         [MenuItem("Spatial AI/XR Interaction/Import Unity XR Hands Gestures")]
         public static void ImportUnityGestures()
         {
-            if(GestureType()!=null)return;
             var package=UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.unity.xr.hands");
-            var source=Path.Combine(package.resolvedPath,"Samples~/Gestures");
-            var destination="Assets/Samples/XR Hands/"+package.version+"/Gestures";
+            // Recent XR Hands Gestures samples validate these dependencies, even
+            // when a consumer uses only the standard gesture components.
+            CopyUnityHandsSample(package,"HandVisualizer");
+            if(!File.Exists("Assets/TextMesh Pro/Resources/TMP Settings.asset"))
+                foreach(var name in new[]{"com.unity.ugui","com.unity.textmeshpro"})
+                {
+                    var ui=UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/"+name);
+                    if(ui==null)continue;
+                    var resources=Path.Combine(ui.resolvedPath,"Package Resources/TMP Essential Resources.unitypackage");
+                    if(!File.Exists(resources))continue;
+                    AssetDatabase.ImportPackage(resources,false);break;
+                }
+            if(GestureType()!=null){AssetDatabase.Refresh();return;}
+            CopyUnityHandsSample(package,"Gestures");
+            AssetDatabase.Refresh();Debug.Log("Imported unchanged Unity XR Hands Gestures sample and its visualizer/TMP dependencies. Wait for script compilation, then create the interaction scene.");
+        }
+        private static void CopyUnityHandsSample(UnityEditor.PackageManager.PackageInfo package,string sample)
+        {
+            var source=Path.Combine(package.resolvedPath,"Samples~",sample);
+            if(!Directory.Exists(source))return;
+            var destination="Assets/Samples/XR Hands/"+package.version+"/"+sample;
             foreach(var file in Directory.GetFiles(source,"*",SearchOption.AllDirectories))
             {
                 var target=Path.Combine(destination,file.Substring(source.Length+1));Directory.CreateDirectory(Path.GetDirectoryName(target));
                 if(!File.Exists(target))File.Copy(file,target);
             }
-            AssetDatabase.Refresh();Debug.Log("Imported unchanged Unity XR Hands Gestures sample. Wait for script compilation, then create the interaction scene.");
         }
         public static void EnsureStandardGesturesPrefab()
         {

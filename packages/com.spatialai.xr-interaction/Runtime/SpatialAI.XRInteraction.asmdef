@@ -1,5 +1,6 @@
 {
   "name":"SpatialAI.XRInteraction",
   "rootNamespace":"SpatialAI.XRInteraction",
-  "references":["SpatialAI.Core","SpatialAI.Unity","SpatialAI.XRHands","Unity.XR.Hands","Unity.InputSystem","Unity.XR.Interaction.Toolkit","Unity.ugui"]
+  "references":["SpatialAI.Core","SpatialAI.Unity","SpatialAI.XRHands","Unity.XR.Hands","Unity.InputSystem","Unity.XR.Interaction.Toolkit","Unity.ugui"],
+  "versionDefines": [{"name":"com.unity.xr.interaction.toolkit","expression":"3.0.0","define":"SPATIALAI_XRI_3_OR_NEWER"}]
 }

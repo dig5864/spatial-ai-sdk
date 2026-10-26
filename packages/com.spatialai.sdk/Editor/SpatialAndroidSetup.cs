@@ -22,14 +22,26 @@ namespace SpatialAI.Editor
                 throw new InvalidOperationException("Install the Spatial Cardboard package supplied with this SDK release before configuring Android XR.");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel28;
+#if UNITY_6000_0_OR_NEWER
+            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
+#else
             PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)34;
+#endif
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
             var settings = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
             var input = settings.FindProperty("activeInputHandler");
-            if (input != null) { input.intValue = 2; settings.ApplyModifiedPropertiesWithoutUndo(); }
+            if (input != null)
+            {
+#if UNITY_6000_0_OR_NEWER
+                input.intValue = 1; // Android in Unity 6 supports one input backend.
+#else
+                input.intValue = 2;
+#endif
+                settings.ApplyModifiedPropertiesWithoutUndo();
+            }
 
             Directory.CreateDirectory("Assets/XR"); AssetDatabase.Refresh();
             const string path = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
@@ -62,7 +74,7 @@ namespace SpatialAI.Editor
                 if (!exists) { shaders.InsertArrayElementAtIndex(shaders.arraySize); shaders.GetArrayElementAtIndex(shaders.arraySize - 1).objectReferenceValue = shader; }
             }
             graphics.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssets();
-            Debug.Log("Spatial Android XR configured: ARM64, IL2CPP, API 28/34, GLES3, landscape, Cardboard. Application ID and Build Settings scenes are preserved. Restart the Editor if Unity requests it after changing Active Input Handling.");
+            Debug.Log("Spatial Android XR configured: ARM64, IL2CPP, minimum API 28, target " + PlayerSettings.Android.targetSdkVersion + ", GLES3, landscape, Cardboard. Application ID and Build Settings scenes are preserved. Restart the Editor if Unity requests it after changing Active Input Handling.");
         }
 
         [MenuItem("Spatial AI/Setup/Build Android APK")]

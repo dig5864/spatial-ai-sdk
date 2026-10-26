@@ -1,9 +1,9 @@
-# Spatial AI SDK — 0.2.0-preview.10
+# Spatial AI SDK — 0.2.0-preview.11
 
 
 ## 发布包快速接入
 
-在 Package Manager 中通过 Add package from tarball 导入 `com.spatialai.sdk-0.2.0-preview.10.tgz`；基础包自动安装内置的 Spatial 修改版 Cardboard、XR Hands 和 XR Interaction，无需独立 installer。
+在 Package Manager 中通过 Add package from tarball 导入 `com.spatialai.sdk-0.2.0-preview.11.tgz`；基础包自动安装内置的 Spatial 修改版 Cardboard、XR Hands 和 XR Interaction，无需独立 installer。
 运行 **Spatial AI > Setup > Configure Android XR**，设置自己的 Application Identifier，将示例加入 Build Settings，再构建 APK。
 用户不需要检出开发仓库、复制 Demo 构建脚本或编译 AAR。发布包含生成的 Android AAR 与模型，源码 Git 继续忽略 AAR。
 

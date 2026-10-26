@@ -17,6 +17,7 @@ namespace SpatialAI.Editor
             // Use the R8 project's supported settings-level override for this toolchain.
             var root = Path.GetFullPath(Path.Combine(unityLibraryPath, ".."));
             ConfigureAndroidProject(root, unityLibraryPath);
+#if !UNITY_6000_0_OR_NEWER
             var rootBuild = Path.Combine(root, "build.gradle");
             if (File.Exists(rootBuild) && File.ReadAllText(rootBuild).Contains("7.1.2"))
             {
@@ -41,6 +42,7 @@ namespace SpatialAI.Editor
                 }
                 else File.WriteAllText(settingsPath, settings);
             }
+#endif
             var gradle = Path.Combine(unityLibraryPath, "build.gradle");
             var source = File.ReadAllText(gradle);
             const string dependency = "implementation 'com.google.mediapipe:tasks-vision:1.0.0'";
@@ -57,19 +59,28 @@ namespace SpatialAI.Editor
         {
             var sdk = Environment.GetEnvironmentVariable("SPATIALAI_ANDROID_SDK_ROOT");
             if (string.IsNullOrWhiteSpace(sdk)) sdk = AndroidExternalToolsSettings.sdkRootPath;
+#if UNITY_6000_0_OR_NEWER
+            if (string.IsNullOrWhiteSpace(sdk) || !Directory.Exists(Path.Combine(sdk, "platforms")))
+                throw new InvalidOperationException("Spatial Android: install Android Build Support and configure Unity External Tools > Android SDK, or SPATIALAI_ANDROID_SDK_ROOT.");
+#else
             if (string.IsNullOrWhiteSpace(sdk) || !File.Exists(Path.Combine(sdk, "platforms/android-34/android.jar")))
                 throw new InvalidOperationException("Spatial Android: install SDK Platform 34 and configure Unity External Tools > Android SDK, or SPATIALAI_ANDROID_SDK_ROOT.");
             if (!Directory.Exists(Path.Combine(sdk, "build-tools/30.0.3")))
                 throw new InvalidOperationException("Spatial Android Unity 2022 baseline requires Android Build Tools 30.0.3 in the configured SDK.");
+#endif
             File.WriteAllText(Path.Combine(root, "local.properties"), "sdk.dir=" + Path.GetFullPath(sdk).Replace("\\", "\\\\").Replace(":", "\\:") + "\n");
             foreach (var module in new[] { Path.Combine(library, "build.gradle"), Path.Combine(root, "launcher/build.gradle") })
             {
                 if (!File.Exists(module)) continue;
                 var source = File.ReadAllText(module);
+#if !UNITY_6000_0_OR_NEWER
+                // Unity 6 supplies its own AGP/Gradle/JDK/Build Tools combination.
+                // Keep the legacy workaround confined to the Unity 2022 toolchain.
                 source = Regex.Replace(source, @"compileSdkVersion\s+\d+", "compileSdkVersion 34");
                 source = Regex.Replace(source, @"minSdkVersion\s+\d+", "minSdkVersion 28");
                 source = Regex.Replace(source, @"targetSdkVersion\s+\d+", "targetSdkVersion 34");
                 source = Regex.Replace(source, "buildToolsVersion '[^']+'", "buildToolsVersion '30.0.3'");
+#endif
                 if (module == Path.Combine(library, "build.gradle") && UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.google.xr.cardboard") != null)
                     foreach (var dependency in new[] { "androidx.appcompat:appcompat:1.6.1", "com.google.android.gms:play-services-vision:20.1.3", "com.google.android.material:material:1.12.0", "com.google.protobuf:protobuf-javalite:3.19.4" })
                         if (!source.Contains(dependency)) source = source.Replace("dependencies {", "dependencies {\n    implementation '" + dependency + "'\n");
