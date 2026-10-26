@@ -29,8 +29,14 @@ public sealed class SpatialXRNativeDependencies : IPreprocessBuildWithReport
 
         var shell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
             "WindowsPowerShell", "v1.0", "powershell.exe");
-        var start = new ProcessStartInfo(shell,
-            "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -NdkPath \"" + ndk + "\"")
+        var arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\" -NdkPath \"" + ndk + "\"";
+        // Rebuild the display-timed plugin instead of overwriting it with the baseline SDK.
+        if (File.Exists(Path.Combine(sdkRoot, "tools/BuildUnityImuTiming.py")))
+        {
+            shell = "python";
+            arguments = "-X utf8 \"" + Path.Combine(sdkRoot, "tools/BuildUnityImuTiming.py") + "\" --install";
+        }
+        var start = new ProcessStartInfo(shell, arguments)
         {
             WorkingDirectory = sdkRoot,
             UseShellExecute = false,

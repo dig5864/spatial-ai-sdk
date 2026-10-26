@@ -25,7 +25,6 @@ namespace SpatialAI.Samples
         {
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = 60;
             bridge = FindObjectOfType<SpatialCardboardBridge>();
             targetRoot.gameObject.SetActive(false);
         }

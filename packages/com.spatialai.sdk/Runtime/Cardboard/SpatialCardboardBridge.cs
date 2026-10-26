@@ -22,6 +22,10 @@ namespace SpatialAI.Cardboard
         public bool useGenericViewerForDiagnostics;
         [Tooltip("Comparison scenes only: render the original RhinoX mesh on a phone panel. This is not calibration for the phone's lenses.")]
         public bool useRhinoXReferenceMeshForDiagnostics;
+        [Tooltip("Android Cardboard: configure frame rate through SpatialFrameRate and predict poses for expected presentation time.")]
+        public bool useDisplayTimedFramePacing = true;
+        [Tooltip("Initial SDK frame-rate configuration. Runtime Configure calls take precedence.")]
+        public SpatialFrameRateConfiguration frameRateConfiguration = SpatialFrameRateConfiguration.Default;
         [Tooltip("Fixed rig physical screen regions. If empty, load SpatialAI/ScreenRig or the locally saved rig.json.")]
         public TextAsset phoneRigProfile;
         // Session-only A/B diagnostic. Never changes the measured physical IPD or camera calibration.
@@ -132,7 +136,7 @@ namespace SpatialAI.Cardboard
             if (HostProfileResult.Success)
             {
                 MatchedHostProfile = hostProfile;
-                Application.targetFrameRate = hostProfile.targetFrameRate;
+                if (!useDisplayTimedFramePacing) Application.targetFrameRate = hostProfile.targetFrameRate;
                 Screen.orientation = ScreenOrientation.LandscapeLeft;
 #if UNITY_ANDROID && !UNITY_EDITOR
                 if (hostProfile.imu != null)
@@ -244,6 +248,10 @@ namespace SpatialAI.Cardboard
             }
 #endif
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
+            if (useDisplayTimedFramePacing)
+            {
+                SpatialFrameRate.Initialize(frameRateConfiguration);
+            }
         }
 
         private void Update()

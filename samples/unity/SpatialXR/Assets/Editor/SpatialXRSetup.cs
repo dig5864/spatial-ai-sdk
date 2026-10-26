@@ -74,6 +74,14 @@ public static class SpatialXRSetup
     [MenuItem("Spatial AI/Build Android XR Sample")]
     public static void BuildAndroidSample()
     {
+        ImuPacingComparisonBuild.BuildSdkFrameRateSettings();
+    }
+
+    // Shared build path keeps the pacing comparison's scenes and player settings identical.
+    public static void BuildAndroidSampleVariant(string outputFileName, string[] extraDefines)
+    {
+        if (string.IsNullOrEmpty(outputFileName) || Path.GetFileName(outputFileName) != outputFileName)
+            throw new System.ArgumentException("Use an APK file name without a directory.", nameof(outputFileName));
         const string scenePath = "Assets/Scenes/HelloSpatialXR.unity";
         if (!File.Exists(scenePath)) throw new FileNotFoundException("Create the XR sample scene first.", scenePath);
         ConfigureAndroidXR();
@@ -100,7 +108,7 @@ public static class SpatialXRSetup
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
         PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
-        var output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "..", "..", "build", "samples", "android", "spatialxr.apk"));
+        var output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "..", "..", "build", "samples", "android", outputFileName));
         Directory.CreateDirectory(Path.GetDirectoryName(output));
         var scenes=new System.Collections.Generic.List<string>{"Assets/Scenes/ImuDiagnostics.unity",scenePath,"Assets/Scenes/OpticsComparison.unity",calibrationPath};
         // Optional package: base SDK samples still compile without XR Hands installed.
@@ -121,7 +129,8 @@ public static class SpatialXRSetup
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
             scenes = scenes.ToArray(), locationPathName = output,
-            target = BuildTarget.Android, options = BuildOptions.None
+            target = BuildTarget.Android, options = BuildOptions.None,
+            extraScriptingDefines = extraDefines ?? new string[0]
         });
         if (report.summary.result != BuildResult.Succeeded)
             throw new System.Exception("Spatial XR Android build failed: " + report.summary.result);

@@ -38,16 +38,31 @@ namespace SpatialAI.Samples
         private readonly List<UnityEngine.XR.InputDevice> headDevices = new List<UnityEngine.XR.InputDevice>();
         private GameObject axes;
         private GameObject calibrationTargets;
+        private readonly ImuFramePacingProbe pacingProbe = new ImuFramePacingProbe();
+
+        private void OnEnable()
+        {
+            pacingProbe.Reset("enable");
+            Application.onBeforeRender += RecordBeforeRender;
+        }
+
+        private void OnDisable()
+        {
+            Application.onBeforeRender -= RecordBeforeRender;
+        }
+
+        private void RecordBeforeRender() { pacingProbe.BeforeRender(); }
+
+        private void OnApplicationPause(bool paused) { pacingProbe.Reset(paused ? "pause" : "resume"); }
 
         private void Start()
         {
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = SpatialAI.Unity.SpatialDeviceProfiles.SelectHost(
-                SpatialAI.Unity.SpatialDeviceProfiles.ReadHostIdentity(), out var host).Success ? host.targetFrameRate : 72;
             frameWindowStart = Time.unscaledTime;
             bridge = GetComponent<SpatialCardboardBridge>();
             Input.gyro.enabled = true;
+            pacingProbe.Reset("start");
             if (xrCamera == null) return;
 
             var panel = new GameObject("IMU stereo readout");
@@ -71,11 +86,19 @@ namespace SpatialAI.Samples
             // Draw text after the panel, keeping both above the diagnostic scene.
             var textRenderer = panel.GetComponent<MeshRenderer>();
             textRenderer.material.renderQueue = 3101;
-            panel.SetActive(!StereoProbeOnly);
+            // Keep the view clear until the user enables the readout in gear settings.
+            panel.SetActive(false);
+            if (!StereoProbeOnly)
+            {
+                var settings = GetComponent<SpatialScreenCalibration>();
+                if (settings == null) settings = gameObject.AddComponent<SpatialScreenCalibration>();
+                settings.RegisterDiagnosticOverlay(panel);
+            }
         }
 
         private void Update()
         {
+            pacingProbe.Update(bridge != null && bridge.XrRunning, readout != null && readout.gameObject.activeSelf);
             frameCount++;
             maxFrameMs = Mathf.Max(maxFrameMs, Time.unscaledDeltaTime * 1000f);
             var frameWindowSeconds = Time.unscaledTime - frameWindowStart;
@@ -168,7 +191,8 @@ namespace SpatialAI.Samples
                     "IMU: " + (bridge != null && bridge.HostTrackingConfigured ?
                         (bridge.MatchedHostProfile.imu.validatedForHardware ? "MODEL VERIFIED" : "MODEL UNVERIFIED") : "DEFAULT") + "\n" +
                     rawReadout +
-                    "FPS: " + measuredFps.ToString("0.0") + " / " + Application.targetFrameRate + "   Max frame: " +
+                    "FPS: " + measuredFps.ToString("0.0") + " / target " + SpatialFrameRate.Status.TargetFrameRate.ToString("0.0") +
+                    "   Software cap: " + SpatialFrameRate.Status.SoftwareFrameRateCap + "   Max frame: " +
                     measuredMaxFrameMs.ToString("0.0") + " ms\n" +
                     "Relative head angle (deg)\n" +
                     "Yaw   Y: " + Format(euler.y) + "  turn left/right\n" +

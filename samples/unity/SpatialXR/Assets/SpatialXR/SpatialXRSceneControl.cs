@@ -27,6 +27,7 @@ namespace SpatialAI.Samples
 
         private void Awake()
         {
+            gameObject.AddComponent<SpatialFrameRateDebugControls>();
             SceneManager.sceneLoaded+=OnSceneLoaded;
 #if UNITY_ANDROID && !UNITY_EDITOR
             using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
@@ -37,6 +38,17 @@ namespace SpatialAI.Samples
             Debug.Log("Spatial XR scene control ready: imu / hands / xrhands / xri / optics / calibration / capture");
         }
 
+        [Preserve]
+        public void ConfigureFrameRate(string value)
+        {
+            GetComponent<SpatialFrameRateDebugControls>().Configure(value);
+        }
+        [Preserve]
+        public void ShowFrameRateSettings(string value)
+        {
+            if (bool.TryParse(value, out var visible))
+                GetComponent<SpatialFrameRateDebugControls>().ShowSettings(visible);
+        }
         [Preserve]
         public void SetPhoneStereoMode(string mode)
         {

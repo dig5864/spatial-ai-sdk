@@ -14,8 +14,6 @@ public sealed class OpticsComparisonDisplay : MonoBehaviour
         menuUntil = Time.unscaledTime + 4f;
         Screen.sleepTimeout = SleepTimeout.NeverSleep;
         Screen.orientation = ScreenOrientation.LandscapeLeft;
-        Application.targetFrameRate = SpatialAI.Unity.SpatialDeviceProfiles.SelectHost(
-            SpatialAI.Unity.SpatialDeviceProfiles.ReadHostIdentity(), out var host).Success ? host.targetFrameRate : 72;
         if (pattern == null) return;
         pattern.filterMode = FilterMode.Point;
         pattern.wrapMode = TextureWrapMode.Clamp;

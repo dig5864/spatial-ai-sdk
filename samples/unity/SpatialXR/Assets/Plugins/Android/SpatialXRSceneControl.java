@@ -26,6 +26,13 @@ public final class SpatialXRSceneControl {
                 }
                 if(intent.hasExtra("oneEuro"))
                     UnityPlayer.UnitySendMessage("SpatialXRSceneControl","SetHandSmoothing",intent.getBooleanExtra("oneEuro",true)?"true":"false");
+                if(intent.hasExtra("frameRateMode") || intent.hasExtra("frameRateHeadroom")) {
+                    String mode=intent.getStringExtra("frameRateMode");
+                    String margin=intent.hasExtra("frameRateHeadroom")?Float.toString(intent.getFloatExtra("frameRateHeadroom",Float.NaN)):"";
+                    UnityPlayer.UnitySendMessage("SpatialXRSceneControl","ConfigureFrameRate",(mode==null?"":mode)+"|"+margin);
+                }
+                if(intent.hasExtra("frameRateSettings"))
+                    UnityPlayer.UnitySendMessage("SpatialXRSceneControl","ShowFrameRateSettings",intent.getBooleanExtra("frameRateSettings",true)?"true":"false");
                 String stereoMode=intent.getStringExtra("phoneStereoMode");
                 if(stereoMode!=null) {
                     stereoMode=stereoMode.trim().toLowerCase(java.util.Locale.ROOT);
