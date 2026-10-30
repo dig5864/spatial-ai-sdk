@@ -21,9 +21,7 @@ namespace SpatialAI.Unity
             if (identity == null) return result;
             // Unknown phone on an explicitly configured fixed rig. Preserve all
             // exact-match/invalid-profile errors; do not borrow Xiaomi identity.
-            bool rhinoX = string.Equals(identity.Manufacturer, "QUALCOMM", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(identity.Model, "RhinoX", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(identity.DeviceCode, "kona", StringComparison.OrdinalIgnoreCase);
+            bool rhinoX = DeviceProfileSelector.IsRhinoXHost(identity);
             var rig = profile == null && result.Code == ErrorCode.Unsupported && !rhinoX && string.IsNullOrEmpty(identity.HeadsetId)
                 ? SpatialPhoneScreen.LoadRig() : null;
             if (rig != null)

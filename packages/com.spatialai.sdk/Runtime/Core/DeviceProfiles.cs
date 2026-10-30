@@ -112,6 +112,13 @@ namespace SpatialAI.Core
 
     public static class DeviceProfileSelector
     {
+        public static bool IsRhinoXHost(DeviceIdentity identity)
+        {
+            return identity != null &&
+                string.Equals(identity.Manufacturer, "QUALCOMM", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(identity.Model, "RhinoX", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(identity.DeviceCode, "kona", StringComparison.OrdinalIgnoreCase);
+        }
         // Exact, case-insensitive IDs only. An explicit headset ID takes precedence over
         // host device code / model; unknown and ambiguous devices fail closed.
         public static Result Select(DeviceIdentity identity, IEnumerable<OpticalProfileDescriptor> profiles,

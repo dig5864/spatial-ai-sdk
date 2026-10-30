@@ -65,3 +65,7 @@ Xiaomi mayfly 当前实际模式保持 120 Hz，系统未采纳窗口的 60 Hz �
 跟随模式通过本项目的节奏门槛；锁 60 模式在 120 Hz 屏幕下仍有长短帧配对，未通过。提高余量后依然存在异常，不能将其归结为软件上限不足，也不能宣称锁 60 的卡顿已修复。默认保持 FollowDisplay、2x，Locked60 保留用于对照测试。API 切换、非法参数拒绝、Demo 保存/重启恢复、跨场景和暂停恢复已验证。
 
 原始采集目录位于 `build/validation/imu-pacing/sdk-followdisplay-margin2-20261026-130109`、`sdk-locked60-margin2-20261026-130130`、`sdk-locked60-margin4_0-20261026-130155`，构建产物和采集文件不纳入提交。
+
+## IMU fallback prediction
+
+`SpatialPosePrediction.SetFallbackMilliseconds(int milliseconds)` configures the fallback prediction from 0 to 100 ms (default 50 ms). It applies only when a valid display timeline is unavailable; it is not a measurement of motion-to-photon latency. Call it on the Unity main thread; the application owns persistence. Rebuild the Java helper and Cardboard native library together using `python -X utf8 tools/BuildUnityImuTiming.py --install`.

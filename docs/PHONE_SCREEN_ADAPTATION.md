@@ -8,7 +8,7 @@ SDK 读取 Android Activity 对应 Display 的完整 metrics、各轴 DPI、显�
 
 固定支架的两眼区域保存为相对设计屏幕中心的毫米矩形；运行时根据手机有效宽高、屏幕中心安装偏移和当前输出像素尺寸换算。降低输出分辨率不会改变物理区域；降低每眼渲染纹理分辨率也不修改支架配置。
 
-当前小米 `referenceEyeRects` 保留。尚未建立支架配置时，该参考手机可用系统 DPI 临时推导估算布局，在原分辨率下复现原矩形；其他手机必须先取得参考支架配置，不能从未知手机屏幕尺寸猜测固定光路。
+Android 普通手机默认使用 SDK 内置的固定反射支架基准，根据自身屏幕尺寸和分辨率计算布局，无需由应用额外导入或启用诊断开关。RhinoX 一体机使用 SDK 内固定屏幕和光学配置。手机基准仅适用于相同支架及屏幕安装平面，不是通用手机光路。
 
 ## 第一次建立支架基准
 
@@ -36,7 +36,7 @@ Application.persistentDataPath/spatial-screen/rig.json
 
 用 `adb pull` 取回文件，放入应用的 `Resources/SpatialAI/ScreenRig.json` 并重新构建；所有手机就可自动加载同一支架配置。也可以赋给 `SpatialCardboardBridge.phoneRigProfile`，或由应用自身写入本地 `spatial-screen/rig.json`。手机之间不会自动同步本地文件。避免用 ADB 在应用首次创建校正目录前执行 `mkdir`：Android 16 真机上该目录会属于 shell，应用无法读取或写入；跨手机部署优先使用 Resources/显式配置。
 
-加载优先级：显式 `phoneRigProfile` → Resources `SpatialAI/ScreenRig` → 本地 `rig.json`。显式/Resources 配置存在时，本地文件不覆盖它；如需重测支架，使用没有绑定预置配置的参考测试应用重新导出，然后替换项目资源。
+手机显示路径加载优先级：显式 `phoneRigProfile` → Resources `SpatialAI/ScreenRig` → 本地 `rig.json` → SDK 内置固定反射支架基准。显式/Resources 配置存在时，本地文件不覆盖它；更换支架时必须提供对应配置。
 
 新手机读取自身 DPI 估算尺寸；有误差时同样校正两条标尺，选择 **Save measured screen**。尺寸文件按厂商/型号/deviceCode 隔离，不保存永久 px/mm，因此显示模式变化后仍根据新输出分辨率计算。
 
