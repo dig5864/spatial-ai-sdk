@@ -45,6 +45,13 @@ public final class SpatialFrameTiming implements DisplayManager.DisplayListener,
         originalMode=params.preferredDisplayModeId;originalRefreshRate=params.preferredRefreshRate;
         csvPath=new File(activity.getExternalFilesDir(null),"unity-pose-"+System.currentTimeMillis()+".csv").getAbsolutePath();
     }
+    private static native void nativeSetFallbackPredictionMs(int value);
+    private static native int nativeGetFallbackPredictionMs();
+    public static void setFallbackPredictionMs(int value){
+        if(value<0 || value>100)throw new IllegalArgumentException("fallback prediction must be 0..100 ms");
+        nativeSetFallbackPredictionMs(value);
+        new Handler(Looper.getMainLooper()).post(()->{if(instance!=null)instance.publishStatus();});
+    }
     private static native void nativeStart(String path);
     private static native void nativeStop();
     private static native void nativePublish(long callback,long expected,long deadline,long id,long sequence,int generation);
@@ -152,7 +159,7 @@ public final class SpatialFrameTiming implements DisplayManager.DisplayListener,
             state.put("fractionalCadence",policy.fractional);state.put("cadenceSourceMilliHz",policy.sourceMilliHz);
             state.put("cadenceTargetMilliHz",policy.targetMilliHz);
             state.put("refreshObserver","background-poll-and-display-listener");
-            state.put("predictionMode","display-time");state.put("predictionMs",50);
+            state.put("predictionMode","display-time");state.put("predictionMs",nativeGetFallbackPredictionMs());
             state.put("preferredFps",policyMode==FrameRatePolicy.LOCKED_60?60:0);
             state.put("pid",android.os.Process.myPid());state.put("generation",generation);state.put("displayId",display().getDisplayId());
             state.put("requestedModeId",requestedMode);state.put("actualModeId",actualMode);state.put("modeHz",hz);

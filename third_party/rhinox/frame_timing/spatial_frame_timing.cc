@@ -22,6 +22,7 @@ int64_t cadenceConsumed=-1,cadenceReport=0;
 int cadenceFrames=0,cadenceTimeouts=0;
 Timeline latest;
 bool enabled=false;
+int fallbackPredictionMs=50;
 FILE* csv=nullptr;
 int64_t started=0,report=0,rows=0;
 int count=0,expired=0,fallback=0;
@@ -54,11 +55,11 @@ extern "C" void CardboardUnity_waitForFrameCadence() {
 }
 extern "C" void CardboardUnity_setPoseUpdatePhase(int updatePhase){phase=updatePhase;}
 extern "C" int64_t CardboardUnity_getDisplayTimedPoseTarget() {
-    Timeline frame;bool active;
-    {std::lock_guard<std::mutex> lock(mutex);frame=latest;active=enabled;}
+    Timeline frame;bool active;int fixedMs;
+    {std::lock_guard<std::mutex> lock(mutex);frame=latest;active=enabled;fixedMs=fallbackPredictionMs;}
     const int64_t before=Clock(CLOCK_MONOTONIC),boot=Clock(CLOCK_BOOTTIME),after=Clock(CLOCK_MONOTONIC);
     const int64_t mono=before+(after-before)/2;
-    const auto timing=selectPoseTiming(active,50,mono,boot,frame.callback,frame.expected,frame.deadline);
+    const auto timing=selectPoseTiming(active,fixedMs,mono,boot,frame.callback,frame.expected,frame.deadline);
     query={frame,mono,boot,timing.targetBoot,after,timing.source};
     ATrace_beginSection("SpatialUnity.getPose");
     return timing.targetBoot;
@@ -91,6 +92,14 @@ extern "C" void CardboardUnity_recordDisplayTimedPose() {
         report=end;count=expired=fallback=0;sum=0;minimum=1e9;maximum=0;if(csv)std::fflush(csv);
     }
 }
+extern "C" JNIEXPORT void JNICALL Java_com_spatialai_cardboard_SpatialFrameTiming_nativeSetFallbackPredictionMs(JNIEnv*,jclass,jint value){
+    if(value<0 || value>100)return;
+    std::lock_guard<std::mutex> lock(mutex);fallbackPredictionMs=value;
+    __android_log_print(ANDROID_LOG_INFO,"SpatialUnityTiming","FALLBACK_PREDICTION_MS %d",value);
+}
+extern "C" JNIEXPORT jint JNICALL Java_com_spatialai_cardboard_SpatialFrameTiming_nativeGetFallbackPredictionMs(JNIEnv*,jclass){
+    std::lock_guard<std::mutex> lock(mutex);return fallbackPredictionMs;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_spatialai_cardboard_SpatialFrameTiming_nativeStart(JNIEnv* env,jclass,jstring path){
     const char* filename=env->GetStringUTFChars(path,nullptr);
     std::lock_guard<std::mutex> lock(mutex);
@@ -100,7 +109,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_spatialai_cardboard_SpatialFrameTimin
     count=expired=fallback=0;sum=0;minimum=1e9;maximum=0;
     if(csv){std::setvbuf(csv,nullptr,_IOFBF,65536);std::fseek(csv,0,SEEK_END);
         if(std::ftell(csv)==0)std::fprintf(csv,"sequence,update_phase,query_mono_ns,query_boot_ns,target_boot_ns,expected_present_mono_ns,deadline_mono_ns,request_sequence,refresh_generation,prediction_source,effective_prediction_ms,sample_boot_ns,fusion_receive_boot_ns,sdk_query_boot_ns,snapshot_valid,pose_cpu_ms,sample_age_ms,total_extrapolation_ms,warmup\n");}
-    __android_log_print(ANDROID_LOG_INFO,"SpatialUnityTiming","CONFIG revision=unity-native-parity-v1 prediction=display-time fixedFallbackMs=50 csv=%d",csv!=nullptr);
+    __android_log_print(ANDROID_LOG_INFO,"SpatialUnityTiming","CONFIG revision=unity-native-parity-v1 prediction=display-time fixedFallbackMs=%d csv=%d",fallbackPredictionMs,csv!=nullptr);
 }
 extern "C" JNIEXPORT void JNICALL Java_com_spatialai_cardboard_SpatialFrameTiming_nativeStop(JNIEnv*,jclass){
     std::lock_guard<std::mutex> lock(mutex);enabled=false;latest={};cadenceDivisor=0;cadenceSourceMilliHz=cadenceTargetMilliHz=0;

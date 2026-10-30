@@ -20,7 +20,7 @@ namespace SpatialAI.Cardboard
         public bool scanCardboardViewerOnStart;
         [Tooltip("Only for the sample: load generic Cardboard I/O 2015 viewer parameters when none are saved. Never use these parameters to validate RhinoX optics.")]
         public bool useGenericViewerForDiagnostics;
-        [Tooltip("Comparison scenes only: render the original RhinoX mesh on a phone panel. This is not calibration for the phone's lenses.")]
+        [Tooltip("Legacy option for reference display testing outside the automatic Android phone path. Reference optics are not a validated phone calibration.")]
         public bool useRhinoXReferenceMeshForDiagnostics;
         [Tooltip("Android Cardboard: configure frame rate through SpatialFrameRate and predict poses for expected presentation time.")]
         public bool useDisplayTimedFramePacing = true;
@@ -48,7 +48,7 @@ namespace SpatialAI.Cardboard
         private SpatialScreenCalibration screenCalibration;
         private string phoneConfigurationKey;
         private float nextScreenRead;
-        private bool restartPhoneDisplay;
+        private bool restartDisplay;
         private bool isPhoneReference;
         private int phoneDisplayRevision;
         public void RefreshPhoneDisplay() { phoneConfigurationKey = null; nextScreenRead = 0; }
@@ -114,12 +114,12 @@ namespace SpatialAI.Cardboard
 
         private void Awake()
         {
-            if (useRhinoXReferenceMeshForDiagnostics) SpatialPhoneScreen.ConfiguredRig = phoneRigProfile;
+            SpatialPhoneScreen.ConfiguredRig = phoneRigProfile;
         }
 
         private void Start()
         {
-            if (useRhinoXReferenceMeshForDiagnostics)
+            if (Application.platform == RuntimePlatform.Android || useRhinoXReferenceMeshForDiagnostics)
             {
                 Screen.orientation = ScreenOrientation.LandscapeLeft;
                 SpatialPhoneScreen.ConfiguredRig = phoneRigProfile;
@@ -174,16 +174,15 @@ namespace SpatialAI.Cardboard
             else Debug.Log("Spatial AI host profile: " + HostProfileResult.Message);
             // The current RhinoX AIO reports QUALCOMM / RhinoX / kona. Do not
             // infer headset identity from the generic Qualcomm device code alone.
-            bool knownRhinoX = string.Equals(Identity.Manufacturer, "QUALCOMM", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(Identity.Model, "RhinoX", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(Identity.DeviceCode, "kona", StringComparison.OrdinalIgnoreCase);
+            bool knownRhinoX = DeviceProfileSelector.IsRhinoXHost(Identity);
             if (knownRhinoX && string.IsNullOrEmpty(Identity.HeadsetId)) Identity.HeadsetId = "RhinoXPro";
             ProfileResult = SpatialDeviceProfiles.Select(Identity, out var profile);
             MatchedProfile = profile;
             if (MatchedHostProfile != null && string.IsNullOrEmpty(Identity.HeadsetId))
                 ProfileResult = new Result(ErrorCode.Unsupported, "Phone screen: Cardboard viewer parameters; optical calibration pending.");
             opticsConfigurationRejected = knownRhinoX;
-            isPhoneReference = !knownRhinoX && useRhinoXReferenceMeshForDiagnostics;
+            isPhoneReference = !knownRhinoX && (useRhinoXReferenceMeshForDiagnostics ||
+                (Application.platform == RuntimePlatform.Android && string.IsNullOrEmpty(Identity.HeadsetId)));
             if (isPhoneReference)
             {
                 ProfileResult = SpatialDeviceProfiles.Select(new DeviceIdentity { HeadsetId = "RhinoXPro" }, out var reference);
@@ -267,7 +266,7 @@ namespace SpatialAI.Cardboard
             XrRunning = display != null && display.running;
             if (isPhoneReference && screenCalibration != null && screenCalibration.IsOpen)
             {
-                if (XrRunning) { restartPhoneDisplay = true; display.Stop(); }
+                if (XrRunning) { restartDisplay = true; display.Stop(); }
                 XrRunning = false; TriggerPressed = false; return;
             }
             if ((spatialTrackingConfigured || HostTrackingConfigured) && Screen.orientation != ScreenOrientation.LandscapeLeft)
@@ -277,19 +276,19 @@ namespace SpatialAI.Cardboard
                     Debug.LogError("Configured IMU mapping requires LandscapeLeft orientation.");
                     orientationMismatchLogged = true;
                 }
-                if (XrRunning) display.Stop();
+                if (XrRunning) { restartDisplay = true; display.Stop(); }
                 XrRunning = false;
                 return;
             }
             if (opticsConfigurationRejected || hostTrackingRejected)
             {
-                if (XrRunning) { restartPhoneDisplay = isPhoneReference; display.Stop(); }
+                if (XrRunning) { restartDisplay = true; display.Stop(); }
                 XrRunning = false;
                 return;
             }
-            if (isPhoneReference && restartPhoneDisplay && display != null && !display.running)
+            if (restartDisplay && display != null && !display.running)
             {
-                display.Start(); restartPhoneDisplay = false; XrRunning = display.running;
+                display.Start(); XrRunning = display.running; restartDisplay = !XrRunning;
             }
 #if UNITY_ANDROID && !UNITY_EDITOR
             if (spatialOpticsConfigured)

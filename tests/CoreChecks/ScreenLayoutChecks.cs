@@ -5,6 +5,12 @@ static class ScreenLayoutChecks
 {
     public static void Run(Action<bool, string> check)
     {
+        check(DeviceProfileSelector.IsRhinoXHost(new DeviceIdentity { Manufacturer = "qualcomm", Model = "RhinoX", DeviceCode = "kona" }),
+            "RhinoX host selects fixed device identity case-insensitively");
+        check(!DeviceProfileSelector.IsRhinoXHost(new DeviceIdentity { Manufacturer = "Xiaomi", Model = "24129PN74C", DeviceCode = "dada" }),
+            "ordinary phone is not classified as RhinoX");
+        check(!DeviceProfileSelector.IsRhinoXHost(new DeviceIdentity { Manufacturer = "QUALCOMM", Model = "other", DeviceCode = "kona" }),
+            "shared chipset code alone does not select RhinoX");
         var reference = new float[] { 268.220f,157.045f,865.054f,865.054f,1266.727f,157.045f,865.054f,865.054f };
         var screen = new PhoneScreenCalibration { phoneKey = "reference", widthMm = 144, heightMm = 64.8f, measured = true };
         check(ScreenLayout.FromReference(reference, 2400, 1080, screen, "rig", true, out var rig).Success, "physical rig generated from measured reference");

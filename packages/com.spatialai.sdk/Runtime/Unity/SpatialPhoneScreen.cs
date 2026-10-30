@@ -109,6 +109,12 @@ namespace SpatialAI.Unity
             {
                 var asset = configured != null ? configured : ConfiguredRig != null ? ConfiguredRig : Resources.Load<TextAsset>("SpatialAI/ScreenRig");
                 string json = asset != null ? asset.text : File.Exists(RigPath) ? File.ReadAllText(RigPath) : null;
+                if (json == null)
+                {
+                    // SDK-owned baseline for the supported fixed reflected holder.
+                    var reference = Resources.Load<TextAsset>("SpatialAI/ReferenceRigs/FixedReflectedRig");
+                    json = reference != null ? reference.text : null;
+                }
                 var rig = json == null ? null : JsonUtility.FromJson<ScreenRigProfile>(json);
                 return rig != null && rig.IsValid ? rig : null;
             }
