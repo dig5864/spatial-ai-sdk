@@ -1,7 +1,7 @@
 {
   "name": "SpatialAI.Cardboard",
   "rootNamespace": "SpatialAI.Cardboard",
-  "references": ["SpatialAI.Core", "SpatialAI.Unity", "Google.XR.Cardboard", "Unity.XR.Management"],
+  "references": ["SpatialAI.Core", "SpatialAI.Unity", "Google.XR.Cardboard", "Unity.XR.Management", "Unity.InputSystem"],
   "defineConstraints": ["SPATIALAI_HAS_CARDBOARD"],
   "versionDefines": [
     { "name": "com.google.xr.cardboard", "expression": "1.30.0", "define": "SPATIALAI_HAS_CARDBOARD" }

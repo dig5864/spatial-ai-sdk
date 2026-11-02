@@ -1,11 +1,14 @@
 #if SPATIALAI_HAS_CARDBOARD
 using System;
 using System.Globalization;
-using System.Threading;
 using SpatialAI.Core;
 using SpatialAI.Unity;
 using UnityEngine;
 using Google.XR.Cardboard;
+#if UNITY_ANDROID && !UNITY_EDITOR
+using UnityEngine.InputSystem.EnhancedTouch;
+using EnhancedTouch = UnityEngine.InputSystem.EnhancedTouch.Touch;
+#endif
 
 namespace SpatialAI.Cardboard
 {
@@ -15,7 +18,7 @@ namespace SpatialAI.Cardboard
     public sealed class SpatialScreenCalibration : MonoBehaviour
     {
         public bool IsOpen { get; private set; }
-        public const string NativeGearLayoutRevision = "layout-cache-v1";
+        public const string NativeGearLayoutRevision = "unity-touch-v1";
         private const string DiagnosticOverlayPreference = "SpatialAI.DiagnosticOverlayVisible";
         private GameObject diagnosticOverlay;
         public bool DiagnosticOverlayVisible { get { return diagnosticOverlay != null && diagnosticOverlay.activeSelf; } }
@@ -46,132 +49,24 @@ namespace SpatialAI.Cardboard
         private Camera calibrationCamera;
         private int previousCullingMask;
 #if UNITY_ANDROID && !UNITY_EDITOR
-        private AndroidJavaObject nativeButton;
-        private ButtonListener nativeListener;
-        private volatile bool openRequested, destroyed;
-        private float nextGearLayout;
-        private float nextGearReport;
-        // The applied state is owned by Android's UI thread. Keep polling the
-        // parent size so window/inset changes are detected, but avoid requesting
-        // another layout or text invalidation when the hit target is unchanged.
-        private bool hasNativeLayout, hasNativeText, nativeFallbackIcon;
-        private bool hasNativeVisibility, nativeVisible;
-        private int nativeLeft, nativeTop, nativeWidth, nativeHeight;
-        private int gearPolls, gearLayoutApplied, gearTextApplied, gearVisibilityApplied;
-        private sealed class ButtonListener : AndroidJavaProxy
-        {
-            private readonly SpatialScreenCalibration owner;
-            public ButtonListener(SpatialScreenCalibration owner) : base("android.view.View$OnClickListener") { this.owner = owner; }
-            public void onClick(AndroidJavaObject view) { owner.openRequested = true; }
-        }
         private void OnEnable()
         {
-            nextGearReport = Time.unscaledTime + 5f;
-            Debug.Log("SpatialAI IMU-GEAR CONFIG revision=" + NativeGearLayoutRevision +
-                " pollSeconds=0.5 mutation=only-on-change");
-            OnAndroidUi(activity =>
-            {
-                if (destroyed || nativeButton != null) return;
-                nativeButton = new AndroidJavaObject("android.widget.Button", activity);
-                // Cardboard renders the gear. This transparent native hit target stays
-                // above XR submission without adding another visible button.
-                nativeButton.Call("setText", "");
-                hasNativeText = true; nativeFallbackIcon = false;
-                nativeButton.Call("setContentDescription", "Screen size / 50 mm ruler");
-                nativeButton.Call("setBackgroundColor", 0);
-                nativeButton.Call("setTextColor", -1);
-                nativeButton.Call("setTextSize", 24f);
-                nativeButton.Call("setPadding", 0, 0, 0, 0);
-                nativeButton.Call("setMinimumWidth", 0);
-                nativeButton.Call("setMinimumHeight", 0);
-                nativeListener = new ButtonListener(this);
-                nativeButton.Call("setOnClickListener", nativeListener);
-                using (var parameters = new AndroidJavaObject("android.widget.FrameLayout$LayoutParams", 1, 1, 53))
-                    activity.Call("addContentView", nativeButton, parameters);
-                hasNativeLayout = false;
-                hasNativeVisibility = true; nativeVisible = true;
-            });
+            EnhancedTouchSupport.Enable();
+            EnhancedTouch.onFingerDown += OnFingerDown;
+            Debug.Log("SpatialAI IMU-GEAR CONFIG revision=" + NativeGearLayoutRevision + " owner=unity-touch");
         }
-        private void UpdateNativeGearLayout()
+        private void OnFingerDown(Finger finger)
         {
-            var rect = Widget.GearButtonRect;
-            int outputWidth = Screen.width, outputHeight = Screen.height;
-            bool renderFallbackIcon = bridge == null || !bridge.XrRunning;
-            OnAndroidUi(activity =>
-            {
-                if (destroyed || nativeButton == null || outputWidth <= 0 || outputHeight <= 0) return;
-                Interlocked.Increment(ref gearPolls);
-                using (var parent = nativeButton.Call<AndroidJavaObject>("getParent"))
-                {
-                    if (parent == null) return;
-                    int windowWidth = parent.Call<int>("getWidth"), windowHeight = parent.Call<int>("getHeight");
-                    if (windowWidth <= 0 || windowHeight <= 0) return;
-                    float sx = (float)windowWidth / outputWidth, sy = (float)windowHeight / outputHeight;
-                    // Unity uses a bottom-left origin; Android margins use top-left.
-                    int targetWidth = Math.Max(1, (int)Math.Round(rect.width * sx));
-                    int targetHeight = Math.Max(1, (int)Math.Round(rect.height * sy));
-                    int targetLeft = (int)Math.Round(rect.x * sx);
-                    int targetTop = (int)Math.Round((outputHeight - rect.yMax) * sy);
-                    if (!hasNativeLayout || nativeWidth != targetWidth || nativeHeight != targetHeight ||
-                        nativeLeft != targetLeft || nativeTop != targetTop)
-                    {
-                        using (var parameters = new AndroidJavaObject("android.widget.FrameLayout$LayoutParams",
-                            targetWidth, targetHeight, 51))
-                        {
-                            parameters.Set("leftMargin", targetLeft);
-                            parameters.Set("topMargin", targetTop);
-                            nativeButton.Call("setLayoutParams", parameters);
-                        }
-                        nativeWidth = targetWidth; nativeHeight = targetHeight;
-                        nativeLeft = targetLeft; nativeTop = targetTop; hasNativeLayout = true;
-                        Interlocked.Increment(ref gearLayoutApplied);
-                    }
-                    // Keep calibration reachable when an invalid layout stops XR.
-                    if (!hasNativeText || nativeFallbackIcon != renderFallbackIcon)
-                    {
-                        nativeButton.Call("setText", renderFallbackIcon ? "\u2699\uFE0E" : "");
-                        nativeFallbackIcon = renderFallbackIcon; hasNativeText = true;
-                        Interlocked.Increment(ref gearTextApplied);
-                    }
-                }
-            });
+            if (IsOpen || bridge == null || !bridge.XrRunning) return;
+            if (Widget.GearButtonRect.Contains(Vector2Int.RoundToInt(finger.currentTouch.screenPosition))) Open();
         }
-        private void OnDestroy()
+        private void OnDisable()
         {
-            destroyed = true;
-            RestoreCamera();
-            OnAndroidUi(activity =>
-            {
-                if (nativeButton == null) return;
-                using (var parent = nativeButton.Call<AndroidJavaObject>("getParent"))
-                    if (parent != null) parent.Call("removeView", nativeButton);
-                nativeButton.Dispose(); nativeButton = null; nativeListener = null;
-            });
-        }
-        private static void OnAndroidUi(Action<AndroidJavaObject> action)
-        {
-            using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
-            {
-                var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
-                activity.Call("runOnUiThread", new AndroidJavaRunnable(() =>
-                {
-                    using (activity)
-                        try { action(activity); }
-                        catch (Exception e) { Debug.LogWarning("Spatial screen button: " + e.Message); }
-                }));
-            }
-        }
-        private void SetNativeButtonVisible(bool visible)
-        {
-            OnAndroidUi(activity =>
-            {
-                if (destroyed || nativeButton == null || (hasNativeVisibility && nativeVisible == visible)) return;
-                nativeButton.Call("setVisibility", visible ? 0 : 8);
-                nativeVisible = visible; hasNativeVisibility = true;
-                Interlocked.Increment(ref gearVisibilityApplied);
-            });
+            EnhancedTouch.onFingerDown -= OnFingerDown;
+            EnhancedTouchSupport.Disable();
         }
 #endif
+        private void OnDestroy() { RestoreCamera(); }
         private void Awake() { bridge = GetComponent<SpatialCardboardBridge>(); }
         public void Open()
         {
@@ -186,16 +81,10 @@ namespace SpatialAI.Cardboard
                 if (calibrationCamera != null) { previousCullingMask = calibrationCamera.cullingMask; calibrationCamera.cullingMask = 0; }
             }
             IsOpen = true;
-#if UNITY_ANDROID && !UNITY_EDITOR
-            SetNativeButtonVisible(false);
-#endif
         }
         public void Close()
         {
             IsOpen = false; RestoreCamera(); bridge.RefreshPhoneDisplay();
-#if UNITY_ANDROID && !UNITY_EDITOR
-            SetNativeButtonVisible(true);
-#endif
         }
         private void RestoreCamera()
         {
@@ -249,24 +138,6 @@ namespace SpatialAI.Cardboard
         }
         private void Update()
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
-            if (openRequested) { openRequested = false; Open(); }
-            if (Time.unscaledTime >= nextGearLayout)
-            {
-                nextGearLayout = Time.unscaledTime + .5f;
-                UpdateNativeGearLayout();
-            }
-            if (Time.unscaledTime >= nextGearReport)
-            {
-                nextGearReport = Time.unscaledTime + 5f;
-                Debug.Log("SpatialAI IMU-GEAR WINDOW revision=" + NativeGearLayoutRevision +
-                    " polls=" + Interlocked.Exchange(ref gearPolls, 0) +
-                    " layoutApplied=" + Interlocked.Exchange(ref gearLayoutApplied, 0) +
-                    " textApplied=" + Interlocked.Exchange(ref gearTextApplied, 0) +
-                    " visibilityApplied=" + Interlocked.Exchange(ref gearVisibilityApplied, 0) +
-                    " settingsOpen=" + IsOpen);
-            }
-#endif
             if (IsOpen && Time.unscaledTime >= nextRead) { metrics = SpatialPhoneScreen.Read(); nextRead = Time.unscaledTime + 1; }
         }
         private void OnGUI()
