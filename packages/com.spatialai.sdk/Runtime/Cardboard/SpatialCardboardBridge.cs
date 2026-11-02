@@ -264,7 +264,8 @@ namespace SpatialAI.Cardboard
             var loader = manager != null ? manager.activeLoader as Google.XR.Cardboard.XRLoader : null;
             var display = loader != null ? loader.GetLoadedSubsystem<XRDisplaySubsystem>() : null;
             XrRunning = display != null && display.running;
-            if (isPhoneReference && screenCalibration != null && screenCalibration.IsOpen)
+            if (screenCalibration == null) screenCalibration = GetComponent<SpatialScreenCalibration>();
+            if (screenCalibration != null && screenCalibration.IsOpen)
             {
                 if (XrRunning) { restartDisplay = true; display.Stop(); }
                 XrRunning = false; TriggerPressed = false; return;
@@ -333,7 +334,9 @@ namespace SpatialAI.Cardboard
                 viewerScanInProgress = true;
                 Api.ScanDeviceParams();
             }
-            if (Api.IsGearButtonPressed)
+            // The calibration component owns the gear when present.  Without
+            // it, retain the original Cardboard viewer-scanning behaviour.
+            if (Api.IsGearButtonPressed && GetComponent<SpatialScreenCalibration>() == null)
             {
                 viewerScanInProgress = true;
                 Api.ScanDeviceParams();
