@@ -1,3 +1,24 @@
+diff --git a/sdk/unity/xr_provider/display.cc b/sdk/unity/xr_provider/display.cc
+index 17de077..ce80da8 100644
+--- a/sdk/unity/xr_provider/display.cc
++++ b/sdk/unity/xr_provider/display.cc
+@@ -174,6 +174,7 @@ class CardboardDisplayProvider {
+       tex_map_.clear();
+ 
+       cardboard::unity::CardboardDisplayApi::GetScreenParams(&width_, &height_);
++      const bool eye_srgb = cardboard_display_api_->SetEyeTextureSrgb(frame_hints->appSetup.sRGB);
+       cardboard_display_api_->UpdateDeviceParams();
+       is_initialized_ = true;
+ 
+@@ -182,7 +183,7 @@ class CardboardDisplayProvider {
+         texture_descriptors_[i] = {};
+         texture_descriptors_[i].width = width_ / 2;
+         texture_descriptors_[i].height = height_;
+-        texture_descriptors_[i].flags = 0;
++        texture_descriptors_[i].flags = eye_srgb ? kUnityXRRenderTextureFlagsSRGB : 0;
+ 
+         texture_descriptors_[i].depthFormat =
+             kUnityXRDepthTextureFormat24bitOrGreater;
 diff --git a/sdk/unity/xr_provider/input.cc b/sdk/unity/xr_provider/input.cc
 index 9f40a65..5fa846e 100644
 --- a/sdk/unity/xr_provider/input.cc
@@ -82,7 +103,7 @@ index 5523c86..31de4ef 100644
  
  #endif  // CARDBOARD_SDK_UNITY_XR_PROVIDER_MATH_TOOLS_H_
 diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
-index 6dd7d61..66d4b5a 100644
+index 6dd7d61..fb196a3 100644
 --- a/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 +++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.cc
 @@ -19,7 +19,9 @@
@@ -221,7 +242,18 @@ index 6dd7d61..66d4b5a 100644
  std::atomic<CardboardDisplayApi::ScreenParams>
      CardboardDisplayApi::unity_screen_params_({0, 0, 0, 0, 0, 0});
  
-@@ -125,11 +236,33 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -114,6 +225,10 @@ void CardboardDisplayApi::ScanDeviceParams() {
+   CardboardQrCode_scanQrCodeAndSaveDeviceParams();
+ }
+ 
++bool CardboardDisplayApi::SetEyeTextureSrgb(bool requested) {
++  return renderer_ && renderer_->SetEyeTextureSrgb(requested);
++}
++
+ void CardboardDisplayApi::UpdateDeviceParams() {
+   if (selected_graphics_api_ == kNone) {
+     LOGE(
+@@ -125,11 +240,33 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    // Updates the screen size.
    screen_params_ = unity_screen_params_;
  
@@ -256,7 +288,7 @@ index 6dd7d61..66d4b5a 100644
    if (size == 0) {
      // Loads Cardboard V1 device parameters when no device parameters are
      // available.
-@@ -143,6 +276,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -143,6 +280,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
          screen_params_.viewport_height);
      CardboardQrCode_destroy(data);
    }
@@ -264,7 +296,7 @@ index 6dd7d61..66d4b5a 100644
    device_params_changed_ = false;
  
    RenderingResourcesSetup();
-@@ -181,6 +315,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -181,6 +319,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        break;
    }
  
@@ -272,7 +304,7 @@ index 6dd7d61..66d4b5a 100644
    CardboardLensDistortion_getDistortionMesh(
        lens_distortion, CardboardEye::kLeft,
        &eye_data_[CardboardEye::kLeft].distortion_mesh);
-@@ -188,6 +323,79 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -188,6 +327,79 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        lens_distortion, CardboardEye::kRight,
        &eye_data_[CardboardEye::kRight].distortion_mesh);
  
@@ -352,7 +384,7 @@ index 6dd7d61..66d4b5a 100644
    CardboardDistortionRenderer_setMesh(
        distortion_renderer_.get(),
        &eye_data_[CardboardEye::kLeft].distortion_mesh, CardboardEye::kLeft);
-@@ -196,6 +404,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -196,6 +408,7 @@ void CardboardDisplayApi::UpdateDeviceParams() {
        &eye_data_[CardboardEye::kRight].distortion_mesh, CardboardEye::kRight);
  
    // Get eye matrices
@@ -360,7 +392,7 @@ index 6dd7d61..66d4b5a 100644
    CardboardLensDistortion_getEyeFromHeadMatrix(
        lens_distortion, CardboardEye::kLeft,
        eye_data_[CardboardEye::kLeft].eye_from_head_matrix);
-@@ -207,7 +416,30 @@ void CardboardDisplayApi::UpdateDeviceParams() {
+@@ -207,7 +420,30 @@ void CardboardDisplayApi::UpdateDeviceParams() {
    CardboardLensDistortion_getFieldOfView(lens_distortion, CardboardEye::kRight,
                                           eye_data_[CardboardEye::kRight].fov);
  
@@ -392,7 +424,7 @@ index 6dd7d61..66d4b5a 100644
  }
  
  void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
-@@ -218,11 +450,68 @@ void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
+@@ -218,11 +454,68 @@ void CardboardDisplayApi::GetEyeMatrices(int eye, float* eye_from_head,
  }
  
  void CardboardDisplayApi::RenderEyesToDisplay() {
@@ -462,7 +494,7 @@ index 6dd7d61..66d4b5a 100644
  }
  
  void CardboardDisplayApi::RenderWidgets() {
-@@ -384,6 +673,267 @@ void CardboardUnity_setDeviceParametersChanged() {
+@@ -384,6 +677,267 @@ void CardboardUnity_setDeviceParametersChanged() {
    cardboard::unity::CardboardDisplayApi::SetDeviceParametersChanged();
  }
  
@@ -730,3 +762,66 @@ index 6dd7d61..66d4b5a 100644
  void CardboardUnity_setWidgetCount(int count) {
    cardboard::unity::CardboardDisplayApi::SetWidgetCount(count);
  }
+diff --git a/sdk/unity/xr_unity_plugin/cardboard_display_api.h b/sdk/unity/xr_unity_plugin/cardboard_display_api.h
+index b3739a5..7770c0e 100644
+--- a/sdk/unity/xr_unity_plugin/cardboard_display_api.h
++++ b/sdk/unity/xr_unity_plugin/cardboard_display_api.h
+@@ -65,6 +65,8 @@ class CardboardDisplayApi {
+   ///          Cardboard V1 device parameters is used.
+   void UpdateDeviceParams();
+ 
++  bool SetEyeTextureSrgb(bool requested);
++
+   /// @brief Gets the eye perspective matrix and field of view.
+   /// @pre UpdateDeviceParams() must have been successfully called.
+   /// @param[in] eye The eye to retrieve the information. It must be one of {0 ,
+diff --git a/sdk/unity/xr_unity_plugin/opengl_es3_renderer.cc b/sdk/unity/xr_unity_plugin/opengl_es3_renderer.cc
+index 5d13025..2636a2a 100644
+--- a/sdk/unity/xr_unity_plugin/opengl_es3_renderer.cc
++++ b/sdk/unity/xr_unity_plugin/opengl_es3_renderer.cc
+@@ -187,6 +187,11 @@ class OpenGlEs3Renderer : public Renderer {
+     widget_program_ = 0;
+   }
+ 
++  bool SetEyeTextureSrgb(bool requested) override {
++    eye_texture_srgb_ = requested;
++    return requested;
++  }
++
+   void CreateRenderTexture(RenderTexture* render_texture, int screen_width,
+                            int screen_height) override {
+     // Create texture color buffer.
+@@ -197,8 +202,9 @@ class OpenGlEs3Renderer : public Renderer {
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screen_width / 2, screen_height, 0,
+-                 GL_RGB, GL_UNSIGNED_BYTE, 0);
++    glTexImage2D(GL_TEXTURE_2D, 0, eye_texture_srgb_ ? GL_SRGB8_ALPHA8 : GL_RGB,
++                 screen_width / 2, screen_height, 0,
++                 eye_texture_srgb_ ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, 0);
+     CHECKGLERROR("Create texture color buffer.");
+     render_texture->color_buffer = tmp;
+ 
+@@ -245,6 +251,7 @@ class OpenGlEs3Renderer : public Renderer {
+   }
+ 
+  private:
++  bool eye_texture_srgb_ = false;
+   static constexpr float Lerp(float start, float end, float val) {
+     return start + (end - start) * val;
+   }
+diff --git a/sdk/unity/xr_unity_plugin/renderer.h b/sdk/unity/xr_unity_plugin/renderer.h
+index b33131a..e74473e 100644
+--- a/sdk/unity/xr_unity_plugin/renderer.h
++++ b/sdk/unity/xr_unity_plugin/renderer.h
+@@ -95,6 +95,9 @@ class Renderer {
+   /// @pre It must be called from the rendering thread.
+   virtual void TeardownWidgets() = 0;
+ 
++  // Returns true only when this backend can create sRGB eye textures.
++  virtual bool SetEyeTextureSrgb(bool requested) { return false; }
++
+   /// @brief Creates and configures resources in a RenderTexture.
+   ///
+   /// @param render_texture A RenderTexture to load its resources.
