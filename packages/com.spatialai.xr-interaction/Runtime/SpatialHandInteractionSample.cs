@@ -58,7 +58,7 @@ namespace SpatialAI.XRInteraction
             bool reflection=false;
             if(!useSimulation && SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(),out var host).Success)reflection=host.reflectHandDisplayX;
             Bridge.reflectDisplayX=reflection;Bridge.presentationDistanceScale=1;
-            Bridge.uiCursorOnly=true;Bridge.rayOrigin=SpatialHandRayOrigin.IndexTip;Bridge.holdAimDuringPinch=false;
+            Bridge.uiCursorOnly=true;Bridge.rayOrigin=SpatialHandRayOrigin.Wrist;Bridge.holdAimDuringPinch=false;
             Bridge.aimPitchOffsetDegrees=0;Bridge.maximumAimElevationDegrees=90;
             Bridge.leftRay.cursorOnly=Bridge.rightRay.cursorOnly=true;
             var handVisualObject=new GameObject("XR Hands skeleton");handVisualObject.SetActive(false);handVisualObject.transform.SetParent(displayRoot.transform,false);
@@ -131,7 +131,7 @@ namespace SpatialAI.XRInteraction
             hud.rectTransform.anchorMin=hud.rectTransform.anchorMax=new Vector2(0,1);hud.rectTransform.pivot=new Vector2(0,1);
             hud.rectTransform.anchoredPosition=new Vector2(14,-10);hud.rectTransform.sizeDelta=new Vector2(972,230);
             renderWindowStart=Time.unscaledTime;
-            Debug.Log("SpatialXRI sample ready presentationScale=1 mode="+(useSimulation?"simulation":"uvc")+" interaction=thumbIndexCursor skeleton=true cubes=headLocked visibleRays=false cursorPinchHold=false gestures=UnityXRHands HUD=centralBackground UI=Button.onClick; open hand to arm");
+            Debug.Log("SpatialXRI sample ready presentationScale=1 mode="+(useSimulation?"simulation":"uvc")+" interaction=wristOffsetCursor skeleton=true cubes=headLocked visibleRays=false cursorPinchHold=false gestures=UnityXRHands HUD=centralBackground UI=Button.onClick; open hand to arm");
         }
         private static Mesh CreateCubeMesh()
         {

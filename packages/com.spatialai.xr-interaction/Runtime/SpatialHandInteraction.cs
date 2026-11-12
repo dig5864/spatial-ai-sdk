@@ -8,7 +8,7 @@ using UnityEngine.XR.Interaction.Toolkit;
 namespace SpatialAI.XRInteraction
 {
     public enum SpatialHandAimMode { ShoulderToPalm, HeadToPalm, IndexExtension, HeadForward }
-    public enum SpatialHandRayOrigin { Palm, IndexTip }
+    public enum SpatialHandRayOrigin { Palm, IndexTip, Wrist }
     [DisallowMultipleComponent]
     public sealed class SpatialHandInteraction : MonoBehaviour
     {
@@ -28,8 +28,10 @@ namespace SpatialAI.XRInteraction
         [Range(-60,90)] public float maximumAimElevationDegrees=90;
         [Tooltip("Keep the last open-hand direction through pinch press and release debounce.")]
         public bool holdAimDuringPinch;
-        [Tooltip("3DOF presentation: a thumb/index midpoint marker instead of a visible ray.")]
+        [Tooltip("3DOF presentation: a wrist-based cursor instead of a visible ray.")]
         public bool uiCursorOnly;
+        [Tooltip("Wrist cursor offset in head coordinates; X is mirrored for the right hand.")]
+        public Vector3 wristCursorOffset=new Vector3(-.02f,.09f,0);
         [Range(1,10)] public float presentationDistanceScale=1;
         public float pressRatio=.32f,releaseRatio=.48f,debounceMs=50;
         public string LeftStatus { get; private set; }="untracked";
@@ -91,7 +93,7 @@ namespace SpatialAI.XRInteraction
             float width=Vector3.Distance(a,b);
             // Pinching can compress the MCP span. Wrist-to-middle is an independent live scale reference.
             bool hasWrist=Point(hand,XRHandJointID.Wrist,out var wrist);
-            if(aimMode==SpatialHandAimMode.IndexExtension&&!hasWrist){Lose(side,"index aim wrist missing");return;}
+            if((uiCursorOnly||rayOrigin==SpatialHandRayOrigin.Wrist||aimMode==SpatialHandAimMode.IndexExtension)&&!hasWrist){Lose(side,"aim wrist missing");return;}
             if(hasWrist&&Point(hand,XRHandJointID.MiddleProximal,out var middle))
                 width=Mathf.Max(width,Vector3.Distance(wrist,middle)*.875f);
             float ratio=width>.005f?Vector3.Distance(thumb,index)/width:float.NaN;
@@ -100,9 +102,14 @@ namespace SpatialAI.XRInteraction
             var headPosition=physicalHead==null?Vector3.zero:trackingOrigin==null?physicalHead.position:trackingOrigin.InverseTransformPoint(physicalHead.position);
             var headRotation=physicalHead==null?Quaternion.identity:trackingOrigin==null?physicalHead.rotation:Quaternion.Inverse(trackingOrigin.rotation)*physicalHead.rotation;
             var palm=(a+b)*.5f;
-            var origin=rayOrigin==SpatialHandRayOrigin.IndexTip?index:palm;
-            // Match the original hand demo's pointer between thumb and index fingertips.
-            if(uiCursorOnly)origin=(thumb+index)*.5f;
+            var origin=rayOrigin==SpatialHandRayOrigin.Wrist?wrist:rayOrigin==SpatialHandRayOrigin.IndexTip?index:palm;
+            // Apparent fingertip marker: fixed head-space offset from the wrist.
+            // Finger-tip motion only influences the pinch gate, not pointer placement.
+            if(uiCursorOnly)
+            {
+                var offset=wristCursorOffset;if(side==1)offset.x=-offset.x;
+                origin=wrist+headRotation*offset;
+            }
             var indexAxis=a-wrist;
             // Determine the anatomical shoulder in the same presentation frame as the hand.
             // Reflecting an already chosen shoulder would put the left shoulder on the right.
@@ -150,11 +157,10 @@ namespace SpatialAI.XRInteraction
                 if(binding!=null)
                 {
                     binding.cursorOnly=true;
-                    // The reference demo projects its pointer onto z = (0.8 - 0.08),
-                    // scaled with the hand presentation. Use the same screen position
-                    // for the circle and the standard XRI hit-test direction.
-                    float forwardDepth=Vector3.Dot(direction,headRotation*Vector3.forward);
-                    var cursorPosition=headPosition+direction*(.72f*scale/forwardDepth);
+                    // Keep the marker at the wrist-derived hand depth rather than
+                    // a separate fixed plane, so stereo depth matches the skeleton.
+                    // Both marker and XRI hit test use this same direction.
+                    var cursorPosition=headPosition+direction*scale;
                     binding.UpdateCursor(trackingOrigin==null?cursorPosition:trackingOrigin.TransformPoint(cursorPosition),
                         trackingOrigin==null?headRotation:trackingOrigin.rotation*headRotation,pinch);
                 }

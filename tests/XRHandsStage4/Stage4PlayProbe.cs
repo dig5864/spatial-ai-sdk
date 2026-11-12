@@ -47,9 +47,8 @@ public sealed class Stage4PlayProbe : MonoBehaviour
     private void PlaceIndex(SimulatedHandState state,bool isRight,SimulatedHandPose pose)
     {
         state.position=Vector3.zero;state.eulerAngles=Vector3.zero;state.pose=pose;state.tracked=true;
-        var frame=new SimulatedHandsFrameSource().Publish(state,state,1);var hand=isRight?frame.Right:frame.Left;
-        var midpoint=(V(hand.GetJoint(HandJointId.ThumbTip).Position)+V(hand.GetJoint(HandJointId.IndexTip).Position))*.5f;
-        state.position=new Vector3(0,0,2)-midpoint;
+        // The pointer is based only on the wrist plus its fixed head-space offset.
+        state.position=new Vector3(isRight?-.02f:.02f,-.09f,2);
     }
     private void PlacePalm(SimulatedHandState state,bool isRight,Vector3 rawAnchor,SimulatedHandPose pose=SimulatedHandPose.OpenPalm,Vector3? rotation=null)
     {
@@ -261,14 +260,14 @@ public sealed class Stage4PlayProbe : MonoBehaviour
         var cursor=bridge.leftRay.transform.Find("Index fingertip cursor");
         Check(cursor.gameObject.activeSelf&&!bridge.leftRay.Visual.enabled&&!bridge.leftRay.GetComponent<LineRenderer>().enabled,"UI cursor is visible without a rendered ray");
         Check(!bridge.leftRay.transform.Find("Ray destination arrow").gameObject.activeSelf&&!bridge.leftRay.transform.Find("Ray forward motion arrow").gameObject.activeSelf,"UI cursor removes terminal and moving ray markers");
-        Check(Vector3.Distance(cursor.position,new Vector3(0,0,2.16f))<.001f&&cursor.GetComponent<MeshFilter>().sharedMesh.normals[0].z<0,"circle uses the reference demo's pointer plane and faces the viewer");
+        Check(Vector3.Distance(cursor.position,new Vector3(0,0,6f))<.001f&&cursor.GetComponent<MeshFilter>().sharedMesh.normals[0].z<0,"circle follows wrist-derived position and faces the viewer");
         var cursorVertices=cursor.GetComponent<MeshFilter>().sharedMesh.vertices;
         Check(Mathf.Abs(cursorVertices.Max(v=>v.magnitude)-.045f)<.00001f&&Mathf.Abs(cursorVertices.Min(v=>v.magnitude)-.034f)<.00001f,"circle keeps its original annulus size and thickness");
         Check(bridge.LeftDevice.devicePosition.ReadValue().sqrMagnitude<.000001f,"standard UI pointer starts at view origin even when estimated fingertip is beyond the panel");
         int beforeCursorClicks=clicks;
         PlaceIndex(left,false,SimulatedHandPose.Pinch);Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
-        Check(clicks==beforeCursorClicks&&!bridge.IsAimHeld(false)&&Vector3.Distance(cursor.position,new Vector3(0,0,2.16f))<.001f,
-            "matching thumb/index midpoint retains circle position without aim lock and UI waits for release");
+        Check(clicks==beforeCursorClicks&&!bridge.IsAimHeld(false)&&Vector3.Distance(cursor.position,new Vector3(0,0,6f))<.001f,
+            "stationary wrist retains circle position during pinch and UI waits for release");
         PlaceIndex(left,false,SimulatedHandPose.OpenPalm);Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
         Check(clicks==beforeCursorClicks+1,"fingertip cursor activates ordinary Button.onClick exactly once");
         PlaceIndex(left,false,SimulatedHandPose.Pinch);Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
@@ -281,17 +280,17 @@ public sealed class Stage4PlayProbe : MonoBehaviour
         PlaceIndex(left,false,SimulatedHandPose.OpenPalm);PlaceIndex(right,true,SimulatedHandPose.OpenPalm);Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
         Check(clicks==beforeCursorClicks+3,"two fingertip circles drive independent standard UI clicks");
         left.position+=new Vector3(.15f,.1f,0);Publish();for(int i=0;i<4;i++)yield return null;
-        Check(Vector3.Distance(cursor.position,new Vector3(-.15f,.1f,2)*1.08f)<.001f&&Quaternion.Angle(cursor.rotation,Quaternion.identity)<.01f,
-            "circle projects the mirrored thumb/index midpoint after standard controller parent rotation");
+        Check(Vector3.Distance(cursor.position,new Vector3(-.15f,.1f,2)*3f)<.001f&&Quaternion.Angle(cursor.rotation,Quaternion.identity)<.01f,
+            "circle tracks the mirrored wrist after standard controller parent rotation");
         left.position+=Vector3.forward;Publish();for(int i=0;i<4;i++)yield return null;
-        Check(Vector3.Distance(cursor.position,new Vector3(-.15f,.1f,3)*.72f)<.001f,"changing estimated hand depth preserves the reference pointer plane and perspective");
+        Check(Vector3.Distance(cursor.position,new Vector3(-.15f,.1f,3)*3f)<.001f,"changing estimated wrist depth moves the circle with the hand");
         canvasObject.SetActive(false);target.SetActive(true);target.transform.position=new Vector3(0,0,4.2f);Physics.SyncTransforms();
         PlaceIndex(left,false,SimulatedHandPose.OpenPalm);right.tracked=false;Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
         Check(selectable.isHovered&&!bridge.leftRay.Visual.enabled,"circle-only presentation still uses standard XRI cube hover without a visible line");
         PlaceIndex(left,false,SimulatedHandPose.Pinch);Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
-        Check(selectable.isSelected&&Vector3.Distance(cursor.position,new Vector3(0,0,2.16f))<.001f,"circle selects a cube at the thumb/index midpoint");
+        Check(selectable.isSelected&&Vector3.Distance(cursor.position,new Vector3(0,0,6f))<.001f,"wrist-based circle selects a cube");
         left.position+=new Vector3(.06f,.04f,0);Publish();for(int i=0;i<4;i++)yield return null;
-        Check(Vector3.Distance(cursor.position,new Vector3(-.0648f,.0432f,2.16f))<.001f&&!bridge.IsAimHeld(false),"whole-hand motion remains live during a held pinch");
+        Check(Vector3.Distance(cursor.position,new Vector3(-.18f,.12f,6f))<.001f&&!bridge.IsAimHeld(false),"whole-hand motion remains live during a held pinch");
         PlaceIndex(left,false,SimulatedHandPose.OpenPalm);Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
         Check(!selectable.isSelected,"circle releases the standard cube on opening");
         left.missingJoint=HandJointId.IndexTip;Publish();Check(!cursor.gameObject.activeSelf,"missing fingertip immediately hides the UI marker");left.missingJoint=HandJointId.Count;
