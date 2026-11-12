@@ -101,6 +101,14 @@ namespace SpatialAI.XRHands
                     " palmWidthMetres="+calibration.palmWidthMetres+" wristToMiddleMetres="+calibration.wristToMiddleMetres+
                     " headFromCameraTranslationMetres="+(calibration.headFromCameraTranslationMetres==null?"null":string.Join(",",calibration.headFromCameraTranslationMetres))+
                     " headFromCameraRotationXyzw="+(calibration.headFromCameraRotationXyzw==null?"null":string.Join(",",calibration.headFromCameraRotationXyzw)));
+            // A scene-specific mount may use a camera whose handedness differs
+            // from the fixed-rig default. Do not override explicit calibration.
+            if(calibrationJson==null && SpatialHandTracking.CameraSource==SpatialHandCameraSource.Uvc && SpatialHandTracking.UvcSwapHandednessOverride.HasValue)
+            {
+                if(calibration==null)calibration=new UvcHandCalibration();
+                calibration.swapHandedness=SpatialHandTracking.UvcSwapHandednessOverride.Value;
+                Debug.Log("SpatialXRHands UVC handedness override swap="+calibration.swapHandedness);
+            }
             baseCalibration=calibration;
             if(previewPitchDownDegrees!=0 && calibration!=null && calibration.Validate(true).Success)
             {

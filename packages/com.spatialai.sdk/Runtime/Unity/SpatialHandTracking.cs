@@ -120,6 +120,17 @@ namespace SpatialAI.Unity
     {
         public static bool GestureRecognitionEnabled { get; set; } = true;
         private static SpatialHandCameraSource cameraSource = SpatialHandCameraSource.HostProfile;
+        private static int uvcMountRotationDegrees;
+        /// <summary>Mirror oriented UVC output horizontally for the configured display mount.</summary>
+        public static bool UvcMirrorOutputX { get; set; }
+        /// <summary>Optional UVC handedness override; null uses the host profile.</summary>
+        public static bool? UvcSwapHandednessOverride { get; set; }
+        /// <summary>Clockwise UVC landmark orientation; must match the consuming scene calibration.</summary>
+        public static int UvcMountRotationDegrees
+        {
+            get { return uvcMountRotationDegrees; }
+            set { if(value!=0 && value!=90 && value!=180 && value!=270)throw new ArgumentOutOfRangeException(nameof(value)); uvcMountRotationDegrees=value; }
+        }
         /// <summary>Camera override. HostProfile preserves existing SDK selection; the Android Demo defaults to UVC.</summary>
         public static SpatialHandCameraSource CameraSource
         {
@@ -403,6 +414,7 @@ namespace SpatialAI.Unity
             var frame = JsonUtility.FromJson<SpatialHandFrame>(json);
             if (frame == null || frame.sequence == lastSequence) return;
             lastSequence = frame.sequence;
+            SpatialUvcMountOrientation.Apply(frame,UvcMountRotationDegrees,UvcMirrorOutputX);
             frame.receivedHostStopwatchNs=(long)(System.Diagnostics.Stopwatch.GetTimestamp()*(1_000_000_000.0/System.Diagnostics.Stopwatch.Frequency));
             if(frame.receivedAtNs>0)
                 using(var clock=new AndroidJavaClass("android.os.SystemClock"))
