@@ -11,6 +11,8 @@ namespace SpatialAI.XRHands
         public TextAsset calibrationJson;
         public Transform physicalHead,trackingOrigin;
         private TextMesh readout;
+        private SpatialXRHandsVisualizer handVisualizer;
+        private bool hostReflection;
         private GameObject visualRoot,label,backdrop;
         private Mesh panelMesh;
         private Material panelMaterial;
@@ -22,12 +24,13 @@ namespace SpatialAI.XRHands
             if(xrCamera==null){Debug.LogError("SpatialXRHands sample needs an XR camera");enabled=false;return;}
             visualRoot=new GameObject("Standard XR Hands display");
             visualRoot.transform.SetParent(physicalHead==null?xrCamera.transform:trackingOrigin,false);
-            var visualizer=visualRoot.AddComponent<SpatialXRHandsVisualizer>();
+            handVisualizer=visualRoot.AddComponent<SpatialXRHandsVisualizer>();var visualizer=handVisualizer;
             visualizer.trackingOrigin=visualRoot.transform;visualizer.presentationDistanceScale=3;
             if(SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(),out var host).Success)
-                visualizer.reflectDisplayX=host.reflectHandDisplayX;
+                hostReflection=host.reflectHandDisplayX;
             var inputRoot=new GameObject("UVC XR Hands input");inputRoot.transform.SetParent(transform,false);inputRoot.SetActive(false);
             driver=inputRoot.AddComponent<SpatialUvcHands>();driver.calibrationJson=calibrationJson;
+            inputRoot.AddComponent<SpatialUvcCalibrationUI>();
             driver.physicalHead=physicalHead;driver.trackingOrigin=trackingOrigin;
             inputRoot.SetActive(true);
             label=new GameObject("Standard XR Hands readout");label.transform.SetParent(xrCamera.transform,false);
@@ -46,6 +49,7 @@ namespace SpatialAI.XRHands
         }
         private void Update()
         {
+            if(handVisualizer!=null)handVisualizer.reflectDisplayX=hostReflection ^ SpatialUvcCalibrationUI.FlipX;
             if(readout==null || driver==null)return;
             renderFrames++;float seconds=Time.unscaledTime-renderWindowStart;
             if(seconds>=1){renderFps=renderFrames/seconds;renderFrames=0;renderWindowStart=Time.unscaledTime;}

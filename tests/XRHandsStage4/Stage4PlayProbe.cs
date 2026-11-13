@@ -47,8 +47,8 @@ public sealed class Stage4PlayProbe : MonoBehaviour
     private void PlaceIndex(SimulatedHandState state,bool isRight,SimulatedHandPose pose)
     {
         state.position=Vector3.zero;state.eulerAngles=Vector3.zero;state.pose=pose;state.tracked=true;
-        // The pointer is based only on the wrist plus its fixed head-space offset.
-        state.position=new Vector3(isRight?-.02f:.02f,-.09f,2);
+        // The pointer is based only on the wrist plus its fixed wrist-local offset.
+        state.position=new Vector3(isRight?.045f:-.045f,0,1.93f);
     }
     private void PlacePalm(SimulatedHandState state,bool isRight,Vector3 rawAnchor,SimulatedHandPose pose=SimulatedHandPose.OpenPalm,Vector3? rotation=null)
     {
@@ -257,10 +257,22 @@ public sealed class Stage4PlayProbe : MonoBehaviour
         bridge.uiCursorOnly=true;bridge.leftRay.cursorOnly=bridge.rightRay.cursorOnly=true;
         target.SetActive(false);canvasObject.SetActive(true);canvasObject.transform.position=new Vector3(0,0,4.2f);
         right.tracked=false;PlaceIndex(left,false,SimulatedHandPose.OpenPalm);Publish();yield return new WaitForSecondsRealtime(.075f);Publish();for(int i=0;i<4;i++)yield return null;
+        // Simulate an existing prefab carrying the old head-space serialized value.
+#pragma warning disable 618
+        bridge.wristCursorOffset = new Vector3(-.02f,.09f,0);
+#pragma warning restore 618
+        Publish(); for(int i=0;i<4;i++)yield return null;
         var cursor=bridge.leftRay.transform.Find("Index fingertip cursor");
         Check(cursor.gameObject.activeSelf&&!bridge.leftRay.Visual.enabled&&!bridge.leftRay.GetComponent<LineRenderer>().enabled,"UI cursor is visible without a rendered ray");
         Check(!bridge.leftRay.transform.Find("Ray destination arrow").gameObject.activeSelf&&!bridge.leftRay.transform.Find("Ray forward motion arrow").gameObject.activeSelf,"UI cursor removes terminal and moving ray markers");
         Check(Vector3.Distance(cursor.position,new Vector3(0,0,6f))<.001f&&cursor.GetComponent<MeshFilter>().sharedMesh.normals[0].z<0,"circle follows wrist-derived position and faces the viewer");
+        // Rotation follows the wrist frame, and the mirrored output uses the
+        // same transform as the skeleton; fingertip motion remains irrelevant.
+        left.eulerAngles = new Vector3(0,0,65); Publish(); for(int i=0;i<4;i++)yield return null;
+        var rotatedOffset = Quaternion.Euler(left.eulerAngles) * bridge.wristLocalCursorOffset;
+        var expectedCursor = (left.position + rotatedOffset) * 3; expectedCursor.x = -expectedCursor.x;
+        Check(Vector3.Distance(cursor.position,expectedCursor)<.001f,"circle offset follows wrist orientation");
+        left.eulerAngles = Vector3.zero; Publish(); for(int i=0;i<4;i++)yield return null;
         var cursorVertices=cursor.GetComponent<MeshFilter>().sharedMesh.vertices;
         Check(Mathf.Abs(cursorVertices.Max(v=>v.magnitude)-.045f)<.00001f&&Mathf.Abs(cursorVertices.Min(v=>v.magnitude)-.034f)<.00001f,"circle keeps its original annulus size and thickness");
         Check(bridge.LeftDevice.devicePosition.ReadValue().sqrMagnitude<.000001f,"standard UI pointer starts at view origin even when estimated fingertip is beyond the panel");

@@ -115,9 +115,9 @@ namespace SpatialAI.Samples
             calibration = SpatialRgbCalibration.LoadRhinoXReference();
             UvcHandCalibration uvcCalibration = new UvcHandCalibration
                 { swapHandedness = defaultUvcSwapHandedness };
-            if (uvcCalibrationJson != null)
+            if (uvcCalibrationJson != null || System.IO.File.Exists(SpatialUvcCalibrationStore.DefaultPath) || SpatialUvcCalibrationStore.HasSelected)
             {
-                try { uvcCalibration = JsonUtility.FromJson<UvcHandCalibration>(uvcCalibrationJson.text); }
+                try { string source; uvcCalibration = SpatialUvcCalibrationStore.Load(uvcCalibrationJson, out source); }
                 catch (System.Exception error)
                 {
                     Debug.LogError("SpatialHands3D: invalid calibration JSON: " + error.Message);
@@ -209,6 +209,7 @@ namespace SpatialAI.Samples
 
         private void OnEnable()
         {
+            SpatialUvcCalibrationStore.Changed += ReloadUvcCalibration;
             lastSequence = -1;
             uvcProcessor?.Reset();
             for (var h = 0; h < 2; h++) displayState[h] = "hidden";
@@ -217,6 +218,7 @@ namespace SpatialAI.Samples
 
         private void OnDisable()
         {
+            SpatialUvcCalibrationStore.Changed -= ReloadUvcCalibration;
             if (tracking != null) { tracking.FrameUpdated -= OnHandFrame; tracking.Invalidated -= OnInvalidated; }
             uvcProcessor?.Reset("demo disabled");
             latestFrame = null;
@@ -226,6 +228,26 @@ namespace SpatialAI.Samples
                 wasPinching[h] = false;
                 for (var e = 0; e < Edges.Length / 2; e++)
                     if (bones[h, e] != null) bones[h, e].enabled = false;
+            }
+        }
+
+        private void ReloadUvcCalibration()
+        {
+            try
+            {
+                string source;
+                var candidate = SpatialUvcCalibrationStore.Load(uvcCalibrationJson, out source) ??
+                    new UvcHandCalibration { swapHandedness = defaultUvcSwapHandedness };
+                OnInvalidated("calibration reloaded");
+                uvcProcessor = new SpatialUvcHandProcessor(candidate);
+                swapUvcHandedness = candidate.swapHandedness;
+                Debug.Log("SpatialHands3D calibration source=" + source);
+            }
+            catch (System.Exception error)
+            {
+                OnInvalidated("calibration reload failed");
+                Debug.LogError("SpatialHands3D calibration reload failed: " + error.Message);
+                enabled = false;
             }
         }
 

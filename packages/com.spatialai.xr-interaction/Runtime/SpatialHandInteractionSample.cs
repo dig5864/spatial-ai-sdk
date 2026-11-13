@@ -26,6 +26,8 @@ namespace SpatialAI.XRInteraction
         private GameObject displayRoot,inputRoot,eventRoot;
         private Text hud;
         private SpatialUvcHands handsInput;
+        private SpatialXRHandsVisualizer handVisualizer;
+        private bool hostReflection;
         private float renderFps,renderWindowStart;
         private int renderFrames;
         private Transform gestureFeedback;
@@ -57,12 +59,13 @@ namespace SpatialAI.XRInteraction
             }
             bool reflection=false;
             if(!useSimulation && SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(),out var host).Success)reflection=host.reflectHandDisplayX;
+            hostReflection=reflection;
             Bridge.reflectDisplayX=reflection;Bridge.presentationDistanceScale=1;
-            Bridge.uiCursorOnly=true;Bridge.rayOrigin=SpatialHandRayOrigin.Wrist;Bridge.holdAimDuringPinch=false;
+            Bridge.uiCursorOnly=true;Bridge.wristLocalCursorOffset=new Vector3(.045f,0,.07f);Bridge.rayOrigin=SpatialHandRayOrigin.Wrist;Bridge.holdAimDuringPinch=false;
             Bridge.aimPitchOffsetDegrees=0;Bridge.maximumAimElevationDegrees=90;
             Bridge.leftRay.cursorOnly=Bridge.rightRay.cursorOnly=true;
             var handVisualObject=new GameObject("XR Hands skeleton");handVisualObject.SetActive(false);handVisualObject.transform.SetParent(displayRoot.transform,false);
-            var handVisual=handVisualObject.AddComponent<SpatialXRHandsVisualizer>();handVisual.trackingOrigin=displayRoot.transform;
+            handVisualizer=handVisualObject.AddComponent<SpatialXRHandsVisualizer>();var handVisual=handVisualizer;handVisual.trackingOrigin=displayRoot.transform;
             handVisual.reflectDisplayX=reflection;handVisual.presentationDistanceScale=1;handVisualObject.SetActive(true);
             if(standardGesturesPrefab!=null)
             {
@@ -79,6 +82,7 @@ namespace SpatialAI.XRInteraction
             else
             {
                 var input=inputRoot.AddComponent<SpatialUvcHands>();input.calibrationJson=calibrationJson;
+                inputRoot.AddComponent<SpatialUvcCalibrationUI>();
                 var identity=SpatialDeviceProfiles.ReadHostIdentity();
                 if(string.Equals(identity.Model,"RhinoX",System.StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(identity.DeviceCode,"kona",System.StringComparison.OrdinalIgnoreCase) &&
@@ -147,6 +151,8 @@ namespace SpatialAI.XRInteraction
         }
         private void Update()
         {
+            if (!useSimulation && Bridge != null && handVisualizer != null)
+                Bridge.reflectDisplayX = handVisualizer.reflectDisplayX = hostReflection ^ SpatialUvcCalibrationUI.FlipX;
             if(hud==null||Bridge==null)return;
             renderFrames++;float elapsed=Time.unscaledTime-renderWindowStart;
             if(elapsed>=1){renderFps=renderFrames/elapsed;renderFrames=0;renderWindowStart=Time.unscaledTime;}

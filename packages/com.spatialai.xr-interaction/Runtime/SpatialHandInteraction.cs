@@ -30,8 +30,12 @@ namespace SpatialAI.XRInteraction
         public bool holdAimDuringPinch;
         [Tooltip("3DOF presentation: a wrist-based cursor instead of a visible ray.")]
         public bool uiCursorOnly;
-        [Tooltip("Wrist cursor offset in head coordinates; X is mirrored for the right hand.")]
+        // Retain the legacy serialized field for existing scenes and scripts;
+        // its head-space value must not be interpreted in the wrist frame.
+        [HideInInspector, System.Obsolete("Use wristLocalCursorOffset for wrist-local positioning.")]
         public Vector3 wristCursorOffset=new Vector3(-.02f,.09f,0);
+        [Tooltip("Wrist-local cursor offset: +Z follows the palm towards the fingers; X is mirrored for the right hand.")]
+        public Vector3 wristLocalCursorOffset=new Vector3(.045f,0,.07f);
         [Range(1,10)] public float presentationDistanceScale=1;
         public float pressRatio=.32f,releaseRatio=.48f,debounceMs=50;
         public string LeftStatus { get; private set; }="untracked";
@@ -80,6 +84,11 @@ namespace SpatialAI.XRInteraction
         }
         private bool Point(XRHand hand,XRHandJointID id,out Vector3 point)
         {bool valid=hand.GetJoint(id).TryGetPose(out var pose);point=pose.position;return valid&&Finite(point);}
+        public static Vector3 CalculateWristCursor(Vector3 wrist, Quaternion wristRotation, Vector3 localOffset, bool right)
+        {
+            if (right) localOffset.x = -localOffset.x;
+            return wrist + wristRotation * localOffset;
+        }
         private static bool Finite(Vector3 p)
         {return !float.IsNaN(p.x)&&!float.IsInfinity(p.x)&&!float.IsNaN(p.y)&&!float.IsInfinity(p.y)&&!float.IsNaN(p.z)&&!float.IsInfinity(p.z);}
         public void ResetHand(bool right,string reason){Lose(right?1:0,reason);}
@@ -103,12 +112,15 @@ namespace SpatialAI.XRInteraction
             var headRotation=physicalHead==null?Quaternion.identity:trackingOrigin==null?physicalHead.rotation:Quaternion.Inverse(trackingOrigin.rotation)*physicalHead.rotation;
             var palm=(a+b)*.5f;
             var origin=rayOrigin==SpatialHandRayOrigin.Wrist?wrist:rayOrigin==SpatialHandRayOrigin.IndexTip?index:palm;
-            // Apparent fingertip marker: fixed head-space offset from the wrist.
-            // Finger-tip motion only influences the pinch gate, not pointer placement.
+            // The wrist pose defines the palm-local frame. Finger-tip motion
+            // influences the pinch gate, never the cursor anchor or its offset.
             if(uiCursorOnly)
             {
-                var offset=wristCursorOffset;if(side==1)offset.x=-offset.x;
-                origin=wrist+headRotation*offset;
+                if (!hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out var wristPose) ||
+                    !Finite(new Vector3(wristPose.rotation.x,wristPose.rotation.y,wristPose.rotation.z)) ||
+                    float.IsNaN(wristPose.rotation.w) || float.IsInfinity(wristPose.rotation.w))
+                {Lose(side,"aim wrist rotation missing");return;}
+                origin=CalculateWristCursor(wrist,wristPose.rotation,wristLocalCursorOffset,side==1);
             }
             var indexAxis=a-wrist;
             // Determine the anatomical shoulder in the same presentation frame as the hand.

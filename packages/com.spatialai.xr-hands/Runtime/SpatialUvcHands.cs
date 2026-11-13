@@ -73,8 +73,8 @@ namespace SpatialAI.XRHands
         private readonly List<XRDisplaySubsystem> displays=new List<XRDisplaySubsystem>();
         private readonly List<float> inference=new List<float>(),conversion=new List<float>(),ages=new List<float>();
         private readonly List<float> captureRates=new List<float>(),resultRates=new List<float>(),renderRates=new List<float>();
-        private void OnEnable(){if(Application.isPlaying)StartTracking();}
-        private void OnDisable(){StopTracking();}
+        private void OnEnable(){SpatialUvcCalibrationStore.Changed+=ReloadCalibration;if(Application.isPlaying)StartTracking();}
+        private void OnDisable(){SpatialUvcCalibrationStore.Changed-=ReloadCalibration;StopTracking();}
         private void OnDestroy(){StopTracking();}
         private void OnApplicationPause(bool value)
         { paused=value;if(value)StopTracking();else if(isActiveAndEnabled)StartTracking(); }
@@ -85,15 +85,17 @@ namespace SpatialAI.XRHands
             foreach(var existing in all)if(existing is SpatialHandSubsystem)
             { Status="another Spatial hand subsystem owns input";Debug.LogWarning("SpatialXRHands: "+Status);return false; }
             UvcHandCalibration calibration=null;
+            string calibrationSource = "none";
             try
             {
-                if(calibrationJson!=null)calibration=JsonUtility.FromJson<UvcHandCalibration>(calibrationJson.text);
-                else if(SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(),out var host).Success)
+                calibration=SpatialUvcCalibrationStore.Load(calibrationJson,out calibrationSource);
+                Debug.Log("SpatialXRHands calibration source="+calibrationSource);
+                if(calibration==null && SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(),out var host).Success)
                     calibration=new UvcHandCalibration{swapHandedness=host.uvcSwapHandedness};
             }
             catch(Exception e){Status="invalid calibration JSON: "+e.Message;Debug.LogError("SpatialXRHands: "+Status);return false;}
-            if(calibrationJson!=null && calibration!=null)
-                Debug.Log("SpatialXRHands calibration loaded asset="+calibrationJson.name+" version="+calibration.calibrationVersion+
+            if(calibration!=null && !string.IsNullOrEmpty(calibration.calibrationVersion))
+                Debug.Log("SpatialXRHands calibration loaded asset="+(calibrationJson==null?"none":calibrationJson.name)+" version="+calibration.calibrationVersion+
                     " camera="+calibration.cameraId+" image="+calibration.imageWidth+"x"+calibration.imageHeight+
                     " fx="+calibration.fx+" fy="+calibration.fy+" cx="+calibration.cx+" cy="+calibration.cy+
                     " swapHandedness="+calibration.swapHandedness+" intrinsicsCalibrated="+calibration.intrinsicsCalibrated+
@@ -103,7 +105,7 @@ namespace SpatialAI.XRHands
                     " headFromCameraRotationXyzw="+(calibration.headFromCameraRotationXyzw==null?"null":string.Join(",",calibration.headFromCameraRotationXyzw)));
             // A scene-specific mount may use a camera whose handedness differs
             // from the fixed-rig default. Do not override explicit calibration.
-            if(calibrationJson==null && SpatialHandTracking.CameraSource==SpatialHandCameraSource.Uvc && SpatialHandTracking.UvcSwapHandednessOverride.HasValue)
+            if(calibrationSource=="none" && SpatialHandTracking.CameraSource==SpatialHandCameraSource.Uvc && SpatialHandTracking.UvcSwapHandednessOverride.HasValue)
             {
                 if(calibration==null)calibration=new UvcHandCalibration();
                 calibration.swapHandedness=SpatialHandTracking.UvcSwapHandednessOverride.Value;
@@ -130,6 +132,12 @@ namespace SpatialAI.XRHands
             Status=physicalHead==null?"UVC head-local estimated preview":"UVC estimated tracking-origin poses";
             Debug.Log("SpatialXRHands start id="+Subsystem.subsystemDescriptor.id+" ownsCamera="+ownsCamera+" maxPalmAxisRatio="+maximumPalmAxisRatio+" "+Status);
             return true;
+        }
+        public void ReloadCalibration()
+        {
+            if (!isActiveAndEnabled || paused || !Application.isPlaying) return;
+            StopTracking();
+            if (!StartTracking()) Debug.LogError("SpatialXRHands: calibration reload failed; see status.");
         }
         public void StopTracking()
         {
