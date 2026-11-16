@@ -113,6 +113,9 @@ namespace SpatialAI.Samples
             if (xrCamera == null) { enabled = false; return; }
             Debug.Log("SpatialAI hand demo init: calibration");
             calibration = SpatialRgbCalibration.LoadRhinoXReference();
+#if SPATIAL_VUFORIA_DEMO
+            UvcHandCalibration uvcCalibration = SpatialVuforiaDemo.Calibration;
+#else
             UvcHandCalibration uvcCalibration = new UvcHandCalibration
                 { swapHandedness = defaultUvcSwapHandedness };
             if (uvcCalibrationJson != null || System.IO.File.Exists(SpatialUvcCalibrationStore.DefaultPath) || SpatialUvcCalibrationStore.HasSelected)
@@ -125,6 +128,7 @@ namespace SpatialAI.Samples
                     return;
                 }
             }
+#endif
             uvcProcessor = new SpatialUvcHandProcessor(uvcCalibration);
             renderWindowStart=Time.unscaledTime;
             swapUvcHandedness = uvcCalibration != null && uvcCalibration.swapHandedness;
@@ -235,9 +239,14 @@ namespace SpatialAI.Samples
         {
             try
             {
+#if SPATIAL_VUFORIA_DEMO
+                var candidate = SpatialVuforiaDemo.Calibration;
+                const string source = "Vuforia test calibration";
+#else
                 string source;
                 var candidate = SpatialUvcCalibrationStore.Load(uvcCalibrationJson, out source) ??
                     new UvcHandCalibration { swapHandedness = defaultUvcSwapHandedness };
+#endif
                 OnInvalidated("calibration reloaded");
                 uvcProcessor = new SpatialUvcHandProcessor(candidate);
                 swapUvcHandedness = candidate.swapHandedness;
