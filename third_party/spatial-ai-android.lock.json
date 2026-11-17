@@ -1,42 +1,94 @@
 {
-  "repository": "http://gitlab.ximmerse.com/visor-x/spatial-ai-android.git",
-  "revision": "497bbc557efee81f47245a742b3910e4b67dab0c",
+  "repository": "../spatial-ai-android",
+  "revision": "b5b52d61b50c323d441ec01f21b7164fa9d245ec",
   "artifact": "packages/com.spatialai.sdk/Plugins/Android/spatial-hand-unity.aar",
-  "sha256": "c6ca77fa2bc541ca98bb6a92c19813f15b915cd51bfb40e6d29b48ed382523b8",
+  "sha256": "4133935cb6294053dbac4d9522a0208aebe04c8d7f30780b0d85dc18becf30fc",
   "modelSha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1",
   "gestureModelSha256": "97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482",
   "minAndroidApi": 28,
   "mediaPipeTasksVision": "1.0.0",
   "uvcAndroidVersion": "1.0.13",
-  "sourceState": "committed-optional-dynamic-int8-model",
+  "sourceState": "committed-vuforia-shared-uvc-optional-dynamic-int8-model",
   "sourceFiles": [
     {
       "path": "runtime/platform/android/hands/SpatialHandBridge.java",
-      "sha256": "947e037c23352582e2667d5a387db32d80829a7910a0ff62fe80a94f5861357b"
+      "sha256": "ccde53efe7840b9e326ee66ee13123d54652432a033a0dc73bfe52a37f07a6db",
+      "normalizedSha256": "a3ccf0232af3eea65feee7669ad49dfd0f683a28fb4d642aca6d5768422b2715"
     },
     {
       "path": "runtime/platform/android/hands/UvcCapture.java",
-      "sha256": "e3698e9f1e3f05f4208debe883564240bc35d5657cb4c5a946620a9000547690"
+      "sha256": "d1274458880a3a5e42b34bb97b5eef155986a23e8bf0952ce5cd92b8504c74c8",
+      "normalizedSha256": "4e2597980b3107b87cf3517fa352db0059965ee0b17320abc31a20ea73c35573"
     },
     {
       "path": "runtime/platform/android/camera/CameraService.java",
-      "sha256": "d639af6d4277f62b551c1772cb6f87e56e1d89027f74679162520e677d07227b"
+      "sha256": "d639af6d4277f62b551c1772cb6f87e56e1d89027f74679162520e677d07227b",
+      "normalizedSha256": "58754765194e1ca14c64bcd95f6fecbfec68ad2a0d3530927e1a335a328e869d"
     },
     {
       "path": "runtime/platform/android/hands/BuiltinCapture.java",
-      "sha256": "b3be289a004276e8e93af7a06dfab94c56ca3c24716c359761cb1cf9b77e0d2b"
+      "sha256": "5988ec5e495943a8753a532d3262cde448531bc60e27e46bd0ce12b4d2178377",
+      "normalizedSha256": "b3be289a004276e8e93af7a06dfab94c56ca3c24716c359761cb1cf9b77e0d2b"
     },
     {
       "path": "runtime/platform/android/hands/BuiltinCameraModes.java",
-      "sha256": "1feed97315eda8e1ab7f4e02d419d40dad40126b1b72f471172f665688131eb7"
+      "sha256": "1609012ce21af4da76ed1a5f8d76102edb6090b49942d713e7b9bd1faf148942",
+      "normalizedSha256": "1feed97315eda8e1ab7f4e02d419d40dad40126b1b72f471172f665688131eb7"
     },
     {
       "path": "runtime/platform/android/hands/HandInferenceScheduler.java",
-      "sha256": "cd8001f8edeafaedfaf5b317b259712024946066e2f0064064c0f31b730a0d3d"
+      "sha256": "167f64826a2df811ce9e4fc1567b1d35093444b00b6110d3df6012f78c20d96b",
+      "normalizedSha256": "cd8001f8edeafaedfaf5b317b259712024946066e2f0064064c0f31b730a0d3d"
     },
     {
       "path": "tools/BuildHandDiagnostic.ps1",
-      "sha256": "244f7d4712b179ececbbf58e932648e78c175dc250c43f7cc934ad2b0b72e6ca"
+      "sha256": "ea7bab8609911cf312b5fe4a5a9876b61e49e4f2085c7135b50b5e17ce268960",
+      "normalizedSha256": "dd672ff2549426611be37f91fb9cce251d63e6cea83bfed0d21b76f50f9e1b9c"
+    },
+    {
+      "path": "runtime/platform/android/hands/SharedUvcCamera.java",
+      "sha256": "5bb76a2b625d8c20f85c897dd515dddba0508d508d49fc1a0d9c534fc4ed07a8",
+      "normalizedSha256": "d9c40f599748372f09b3665529490f10945eea7d0fd618f07346d698c8ab921b"
+    },
+    {
+      "path": "runtime/platform/android/vuforia/SpatialVuforiaDriver.cpp",
+      "sha256": "d16f52e2b7c32db568e068acf21a304df786c5e5fa2d3d7714b638123dcae6c7",
+      "normalizedSha256": "c30060f1484cad9a5e5dfbfd4a8aa173431bebb6c4dc5413abe1fd15110aa925"
+    },
+    {
+      "path": "runtime/platform/android/vuforia/SpatialVuforiaDriver.h",
+      "sha256": "541ada189e23113a807dbb4ca0b12d45255f780c0d207b39f40354bd776ad516",
+      "normalizedSha256": "e2a48ec0925591e6cbc01d5cdb61141939d2ac32fd9c1603031129c569227775"
+    },
+    {
+      "path": "runtime/platform/android/vuforia/SpatialVuforiaEngine.cpp",
+      "sha256": "e0fdc77ebdc02901c9b75258898f46e79d96deb9f68df2d9f5ee9554210adb13",
+      "normalizedSha256": "cb9f8ad7658a4462a82f1cfb93d681cd419acfadd7cfc178e5ad4c7d33262aa0"
+    },
+    {
+      "path": "runtime/platform/android/vuforia/SpatialVuforiaBridge.java",
+      "sha256": "b7d1fc43bd2421eee2fbb00b98575865492e13a336de84635d4a10b4f25e7973",
+      "normalizedSha256": "4c2bbbbe2b187e68be127bb2026fa4141125c6117eb6fd23510711bb2f6e38d8"
+    },
+    {
+      "path": "runtime/platform/android/vuforia/CMakeLists.txt",
+      "sha256": "98cf65343def5778e91517ca7a1be872553e49570ee0ba7a9e25d2a4896e2b7f",
+      "normalizedSha256": "f08986b41517f6cba1bf61e1884a5b26cdcc6204f1e50c17173422d280f2dcd5"
+    },
+    {
+      "path": "samples/android/hand-diagnostic/hand-unity/build.gradle",
+      "sha256": "2d07142f0f271533fc79802714c22fac47b15df482f8a84c7fe50587b6b019c1",
+      "normalizedSha256": "82081f9a845cdcbcc79e29efd66ba4f0f5164860ad5556a6e8c35e1339336551"
+    },
+    {
+      "path": "samples/android/hand-diagnostic/hand-unity/src/main/AndroidManifest-vuforia.xml",
+      "sha256": "e8392c1c007d2601e3b15878d99069231fb821c9624d5a1f740e28108395d1a4",
+      "normalizedSha256": "a15cef6bca5ba646ccdf1eb84c09a8a15ddab3a107f3fe81df6cecad2b735008"
+    },
+    {
+      "path": "samples/android/hand-diagnostic/settings.gradle",
+      "sha256": "4b1da3cfd684d3694e40dfa784e956a3926aa61cae21e92ee1602dd017fb5c1f",
+      "normalizedSha256": "823451e246d05ec0a2227d4102f8dbb71ae5b4a075bafdeb4120090fcbc5d6b7"
     }
   ],
   "int8GestureModelSha256": "96e5490c69b65f2fb59b3fcfdb5fd9fbb23c3435ebcbf622e3610839642b580e",

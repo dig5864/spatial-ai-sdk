@@ -77,13 +77,13 @@ XRI 食指圆圈、方块捏合选择、UI 点击及标准 XR Hands 手势由独
 
 ### 准备 Android 手势 AAR
 
-新检出不包含手势 AAR。先检出锁文件 revision 对应的 spatial-ai-android 源码，在该仓库运行 tools/BuildHandDiagnostic.ps1 -AndroidPlayerPath '<Unity AndroidPlayer 目录>'，再在 SDK 仓库执行：
+新检出不包含手势 AAR。将 `spatial-ai-sdk` 和 `spatial-ai-android` 放在同一级目录；锁文件中的 `repository` 是相对于 SDK 根目录的本地路径 `../spatial-ai-android`，不依赖内网 Git 地址。自行从可访问的 Git 托管服务获取 Android 仓库，并检出锁文件指定的 revision。构建包含 Vuforia 的 AAR 还需要自行提供 Vuforia Native SDK；具体接入参见 `docs/UVC_VUFORIA_INTEGRATION.md`。构建后在 SDK 仓库执行：
 
 ```powershell
-.\tools\VerifyAndroidHandAar.ps1 -AndroidRepoPath '..\spatial-ai-android'
+.\tools\VerifyAndroidHandAar.ps1
 ```
 
-脚本检查源码提交及制品 SHA-256 后，将 build/artifacts/spatial-hand-unity.aar 复制到 Unity 包。该 AAR 已忽略，.aar.meta 和 lock.json 继续跟踪；Unity 构建不会自动重建手势库。重新构建的哈希若不匹配，应先核对源码和工具链，不直接绕过校验。
+脚本默认读取锁文件的同级目录，也可通过 `-AndroidRepoPath` 显式指定其他本机检出。它检查源码提交、关键文件及制品 SHA-256 后，将 `build/artifacts/spatial-hand-unity.aar` 复制到 Unity 包。该 AAR 已忽略，.aar.meta 和 lock.json 继续跟踪；Unity 构建不会自动重建手势库。重新构建的哈希若不匹配，应先核对源码和工具链，不直接绕过校验。两个仓库使用不同目录名时需要显式指定路径；发布目录应统一使用 `spatial-ai-android` 和 `spatial-ai-sdk`。
 
 
 ## 发布包与新工程验证
