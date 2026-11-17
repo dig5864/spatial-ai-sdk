@@ -88,10 +88,19 @@ def main():
         if hand_lock.get('int8GestureModelSha256'):
             if hashlib.sha256(z.read('assets/gesture_recognizer_int8.task')).hexdigest() != hand_lock['int8GestureModelSha256']:
                 raise ValueError('Dynamic INT8 model checksum mismatch')
-    android=ROOT.parent/'spatial-ai-android'
+    repository=Path(hand_lock['repository'])
+    if repository.is_absolute() or '://' in hand_lock['repository']:
+        raise ValueError('Android repository must be a local path relative to the SDK root')
+    android=(ROOT/repository).resolve()
+    if not android.is_dir(): raise ValueError('Android source checkout is missing: '+str(android))
+    if Path(git(android,'rev-parse','--show-toplevel')).resolve() != android:
+        raise ValueError('Android repository path must point to its Git root: '+str(android))
     if git(android,'rev-parse','HEAD') != hand_lock['revision']: raise ValueError('Android base revision differs from lock')
     for entry in hand_lock.get('sourceFiles',[]):
-        if sha(android/entry['path']) != entry['sha256']: raise ValueError('Android source has changed since AAR build: '+entry['path'])
+        source=android/entry['path']
+        if sha(source) != entry['sha256']:
+            normalized=hashlib.sha256(source.read_bytes().replace(b'\r\n',b'\n')).hexdigest()
+            if normalized != entry.get('normalizedSha256'): raise ValueError('Android source has changed since AAR build: '+entry['path'])
     cardboard=ROOT/'third_party/checkouts/cardboard-xr-plugin-unity2022'
     native=ROOT/'build/native/cardboard-rhinox-v1301/libGfxPluginCardboard.so'
     patch=ROOT/'third_party/rhinox/cardboard-display-api.patch'
