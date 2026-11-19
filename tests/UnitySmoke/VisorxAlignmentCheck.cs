@@ -21,6 +21,11 @@ public static class VisorxAlignmentCheck
         Point(c,new HandVector3(.2f,.1f,.7f),.120435512f,-.395330974f,.602993358f);
         Point(c,new HandVector3(-.2f,-.1f,.4f),-.085286863f,.098725766f,.543108113f);
         Check(!c.extrinsicsMeasured && !c.validatedForHardware,"Imported correction cannot claim hardware validation");
+        const string fixturePitch = "\"pitch\": -29.6";
+        Check(json.Contains(fixturePitch), "Fixture alignment pitch changed");
+        var shared = SpatialUvcCalibrationStore.ParseExternal(json.Replace(fixturePitch, "\"pitch\": -35.1"));
+        Check(Math.Abs(shared.HeadFromCamera.Transform(new HandVector3(0, 0, 1)).Y + .370535481f) > .01f,
+            "Shared calibration pitch must affect the camera-to-head rotation");
         bool rejected=false;
         try { SpatialUvcCalibrationLoader.Load(json.Replace("\"pitch\": -29.6", "\"pitch\": -90")); }
         catch(ArgumentException){rejected=true;}

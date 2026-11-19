@@ -13,7 +13,14 @@ subprocess.run([str(player/'OpenJDK/bin/javac.exe'), '-encoding', 'UTF-8', '-sou
 jar = build / 'classes.jar'
 subprocess.run([str(player/'OpenJDK/bin/jar.exe'), 'cf', str(jar), '-C', str(classes), '.'], check=True)
 aaru = root / 'packages/com.spatialai.sdk/Plugins/Android/spatial-calibration-picker.aar'
-manifest = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.spatialai.calibration"><application><activity android:name="com.spatialai.calibration.CalibrationPickerActivity" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" /></application></manifest>'''
+manifest = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.spatialai.calibration">
+    <queries>
+        <provider android:authorities="com.spatialai.diagnostics.webview.calibration" />
+    </queries>
+    <application>
+        <activity android:name="com.spatialai.calibration.CalibrationPickerActivity" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    </application>
+</manifest>'''
 with zipfile.ZipFile(aaru, 'w', zipfile.ZIP_DEFLATED) as out:
     out.write(jar, 'classes.jar')
     out.writestr('AndroidManifest.xml', manifest)

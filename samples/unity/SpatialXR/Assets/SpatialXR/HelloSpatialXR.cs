@@ -33,14 +33,6 @@ namespace SpatialAI.Samples
 
         private void Start()
         {
-#if SPATIAL_VUFORIA_DEMO
-            if (!SpatialVuforiaDemo.CalibrationReady)
-            {
-                Debug.LogError("Spatial Vuforia hand calibration: " + SpatialVuforiaDemo.CalibrationError);
-                enabled = false;
-                return;
-            }
-#endif
             bridge = GetComponent<SpatialCardboardBridge>();
             phoneHost = SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(), out var host).Success;
             if (phoneHost)
@@ -53,7 +45,6 @@ namespace SpatialAI.Samples
             hands.reflectUvcDisplayX = phoneHost && host.reflectHandDisplayX;
             hands.defaultUvcSwapHandedness = phoneHost && host.uvcSwapHandedness;
 #if SPATIAL_VUFORIA_DEMO
-            hands.reflectUvcDisplayX = SpatialVuforiaDemo.HandDisplayReflectX;
             hands.presentationDistanceScale = 1f;
 #endif
             if (target != null) targetMaterial = target.material;

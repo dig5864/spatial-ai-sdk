@@ -141,6 +141,21 @@ namespace SpatialAI.Unity
                 cameraSource = value;
             }
         }
+        /// <summary>Whether the configured hand camera uses the external UVC stream.</summary>
+        public static bool UsesExternalUvcCamera => ResolveCameraSource(CameraSource) == "external-uvc";
+
+        private static string ResolveCameraSource(SpatialHandCameraSource source)
+        {
+            switch (source)
+            {
+                case SpatialHandCameraSource.Uvc: return "external-uvc";
+                case SpatialHandCameraSource.Rear: return "builtin-rear";
+                case SpatialHandCameraSource.Front: return "builtin-front";
+                default:
+                    return SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(), out var host).Success
+                        ? host.cameraSource : "rhinox-rgb";
+            }
+        }
         private static SpatialHandModelVariant modelVariant = SpatialHandModelVariant.FP16;
         /// <summary>FP16 is the official default; INT8 is the bundled dynamic-quantization experiment. Changes reopen capture.</summary>
         public static SpatialHandModelVariant ModelVariant
@@ -180,6 +195,14 @@ namespace SpatialAI.Unity
             }
         }
         private static int cameraSizeTier = 2;
+        internal static int GetUvcSizeTier(int width, int height)
+        {
+            if (width == 640 && height == 360) return 1;
+            if (width == 640 && height == 480) return 2;
+            if (width == 1280 && height == 720) return 3;
+            throw new ArgumentException("Calibration dimensions do not match a UVC capture mode.");
+        }
+
         /// <summary>Capture tier 1/2/3. UVC: 640x360/640x480/1280x720; built-in: device-supported tiers. Changes reopen capture.</summary>
         public static int CameraSizeTier
         {
@@ -293,12 +316,8 @@ namespace SpatialAI.Unity
                 using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                     bridge = new AndroidJavaObject("com.spatialai.hands.SpatialHandBridge",
                         player.GetStatic<AndroidJavaObject>("currentActivity"));
-                var hostResult = SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(), out var host);
                 appliedCameraSource = CameraSource;
-                var source = appliedCameraSource == SpatialHandCameraSource.Uvc ? "external-uvc" :
-                    appliedCameraSource == SpatialHandCameraSource.Rear ? "builtin-rear" :
-                    appliedCameraSource == SpatialHandCameraSource.Front ? "builtin-front" :
-                    hostResult.Success ? host.cameraSource : "rhinox-rgb";
+                var source = ResolveCameraSource(appliedCameraSource);
                 externalCamera = source == "external-uvc";
                 bridge.Call("setCameraSource", source);
                 appliedModelVariant = ModelVariant;

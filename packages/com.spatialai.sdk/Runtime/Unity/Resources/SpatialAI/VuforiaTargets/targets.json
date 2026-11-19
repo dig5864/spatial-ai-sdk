@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "targets": [
+    {
+      "id": "blue-card",
+      "name": "Blue card",
+      "image": "blue-card-original.png",
+      "defaultWidthMm": 85,
+      "widthsMm": [85, 140]
+    },
+    {
+      "id": "color-detail",
+      "name": "Detail card",
+      "image": "detail-85mm-control.png",
+      "defaultWidthMm": 140,
+      "widthsMm": [140]
+    }
+  ]
+}
