@@ -366,29 +366,17 @@ SHA256 `93cf4f97d6bdaedc829fd4c8f206efb09bcda3260182d2044a0ff73d408cbbd5`。
 
 ### 导入 VISOR-X UVC 标定包
 
-`SpatialUvcHands.calibrationJson` 和 HelloSpatialXR 手部示例可直接引用 VISOR-X 导出的 `visorx-uvc-calibration` version 1 综合 JSON，原有 SDK 格式仍然支持。将 JSON 加入 Unity 项目后作为 TextAsset 指定；也可调用 `SpatialUvcCalibrationLoader.Load(json)`。综合文件必须包含 `intrinsics` 与 `setup.cameraToHead`；如果包含 `alignment.pose`，会在安装变换之后按标定应用的 XYZ 旋转顺序和毫米单位合成对齐，并转换到 Unity 坐标。单独的 `uvc-intrinsics.json` 不是综合包。
+`SpatialUvcCalibrationLoader.Load(json)` 支持 VISOR-X 导出的 `visorx-uvc-calibration` version 1 综合 JSON 和原有 SDK 格式。综合文件必须包含 `intrinsics` 与 `setup.cameraToHead`。如果包含 `alignment.pose`，SDK 会在安装变换之后按标定应用的 XYZ 旋转顺序和毫米单位合成对齐，并转换到 Unity 坐标。单独的 `uvc-intrinsics.json` 不是综合包。
+
+Android 的 UVC 手部追踪和 Vuforia 默认读取 `content://com.spatialai.diagnostics.webview.calibration/default.json`。共享标定不可用或校验失败时会报告无法启动已标定的追踪。需要原始综合 JSON 时，可调用 `SpatialUvcCalibrationStore.ReadSharedDefaultJson()`。
 
 导入保留原始 640×480 图像内参和五项 OpenCV 畸变；`cameraMountRotationDeg` 描述物理安装，已经体现在 `cameraToHead` 中；如果 SDK 对手部坐标做了图像旋转或镜像，读取综合包时会记录对应的逆变换，使去畸变仍使用原始图像内参。转换假定 VISOR-X 头坐标右、上、后为正，相机为 OpenCV 右、下、前，Unity 两者均为右、上、前；外参与当前物理头部原点、支架是否相符仍需实机确认。导出包不含 USB 相机 ID、左右手验证及掌部尺寸，SDK 按实际 UVC 帧绑定相机并使用预览掌部默认值，维持未验证提示，不视为硬件验收。
 
 ### Android 运行时选择与持久化
 
-构建新版 APK 后，UVC 手部标定按以下顺序读取：用户通过文件选择器选中的文件、默认位置文件、`SpatialUvcHands.calibrationJson` 中打包的 TextAsset。外部文件存在但无效时会报告错误并停止该手部追踪，不会静默使用其他参数。外部文件必须包含有效的图像尺寸、内参及畸变，最大 1 MiB。选择文件会先校验并复制内容到应用存储，因此之后移动原文件也不影响使用；选择取消或校验失败不会覆盖上次有效选择。
+显式选中的本地文件可覆盖共享标定。文件必须包含有效的图像尺寸、内参及畸变，最大 1 MiB。选择成功后，SDK 将文件复制到应用存储，替换上次选择。通过 `SpatialUvcCalibrationStore.ClearSelected()` 或界面的 **Use shared calibration** 清除覆盖。旧的 `spatial-calibration/uvc-calibration.json` 路径和 UVC 的打包 TextAsset 不参与 Android 默认加载。
 
-Android 默认位置（`<包名>` 是 APK 的 applicationId）：
-
-```text
-/sdcard/Android/data/<包名>/files/spatial-calibration/uvc-calibration.json
-```
-
-至少启动一次新版 APK 以创建目录，然后可用以下命令复制综合 JSON（把包名和本地路径替换为实际值）：
-
-```sh
-adb push visorx-s23-camera-A-20261113-144857.json /sdcard/Android/data/<包名>/files/spatial-calibration/uvc-calibration.json
-```
-
-启动时自动读取；运行期间复制或替换默认文件后，调用 `SpatialUvcCalibrationStore.Reload()` 或使用界面的 Reload 按钮。已有用户选择会覆盖默认文件；可调用 `SpatialUvcCalibrationStore.ClearSelected()` 或按界面的 Use default 按钮恢复默认优先级。覆盖安装同包名 APK 会保留这些文件；卸载应用、清除应用数据或更换包名不会保留。Android 系统文件管理器对 Android/data 的可见性可能有限，ADB 拷贝更可靠。
-
-Unity 项目可在 `SpatialUvcHands` 所在 GameObject 上添加 `SpatialUvcCalibrationUI`，提供选择、恢复默认和重新加载按钮；XR Hands 标准示例已添加该组件。也可以把自有 UI 按钮绑定到 `SpatialUvcCalibrationPicker.SelectFile()`、`SpatialUvcCalibrationStore.ClearSelected()` 和 `SpatialUvcCalibrationStore.Reload()`。文件选择器仅在 Android APK 中可用，选择后活动中的 `SpatialUvcHands` 会重新加载；复制默认文件也可以直接关闭并重启应用。直接编程导入仍可使用 `SpatialUvcCalibrationLoader.Load(json)`；管理选择时可调用 `SpatialUvcCalibrationStore.SaveSelected(json)`，它会先校验再持久化并触发重新加载。
+XR Hands 标准示例的 `SpatialUvcCalibrationUI` 支持选择文件、恢复共享标定和重新加载。自有 UI 可调用 `SpatialUvcCalibrationPicker.SelectFile()`、`SpatialUvcCalibrationStore.ClearSelected()` 和 `SpatialUvcCalibrationStore.Reload()`。活动中的手部追踪会重新加载，Vuforia 在下次启动跟踪时读取当前标定。
 
 VISOR-X 导出的综合 JSON 已包含 `intrinsics`、`setup` 和 `alignment`；当前 Unity 手部标定使用内参、安装变换与 `alignment.pose`，尚未应用 `alignment.eyes` 和 `alignment.optics` 的显示校正。其他三个独立 JSON 是同一数据的拆分文件，供 VISOR-X 其他安装方式使用，Unity 无需选择多个文件或 ZIP。
 

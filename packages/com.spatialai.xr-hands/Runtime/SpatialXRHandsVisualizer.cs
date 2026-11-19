@@ -11,6 +11,7 @@ namespace SpatialAI.XRHands
     {
         public Transform trackingOrigin;
         public bool reflectDisplayX;
+        public bool showEstimatedPresentation = true;
         [Range(1f,10f)] public float presentationDistanceScale=1f;
         private XRHandSubsystem subsystem;
         private readonly List<XRHandSubsystem> candidates = new List<XRHandSubsystem>();
@@ -71,7 +72,7 @@ namespace SpatialAI.XRHands
             {
                 Pose pose = Pose.identity;
                 bool valid = hand.isTracked && hand.GetJoint(SpatialXRHandsContract.ToXRJointId((SpatialAI.Core.HandJointId)i)).TryGetPose(out pose);
-                if(!valid&&source!=null&&source.Processor.DisplayState((HandSide)side)!="fresh"&&
+                if(showEstimatedPresentation&&!valid&&source!=null&&source.Processor.DisplayState((HandSide)side)!="fresh"&&
                     source.Processor.TryPresentationJoint((HandSide)side,(HandJointId)i,out var heldPosition))
                 {pose=new Pose(heldPosition,Quaternion.identity);valid=true;}
                 markers[side, i].gameObject.SetActive(valid);

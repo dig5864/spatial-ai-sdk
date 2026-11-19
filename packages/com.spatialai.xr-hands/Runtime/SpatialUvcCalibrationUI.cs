@@ -32,7 +32,7 @@ namespace SpatialAI.XRHands
         public void SelectCalibration() { SpatialUvcCalibrationPicker.SelectFile(); }
         public void UseDefaultCalibration()
         {
-            try { SpatialUvcCalibrationStore.ClearSelected(); status = "Using default file or packaged calibration."; }
+            try { SpatialUvcCalibrationStore.ClearSelected(); status = "Shared calibration selected as default."; }
             catch (Exception e) { status = "Could not reset selection: " + e.Message; }
         }
         public void ReloadCalibration()
@@ -46,7 +46,7 @@ namespace SpatialAI.XRHands
             GUILayout.BeginArea(new Rect(12, 12, Math.Min(Screen.width - 24, 580), 270), GUI.skin.box);
             GUILayout.Label("UVC calibration");
             if (GUILayout.Button("Select calibration JSON")) SelectCalibration();
-            if (GUILayout.Button("Use default / packaged calibration")) UseDefaultCalibration();
+            if (GUILayout.Button("Use shared calibration")) UseDefaultCalibration();
             if (GUILayout.Button("Reload calibration")) ReloadCalibration();
             if (GUILayout.Button("Flip hand display left / right: " + (FlipX ? "ON" : "OFF"))) ToggleFlipX();
             GUILayout.Label(status);

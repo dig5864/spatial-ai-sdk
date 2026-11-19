@@ -19,6 +19,8 @@ namespace SpatialAI.XRHands
         [Tooltip("Physical head transform; never assign the reflected render camera. Empty means explicit head-local preview.")]
         public Transform physicalHead;
         public TextAsset calibrationJson;
+        [Tooltip("Read the diagnostics provider directly for UVC calibration.")]
+        public bool requireSharedCalibration;
         [Tooltip("Draw built-in camera landmarks using uncalibrated defaults. Does not create tracked XR input.")]
         public bool builtinSkeletonPreview;
         [Tooltip("Live estimated geometry only. 1.6 is strict; the far interaction sample uses 4 to tolerate palm compression.")]
@@ -34,6 +36,7 @@ namespace SpatialAI.XRHands
         public string InferenceDelegate { get {return cameraTracking!=null&&cameraTracking.Latest!=null?cameraTracking.Latest.@delegate:SpatialHandTracking.InferenceBackend.ToString();} }
         internal string DisplayState(HandSide side){return Source==null?"hidden":Source.Processor.DisplayState(side);}
         private bool ownsCamera,paused;
+        private SpatialHandCameraSource configuredCameraSource;
         private UvcHandCalibration baseCalibration;
         private float previewPitchDownDegrees;
         private UvcHandCalibration WithPreviewPitch(UvcHandCalibration original,float degrees)
@@ -81,6 +84,7 @@ namespace SpatialAI.XRHands
         public bool StartTracking()
         {
             if(Subsystem!=null)return true;
+            configuredCameraSource=SpatialHandTracking.CameraSource;
             var all=new List<XRHandSubsystem>();SubsystemManager.GetSubsystems(all);
             foreach(var existing in all)if(existing is SpatialHandSubsystem)
             { Status="another Spatial hand subsystem owns input";Debug.LogWarning("SpatialXRHands: "+Status);return false; }
@@ -88,12 +92,30 @@ namespace SpatialAI.XRHands
             string calibrationSource = "none";
             try
             {
-                calibration=SpatialUvcCalibrationStore.Load(calibrationJson,out calibrationSource);
+#if UNITY_ANDROID && !UNITY_EDITOR
+                if (!SpatialHandTracking.UsesExternalUvcCamera)
+                {
+                    if (calibrationJson != null)
+                    {
+                        calibration = SpatialUvcCalibrationLoader.Load(calibrationJson.text);
+                        calibrationSource = "packaged built-in camera";
+                    }
+                }
+                else
+#endif
+                {
+                    if (requireSharedCalibration)
+                    {
+                        calibrationSource = "shared calibration";
+                        calibration = SpatialUvcCalibrationStore.LoadSharedDefault();
+                    }
+                    else calibration=SpatialUvcCalibrationStore.Load(calibrationJson,out calibrationSource);
+                }
                 Debug.Log("SpatialXRHands calibration source="+calibrationSource);
                 if(calibration==null && SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(),out var host).Success)
                     calibration=new UvcHandCalibration{swapHandedness=host.uvcSwapHandedness};
             }
-            catch(Exception e){Status="invalid calibration JSON: "+e.Message;Debug.LogError("SpatialXRHands: "+Status);return false;}
+            catch(Exception e){Status="calibration unavailable: "+e.Message;Debug.LogError("SpatialXRHands: "+Status);return false;}
             if(calibration!=null && !string.IsNullOrEmpty(calibration.calibrationVersion))
                 Debug.Log("SpatialXRHands calibration loaded asset="+(calibrationJson==null?"none":calibrationJson.name)+" version="+calibration.calibrationVersion+
                     " camera="+calibration.cameraId+" image="+calibration.imageWidth+"x"+calibration.imageHeight+
@@ -163,7 +185,8 @@ namespace SpatialAI.XRHands
         }
         private void OnFrame(SpatialHandFrame image)
         {
-            if(paused || Source==null || !SpatialHandTracking.GestureRecognitionEnabled)return;
+            if(paused || Source==null || configuredCameraSource!=SpatialHandTracking.CameraSource ||
+                !SpatialHandTracking.GestureRecognitionEnabled)return;
             Source.Processor.Smoothing=smoothing;
             if(Source.Publish(image,PhysicalPose(),originRevision))
             {
@@ -188,6 +211,7 @@ namespace SpatialAI.XRHands
         private bool invalidInput;
         private void Update()
         {
+            if (!paused && configuredCameraSource != SpatialHandTracking.CameraSource) ReloadCalibration();
             if(Subsystem==null || paused)return;
             string state=cameraTracking==null?"camera missing":cameraTracking.State;
             bool invalid=!SpatialHandTracking.GestureRecognitionEnabled || cameraTracking==null || !cameraTracking.isActiveAndEnabled ||

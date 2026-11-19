@@ -7,14 +7,22 @@ namespace SpatialAI.Unity
     /// <summary>Reads SDK hand calibration or a VISOR-X exported calibration bundle.</summary>
     public static class SpatialUvcCalibrationLoader
     {
-        [Serializable] private sealed class Bundle { public string format; public int version; public Intrinsics intrinsics; public Setup setup; public Alignment alignment; public float[] cameraMatrix; }
+        [Serializable] private sealed class Bundle { public string format; public int version; public Intrinsics intrinsics; public Setup setup; public Alignment alignment; public HandTracking handTracking; public float[] cameraMatrix; }
         [Serializable] private sealed class Intrinsics { public int width, height; public bool mirrored; public string source; public float[] cameraMatrix, distortion; }
-        [Serializable] private sealed class Setup { public string calibrationId; public float[] cameraToHead; }
+        [Serializable] private sealed class Setup { public string calibrationId; public float[] cameraToHead; public int cameraMountRotationDeg; }
         [Serializable] private sealed class Alignment { public Pose pose; }
         [Serializable] private sealed class Pose { public float x, y, z, pitch, yaw, roll; }
+        [Serializable] private sealed class HandTracking { public string handednessMapping; }
 
         public static UvcHandCalibration Load(string json)
         {
+            return Load(json, out _, out _);
+        }
+
+        internal static UvcHandCalibration Load(string json, out int? mountRotation, out bool? swapHandedness)
+        {
+            mountRotation = null;
+            swapHandedness = null;
             if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("Calibration JSON is empty.");
             var bundle = JsonUtility.FromJson<Bundle>(json);
             if (bundle == null) throw new ArgumentException("Invalid calibration JSON.");
@@ -33,6 +41,16 @@ namespace SpatialAI.Unity
             if (i == null || i.width <= 0 || i.height <= 0 || i.source != "uvc" || i.mirrored ||
                 i.cameraMatrix == null || i.cameraMatrix.Length != 9 || i.distortion == null || i.distortion.Length != 5 ||
                 m == null || m.Length != 16) throw new ArgumentException("Incomplete or unsupported VISOR-X UVC calibration.");
+            mountRotation = bundle.setup.cameraMountRotationDeg;
+            if (mountRotation != 0 && mountRotation != 90 && mountRotation != 180 && mountRotation != 270)
+                throw new ArgumentException("Unsupported camera mount rotation.");
+            var mapping = bundle.handTracking?.handednessMapping;
+            if (!string.IsNullOrEmpty(mapping))
+            {
+                if (mapping != "direct" && mapping != "swap")
+                    throw new ArgumentException("Unsupported hand tracking handedness mapping.");
+                swapHandedness = mapping == "swap";
+            }
             foreach (float v in i.cameraMatrix) if (!Finite(v)) throw new ArgumentException("Invalid camera matrix.");
             foreach (float v in i.distortion) if (!Finite(v)) throw new ArgumentException("Invalid distortion.");
             foreach (float v in m) if (!Finite(v)) throw new ArgumentException("Invalid camera-to-head matrix.");
@@ -64,7 +82,7 @@ namespace SpatialAI.Unity
                 if (!Finite(pose.x) || !Finite(pose.y) || !Finite(pose.z) ||
                     !Finite(pose.pitch) || !Finite(pose.yaw) || !Finite(pose.roll) ||
                     Mathf.Abs(pose.x)>300 || Mathf.Abs(pose.y)>300 || Mathf.Abs(pose.z)>300 ||
-                    Mathf.Abs(pose.pitch)>30 || Mathf.Abs(pose.yaw)>30 || Mathf.Abs(pose.roll)>180)
+                    Mathf.Abs(pose.pitch)>45 || Mathf.Abs(pose.yaw)>30 || Mathf.Abs(pose.roll)>180)
                     throw new ArgumentException("Invalid VISOR-X alignment pose.");
                 // Three.js Euler XYZ means Rx * Ry * Rz; reflection across Z
                 // maps an xyzw quaternion to (-x,-y,z,w).

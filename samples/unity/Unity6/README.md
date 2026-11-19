@@ -30,6 +30,16 @@ python -X utf8 tools/PrepareUnity6ImuDemo.py 'D:/code/unity/VisorX-Demo-unity6' 
 
 构建菜单：**Spatial AI > Unity 6 > Build IMU APK**，输出为目标工程 `Builds/Android/Spatial-XR-Unity6.apk`。
 
+## 共享标定验证 APK
+
+准备好支持双目标输出的 Vuforia `hand-unity` AAR 后，用它替换验证工程中的 `spatial-hand-unity.aar`，然后运行 **Spatial AI > Unity 6 > Build Shared Calibration Validation APK**。批处理入口为 `Unity6SharedCalibrationDemoBuild.Build`，可通过 `SPATIALAI_SHARED_CALIBRATION_APK` 指定输出路径。验证 APK 直接进入 `Unity6SharedCalibration` 场景。
+
+场景使用诊断应用共享的 UVC 标定和同一条 UVC 帧流。XR Hands 骨架直接显示 SDK 跟踪关节。目标原图与尺寸来自 SDK 的 `SpatialVuforiaTargetCatalog.LoadBuiltIn()`。验证场景使用清单的前两个目标，蓝卡默认 85 mm 并显示青蓝框，彩色细节图 140 mm 并显示橙框。每个框随对应目标的直接跟踪结果独立显示，框高随原图宽高比，立方体在框中心。场景沿用 SDK 位姿和坐标转换。
+
+两种蓝卡是同一图案的不同印刷尺寸，每次使用与实物一致的尺寸。在设备的 `vuforia-config.json` 中将 `blueCardWidthMm` 设为 `85` 或 `140`，重启应用后生效。通过 ADB 冷启动时，也可以用 `--ei spatial_blue_card_width_mm 140` 临时选择该次运行的尺寸。
+
+Vuforia 从应用文件目录读取 `vuforia-config.json` 中的 `license`。许可证在设备端配置。
+
 ## 验证
 
 6000.0.84f1 Built-in 和 6000.6.2f1 URP 均通过默认设置、场景 Play、Input System R 键归零及参照物 GPU 渲染检查；另验证重新启动 Editor 后默认 Play 场景可恢复。

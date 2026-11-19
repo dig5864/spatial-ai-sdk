@@ -13,10 +13,14 @@ public static class CalibrationStoreCheck
         Check(!SpatialUvcCalibrationStore.HasSelected && !File.Exists(SpatialUvcCalibrationStore.DefaultPath), "Test store must start empty");
         SpatialUvcCalibrationStore.Load(packaged, out source); Check(source == "packaged", "Packaged fallback");
         Directory.CreateDirectory(SpatialUvcCalibrationStore.DirectoryPath);
-        File.WriteAllText(SpatialUvcCalibrationStore.DefaultPath, json);
-        SpatialHandTracking.UvcMountRotationDegrees=90; SpatialHandTracking.UvcMirrorOutputX=true;
+        File.WriteAllText(SpatialUvcCalibrationStore.DefaultPath, "{}");
+        SpatialHandTracking.UvcMountRotationDegrees=0; SpatialHandTracking.UvcMirrorOutputX=true;
         var active = SpatialUvcCalibrationStore.Load(packaged, out source);
-        Check(source == "default file" && active.imageRotationClockwise==90 && active.inputMirrored && active.MatchesDeliveredSize(480,640), "Default precedence and frame orientation");
+        Check(source == "packaged" && active.imageRotationClockwise==90 && active.inputMirrored &&
+            active.MatchesDeliveredSize(480,640) && SpatialHandTracking.UvcMountRotationDegrees==90,
+            "The legacy file must be ignored and the mount must come from the bundle");
+        Check(SpatialUvcCalibrationStore.Load(null, out source) == null && source == "none",
+            "The legacy file must not be loaded without a preview asset");
         SpatialHandTracking.UvcMountRotationDegrees=0; SpatialHandTracking.UvcMirrorOutputX=false;
         int changed=0; Action handler=()=>changed++; SpatialUvcCalibrationStore.Changed+=handler;
         SpatialUvcCalibrationStore.SaveSelected(json);
@@ -25,10 +29,7 @@ public static class CalibrationStoreCheck
         Check(rejected && changed==1 && SpatialUvcCalibrationStore.HasSelected, "Invalid selection replaced valid file");
         SpatialUvcCalibrationStore.SaveSelected(json); Check(changed==2, "Replacing selection failed");
         SpatialUvcCalibrationStore.ClearSelected(); SpatialUvcCalibrationStore.Load(packaged, out source);
-        Check(source == "default file" && changed==3, "Clear did not restore default");
-        File.WriteAllText(SpatialUvcCalibrationStore.DefaultPath, "{}"); rejected=false;
-        try { SpatialUvcCalibrationStore.Load(packaged, out source); } catch (ArgumentException) { rejected=true; }
-        Check(rejected, "Invalid default silently fell back to packaged");
+        Check(source == "packaged" && changed==3, "Clear did not restore the preview asset");
         File.Delete(SpatialUvcCalibrationStore.DefaultPath);
         SpatialUvcCalibrationStore.Load(packaged, out source); Check(source == "packaged", "Packaged fallback after clearing");
         SpatialUvcCalibrationStore.Changed-=handler;

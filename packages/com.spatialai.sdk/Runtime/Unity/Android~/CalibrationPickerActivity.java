@@ -1,17 +1,45 @@
 package com.spatialai.calibration;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 
 public final class CalibrationPickerActivity extends Activity {
     private static final int REQUEST = 7115, MAX = 1024 * 1024;
+    private static final Uri SHARED_DEFAULT_URI =
+            Uri.parse("content://com.spatialai.diagnostics.webview.calibration/default.json");
     private static String receiver;
+
+    public static String readSharedDefault(Context context) throws IOException {
+        try {
+            return readCalibration(context, SHARED_DEFAULT_URI);
+        } catch (FileNotFoundException unavailable) {
+            return null;
+        }
+    }
+
+    private static String readCalibration(Context context, Uri uri) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (InputStream input = context.getContentResolver().openInputStream(uri)) {
+            if (input == null) throw new IOException("Cannot open calibration JSON");
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                if (out.size() + count > MAX) throw new IOException("Calibration JSON exceeds 1 MiB");
+                out.write(buffer, 0, count);
+            }
+        }
+        if (out.size() == 0) throw new IOException("Calibration JSON is empty");
+        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+    }
     public static void open(final Activity parent, final String objectName) {
         parent.runOnUiThread(() -> {
             receiver = objectName;
@@ -37,17 +65,7 @@ public final class CalibrationPickerActivity extends Activity {
         if (request != REQUEST) return;
         if (result != RESULT_OK || data == null || data.getData() == null) { send("cancel"); finish(); return; }
         try {
-            Uri uri = data.getData();
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            try (InputStream input = getContentResolver().openInputStream(uri)) {
-                if (input == null) throw new Exception("Cannot open selected file");
-                byte[] buffer = new byte[8192]; int n, total = 0;
-                while ((n = input.read(buffer)) != -1) {
-                    total += n; if (total > MAX) throw new Exception("File exceeds 1 MiB");
-                    out.write(buffer, 0, n);
-                }
-            }
-            send("ok:" + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP));
+            send("ok:" + readCalibration(this, data.getData()));
         } catch (Exception e) { send("error:" + e.getMessage()); }
         finish();
     }

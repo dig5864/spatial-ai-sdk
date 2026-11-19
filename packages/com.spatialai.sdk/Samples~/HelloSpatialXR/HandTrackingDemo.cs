@@ -39,6 +39,7 @@ namespace SpatialAI.Samples
         private SpatialHandFrame latestFrame;
         private SpatialRgbCalibration calibration;
         private SpatialUvcHandProcessor uvcProcessor;
+        private SpatialHandCameraSource configuredCameraSource;
         private float renderWindowStart,renderFps;
         private int renderFrames;
         private bool swapUvcHandedness;
@@ -113,21 +114,8 @@ namespace SpatialAI.Samples
             if (xrCamera == null) { enabled = false; return; }
             Debug.Log("SpatialAI hand demo init: calibration");
             calibration = SpatialRgbCalibration.LoadRhinoXReference();
-            UvcHandCalibration uvcCalibration = new UvcHandCalibration
-                { swapHandedness = defaultUvcSwapHandedness };
-            if (uvcCalibrationJson != null || System.IO.File.Exists(SpatialUvcCalibrationStore.DefaultPath) || SpatialUvcCalibrationStore.HasSelected)
-            {
-                try { string source; uvcCalibration = SpatialUvcCalibrationStore.Load(uvcCalibrationJson, out source); }
-                catch (System.Exception error)
-                {
-                    Debug.LogError("SpatialHands3D: invalid calibration JSON: " + error.Message);
-                    enabled = false;
-                    return;
-                }
-            }
-            uvcProcessor = new SpatialUvcHandProcessor(uvcCalibration);
+            ReloadUvcCalibration();
             renderWindowStart=Time.unscaledTime;
-            swapUvcHandedness = uvcCalibration != null && uvcCalibration.swapHandedness;
             Debug.Log("SpatialAI hand demo init: tracker");
             tracking = GetComponent<SpatialHandTracking>();
             xrBridge = GetComponent<SpatialCardboardBridge>();
@@ -233,30 +221,40 @@ namespace SpatialAI.Samples
 
         private void ReloadUvcCalibration()
         {
+            configuredCameraSource = SpatialHandTracking.CameraSource;
+            OnInvalidated("calibration reloaded");
+            uvcProcessor = null;
+            swapUvcHandedness = false;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if (!SpatialHandTracking.UsesExternalUvcCamera) return;
+#endif
             try
             {
-                string source;
-                var candidate = SpatialUvcCalibrationStore.Load(uvcCalibrationJson, out source) ??
+                var candidate = SpatialUvcCalibrationStore.Load(uvcCalibrationJson, out var source) ??
                     new UvcHandCalibration { swapHandedness = defaultUvcSwapHandedness };
-                OnInvalidated("calibration reloaded");
                 uvcProcessor = new SpatialUvcHandProcessor(candidate);
                 swapUvcHandedness = candidate.swapHandedness;
                 Debug.Log("SpatialHands3D calibration source=" + source);
             }
             catch (System.Exception error)
             {
-                OnInvalidated("calibration reload failed");
-                Debug.LogError("SpatialHands3D calibration reload failed: " + error.Message);
-                enabled = false;
+                geometryStatus = "UVC calibration unavailable: " + error.Message;
+                Debug.LogError("SpatialHands3D: " + geometryStatus);
             }
         }
 
         private void OnHandFrame(SpatialHandFrame frame)
         {
+            if (configuredCameraSource != SpatialHandTracking.CameraSource)
+            {
+                ReloadUvcCalibration();
+                return;
+            }
             receivedHostNs=frame!=null&&frame.receivedHostStopwatchNs>0?frame.receivedHostStopwatchNs:SpatialUvcHandProcessor.HostNowNs();
             identityEvents="";
             if(frame!=null&&frame.cameraId!=null&&frame.cameraId.StartsWith("uvc:"))
             {
+                if (uvcProcessor == null) return;
                 uvcProcessor.Publish(frame,Pose.identity,0);
                 latestFrame=uvcProcessor.Associated;identityEvents=uvcProcessor.IdentityEvents;
             }

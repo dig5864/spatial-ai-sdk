@@ -6,11 +6,12 @@ using UnityEngine;
 
 namespace SpatialAI.Unity
 {
-    /// <summary>Persistent selection, default file and packaged fallback for UVC hand calibration.</summary>
+    /// <summary>Android UVC calibration shared by hand and image tracking.</summary>
     public static class SpatialUvcCalibrationStore
     {
         public const int MaxBytes = 1024 * 1024;
         public static string DirectoryPath { get { return Path.Combine(Application.persistentDataPath, "spatial-calibration"); } }
+        /// <summary>Legacy file location retained for callers that manage older installations.</summary>
         public static string DefaultPath { get { return Path.Combine(DirectoryPath, "uvc-calibration.json"); } }
         private static string SelectionDirectory { get { return Path.Combine(DirectoryPath, "selected"); } }
         private static string SelectedPath
@@ -25,35 +26,93 @@ namespace SpatialAI.Unity
         }
         public static bool HasSelected { get { return SelectedPath != null; } }
         public static event Action Changed;
+
+        /// <summary>Loads an explicitly selected calibration or the Android diagnostics default. The asset is used for non-Android preview.</summary>
         public static UvcHandCalibration Load(TextAsset packaged, out string source)
         {
-            Directory.CreateDirectory(DirectoryPath);
             string selected = SelectedPath;
-            string path = selected ?? (File.Exists(DefaultPath) ? DefaultPath : null);
-            if (path != null)
+            if (selected != null)
             {
-                var value = ParseExternal(ReadFile(path));
-                source = path == selected ? "selected" : "default file";
-                return ForDeliveredFrames(value);
+                source = "selected";
+                return ParseActive(ReadFile(selected));
             }
+#if UNITY_ANDROID && !UNITY_EDITOR
+            source = "shared calibration";
+            return LoadSharedDefault();
+#else
             source = packaged == null ? "none" : "packaged";
-            return packaged == null ? null : ForDeliveredFrames(SpatialUvcCalibrationLoader.Load(packaged.text));
+            return packaged == null ? null : ParseActive(packaged.text);
+#endif
         }
-        private static UvcHandCalibration ForDeliveredFrames(UvcHandCalibration calibration)
+
+        /// <summary>Loads and validates the Android provider's default directly.</summary>
+        public static UvcHandCalibration LoadSharedDefault()
         {
-            // VISOR-X intrinsics describe raw UVC frames. The SDK may rotate and
-            // mirror landmark coordinates before passing them to the converter.
-            if (calibration != null && calibration.source == "VISOR-X UVC calibration bundle")
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
             {
-                calibration.imageRotationClockwise = SpatialHandTracking.UvcMountRotationDegrees;
-                calibration.inputMirrored = SpatialHandTracking.UvcMirrorOutputX;
+                string json = ReadSharedDefaultJson();
+                if (json == null) throw new IOException("The diagnostics calibration provider has no shared default.");
+                return ParseActive(json, shared: true);
             }
+            catch (Exception error) when (error is AndroidJavaException || error is IOException ||
+                                          error is ArgumentException || error is FormatException)
+            {
+                throw new InvalidOperationException("Could not load shared UVC calibration: " + error.Message, error);
+            }
+#else
+            throw new PlatformNotSupportedException("Shared UVC calibration requires an Android player.");
+#endif
+        }
+
+        /// <summary>Reads the Android diagnostics provider's original JSON, including optional display and eye alignment.</summary>
+        /// <returns>The original UTF-8 JSON as text, or null if unavailable or outside an Android player.</returns>
+        public static string ReadSharedDefaultJson()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+            using (var activity = player.GetStatic<AndroidJavaObject>("currentActivity"))
+            using (var reader = new AndroidJavaClass("com.spatialai.calibration.CalibrationPickerActivity"))
+            {
+                if (activity == null) return null;
+                string encoded = reader.CallStatic<string>("readSharedDefault", activity);
+                return encoded == null ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(encoded));
+            }
+#else
+            return null;
+#endif
+        }
+
+        private static UvcHandCalibration ParseActive(string json, bool shared = false)
+        {
+            var calibration = ParseExternal(json, out var mountRotation, out var swapHandedness);
+            if (shared && !mountRotation.HasValue)
+                throw new ArgumentException("The shared default must be a VISOR-X UVC calibration bundle.");
+            int sizeTier = shared ? SpatialHandTracking.GetUvcSizeTier(calibration.imageWidth, calibration.imageHeight) : 0;
+            if (mountRotation.HasValue)
+            {
+                // The bundle describes raw UVC pixels. Deliver oriented landmarks and
+                // let the converter undo that transform before unprojecting them.
+                calibration.imageRotationClockwise = mountRotation.Value;
+                calibration.inputMirrored = SpatialHandTracking.UvcMirrorOutputX;
+                calibration.swapHandedness = swapHandedness ?? SpatialHandTracking.UvcSwapHandednessOverride ??
+                    (SpatialDeviceProfiles.SelectHost(SpatialDeviceProfiles.ReadHostIdentity(), out var host).Success && host.uvcSwapHandedness);
+                SpatialHandTracking.UvcMountRotationDegrees = mountRotation.Value;
+            }
+            if (shared && SpatialHandTracking.UsesExternalUvcCamera)
+                SpatialHandTracking.CameraSizeTier = sizeTier;
             return calibration;
         }
+
         public static UvcHandCalibration ParseExternal(string json)
         {
+            return ParseExternal(json, out _, out _);
+        }
+
+        private static UvcHandCalibration ParseExternal(string json, out int? mountRotation, out bool? swapHandedness)
+        {
             if (json == null || Encoding.UTF8.GetByteCount(json) > MaxBytes) throw new ArgumentException("Calibration file is empty or too large.");
-            var c = SpatialUvcCalibrationLoader.Load(json);
+            var c = SpatialUvcCalibrationLoader.Load(json, out mountRotation, out swapHandedness);
             if (c == null || c.imageWidth <= 0 || c.imageHeight <= 0 || c.fx <= 0 || c.fy <= 0 ||
                 c.distortion == null || (c.distortion.Length != 5 && c.distortion.Length != 8))
                 throw new ArgumentException("Calibration must contain image dimensions, intrinsics and distortion.");
